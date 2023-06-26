@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "shimmer"
+version = "0.1.0"
+description = "A light GLoW"
+authors = ["bdvllrs <bdvllrs@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+torch = "^2.0.1"
+torchvision = "^0.15.2"
+torchaudio = "^2.0.2"
+lightning = "^2.0.3"
+numpy = "^1.24.3"
+pandas = "^2.0.2"
+matplotlib = "^3.7.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
