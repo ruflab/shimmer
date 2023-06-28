@@ -8,3 +8,7 @@ poetry install
 ```
 
 
+## Configuration
+The default configuration is located in the `config/default` folder.
+
+
