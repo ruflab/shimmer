@@ -1,9 +1,10 @@
 from typing import Any
 
+import lightning.pytorch as pl
 import torch
 
 
-class DomainModule(torch.nn.Module):
+class DomainModule(pl.LightningModule):
     def encode(self, x: Any) -> torch.Tensor:
         raise NotImplementedError
 
