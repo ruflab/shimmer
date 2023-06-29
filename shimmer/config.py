@@ -4,7 +4,7 @@ from typing import Any
 
 from omegaconf import DictConfig, ListConfig, OmegaConf
 
-from shimmer import __version__
+from shimmer.version import __version__
 
 Config = DictConfig | ListConfig
 
