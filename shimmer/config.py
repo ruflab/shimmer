@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -6,6 +7,13 @@ from omegaconf import DictConfig, ListConfig, OmegaConf
 from shimmer import __version__
 
 Config = DictConfig | ListConfig
+
+
+@dataclass
+class ShimmerInfoConfig:
+    version: str
+    debug: bool
+    cli: Any
 
 
 def load_config(
