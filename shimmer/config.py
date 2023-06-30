@@ -46,10 +46,12 @@ def load_config(
         configs.append(OmegaConf.structured(structure))
 
     for dir in load_dirs:
-        dir = config_path / dir
-        if not dir.exists():
-            raise FileNotFoundError(f"Config directory {dir} does not exist.")
-        for config in dir.iterdir():
+        path_dir = config_path / dir
+        if not path_dir.exists():
+            raise FileNotFoundError(
+                f"Config directory {path_dir} does not exist."
+            )
+        for config in path_dir.iterdir():
             if config.is_file() and config.suffix == ".yaml":
                 configs.append(OmegaConf.load(config.resolve()))
 
