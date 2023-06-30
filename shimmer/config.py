@@ -23,15 +23,15 @@ def load_config(
     use_cli: bool = True,
     debug_mode: bool = False,
 ) -> Config:
-    path = Path(path)
-    if not path.is_dir():
-        raise FileNotFoundError(f"Config path {path} does not exist.")
+    config_path = Path(path)
+    if not config_path.is_dir():
+        raise FileNotFoundError(f"Config path {config_path} does not exist.")
 
-    if not (path / "local").is_dir():
-        (path / "local").mkdir(exist_ok=True)
+    if not (config_path / "local").is_dir():
+        (config_path / "local").mkdir(exist_ok=True)
 
-    if not (path / "debug").is_dir():
-        (path / "debug").mkdir(exist_ok=True)
+    if not (config_path / "debug").is_dir():
+        (config_path / "debug").mkdir(exist_ok=True)
 
     if load_dirs is not None:
         load_dirs = ["default"] + load_dirs + ["local"]
@@ -46,7 +46,7 @@ def load_config(
         configs.append(OmegaConf.structured(structure))
 
     for dir in load_dirs:
-        dir = path / dir
+        dir = config_path / dir
         if not dir.exists():
             raise FileNotFoundError(f"Config directory {dir} does not exist.")
         for config in dir.iterdir():
