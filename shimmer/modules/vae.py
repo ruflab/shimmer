@@ -1,4 +1,5 @@
 import math
+from collections.abc import Sequence
 from enum import StrEnum
 
 import torch
@@ -56,15 +57,15 @@ class VAE(nn.Module):
         self.encoder = encoder
         self.decoder = decoder
 
-    def encode(self, x: torch.Tensor):
+    def encode(self, x: Sequence[torch.Tensor]) -> torch.Tensor:
         mean_z, _ = self.encoder(x)
         return mean_z
 
-    def decode(self, z):
+    def decode(self, z: torch.Tensor) -> Sequence[torch.Tensor]:
         return self.decoder(z)
 
     def forward(
-        self, x: torch.Tensor
+        self, x: Sequence[torch.Tensor]
     ) -> tuple[tuple[torch.Tensor, torch.Tensor], torch.Tensor]:
         mean, logvar = self.encoder(x)
         z = reparameterize(mean, logvar)
