@@ -1,14 +1,8 @@
 import math
 from collections.abc import Sequence
-from enum import StrEnum
 
 import torch
 from torch import nn
-
-
-class VAEType(StrEnum):
-    sigma = "sigma"
-    beta = "beta"
 
 
 def reparameterize(mean, logvar):
@@ -38,21 +32,12 @@ class VAE(nn.Module):
         encoder: nn.Module,
         decoder: nn.Module,
         beta: float = 1,
-        vae_type: VAEType = VAEType.beta,
     ):
         super().__init__()
 
         assert beta >= 0
 
         self.beta = beta
-        self.vae_type = vae_type
-
-        if self.vae_type == VAEType.sigma:
-            self.log_sigma = nn.Parameter(
-                torch.tensor(0.0), requires_grad=True
-            )
-        else:
-            self.register_buffer("log_sigma", torch.tensor(0.0))
 
         self.encoder = encoder
         self.decoder = decoder
@@ -77,7 +62,7 @@ class VAE(nn.Module):
     def reconstruction_loss(
         self, x_reconstructed: torch.Tensor, x: torch.Tensor
     ) -> torch.Tensor:
-        return gaussian_nll(x_reconstructed, self.log_sigma, x).sum()
+        return gaussian_nll(x_reconstructed, torch.tensor(0), x).sum()
 
     def get_losses(
         self, x: torch.Tensor
