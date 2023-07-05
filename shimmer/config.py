@@ -73,6 +73,4 @@ def load_config(
         )
     )
 
-    config = OmegaConf.merge(*configs)
-
-    return config
+    return OmegaConf.merge(*configs)
