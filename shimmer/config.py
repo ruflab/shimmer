@@ -1,12 +1,14 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeVar, cast
 
 from omegaconf import DictConfig, ListConfig, OmegaConf
 
 from shimmer.version import __version__
 
 Config = DictConfig | ListConfig
+
+T = TypeVar("T")
 
 
 @dataclass
@@ -18,8 +20,8 @@ class ShimmerInfoConfig:
 
 def load_config(
     path: str | Path,
-    load_dirs: list[str] | None = None,
     structure: Any = None,
+    load_dirs: list[str] | None = None,
     use_cli: bool = True,
     debug_mode: bool = False,
 ) -> Config:
@@ -74,3 +76,14 @@ def load_config(
     )
 
     return OmegaConf.merge(*configs)
+
+
+def load_structured_config(
+    path: str | Path,
+    structure: type[T],
+    load_dirs: list[str] | None = None,
+    use_cli: bool = True,
+    debug_mode: bool = False,
+) -> T:
+    config = load_config(path, structure, load_dirs, use_cli, debug_mode)
+    return cast(T, config)
