@@ -42,15 +42,15 @@ class VAE(nn.Module):
         self.encoder = encoder
         self.decoder = decoder
 
-    def encode(self, x: Sequence[torch.Tensor]) -> torch.Tensor:
+    def encode(self, x: torch.Tensor | Sequence[torch.Tensor]) -> torch.Tensor:
         mean_z, _ = self.encoder(x)
         return mean_z
 
-    def decode(self, z: torch.Tensor) -> Sequence[torch.Tensor]:
+    def decode(self, z: torch.Tensor) -> Sequence[torch.Tensor] | torch.Tensor:
         return self.decoder(z)
 
     def forward(
-        self, x: Sequence[torch.Tensor]
+        self, x: torch.Tensor | Sequence[torch.Tensor]
     ) -> tuple[tuple[torch.Tensor, torch.Tensor], torch.Tensor]:
         mean, logvar = self.encoder(x)
         z = reparameterize(mean, logvar)
@@ -153,12 +153,10 @@ class RAEEncoder(nn.Module):
         self.q_logvar = nn.Linear(self.out_dim, self.z_dim)
 
     def forward(self, x):
-        out = self.layers(x).view(x.dim(0), -1)
+        out = self.layers(x).view(x.size(0), -1)
         out = out.view(out.size(0), -1)
 
-        mean_z = self.q_mean(out)
-        var_z = self.q_logvar(out)
-        return mean_z, var_z
+        return self.q_mean(out), self.q_logvar(out)
 
 
 class RAEDecoder(nn.Module):
