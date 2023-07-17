@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import Any
 
 import lightning.pytorch as pl
@@ -10,3 +11,10 @@ class DomainModule(pl.LightningModule):
 
     def decode(self, z: torch.Tensor) -> Any:
         raise NotImplementedError
+
+
+@dataclass
+class DomainDescription:
+    module: DomainModule
+    input_dim: int
+    latent_dim: int
