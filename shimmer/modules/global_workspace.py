@@ -4,6 +4,35 @@ import torch
 from torch import nn
 
 
+def get_n_layers(n_layers: int, hidden_dim: int):
+    layers = []
+    for _ in range(n_layers):
+        layers.extend([nn.Linear(hidden_dim, hidden_dim), nn.ReLU()])
+    return layers
+
+
+class Encoder(nn.Sequential):
+    def __init__(
+        self,
+        in_dim: int,
+        hidden_dim: int,
+        out_dim: int,
+        n_layers: int,
+    ):
+        self.in_dim = in_dim
+        self.hidden_dim = hidden_dim
+        self.out_dim = out_dim
+
+        self.n_layers = n_layers
+
+        super(Encoder, self).__init__(
+            nn.Linear(self.in_dim, self.hidden_dim),
+            nn.ReLU(),
+            *get_n_layers(n_layers, self.hidden_dim),
+            nn.Linear(self.hidden_dim, self.out_dim),
+        )
+
+
 class GlobalWorkspace(nn.Module):
     def __init__(
         self,
@@ -49,10 +78,10 @@ class GlobalWorkspace(nn.Module):
             }
         )
 
-    def fusion_mechanism(self, x: dict[str, torch.Tensor]) -> torch.Tensor:
+    def fusion_mechanism(self, x: Mapping[str, torch.Tensor]) -> torch.Tensor:
         return torch.mean(torch.stack(list(x.values())), dim=0)
 
-    def encode(self, x: dict[str, torch.Tensor]) -> torch.Tensor:
+    def encode(self, x: Mapping[str, torch.Tensor]) -> torch.Tensor:
         return self.fusion_mechanism(
             {domain: self.encoders[domain](x[domain]) for domain in x.keys()}
         )
@@ -65,42 +94,13 @@ class GlobalWorkspace(nn.Module):
             for domain in domains or self.domains
         }
 
-    def translate(self, x: dict[str, torch.Tensor], to: str):
+    def translate(self, x: Mapping[str, torch.Tensor], to: str):
         return self.decode(self.encode(x), domains={to})[to]
 
-    def cycle(self, x: dict[str, torch.Tensor], through: str):
+    def cycle(self, x: Mapping[str, torch.Tensor], through: str):
         return {
             domain: self.translate(
                 {through: self.translate(x, through)}, domain
             )
             for domain in x.keys()
         }
-
-
-def get_n_layers(n_layers: int, hidden_dim: int):
-    layers = []
-    for _ in range(n_layers):
-        layers.extend([nn.Linear(hidden_dim, hidden_dim), nn.ReLU()])
-    return layers
-
-
-class Encoder(nn.Sequential):
-    def __init__(
-        self,
-        in_dim: int,
-        hidden_dim: int,
-        out_dim: int,
-        n_layers: int,
-    ):
-        self.in_dim = in_dim
-        self.hidden_dim = hidden_dim
-        self.out_dim = out_dim
-
-        self.n_layers = n_layers
-
-        super(Encoder, self).__init__(
-            nn.Linear(self.in_dim, self.hidden_dim),
-            nn.ReLU(),
-            *get_n_layers(n_layers, self.hidden_dim),
-            nn.Linear(self.hidden_dim, self.out_dim),
-        )
