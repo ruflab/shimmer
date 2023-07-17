@@ -16,5 +16,4 @@ class DomainModule(pl.LightningModule):
 @dataclass
 class DomainDescription:
     module: DomainModule
-    input_dim: int
     latent_dim: int
