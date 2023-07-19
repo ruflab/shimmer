@@ -43,6 +43,8 @@ class VariationalEncoder(nn.Module):
         out_dim: int,
         n_layers: int,
     ):
+        super(VariationalEncoder, self).__init__()
+
         self.in_dim = in_dim
         self.hidden_dim = hidden_dim
         self.out_dim = out_dim
