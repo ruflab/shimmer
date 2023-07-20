@@ -27,7 +27,9 @@ def gaussian_nll(mu, log_sigma, x):
 
 
 class VAEEncoder(nn.Module):
-    def forward(self, x: Sequence[torch.Tensor]) -> torch.Tensor:
+    def forward(
+        self, x: Sequence[torch.Tensor]
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         raise NotImplementedError
 
 
