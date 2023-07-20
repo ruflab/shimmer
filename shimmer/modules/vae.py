@@ -6,9 +6,9 @@ from torch import nn
 
 
 def reparameterize(mean, logvar):
-    std = logvar.mul(0.5).exp()
+    std = (0.5 * logvar).exp()
     eps = torch.randn_like(std)
-    return eps.mul(std).add(mean)
+    return std * eps + mean
 
 
 def kl_divergence_loss(
