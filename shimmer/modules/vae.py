@@ -28,12 +28,12 @@ def gaussian_nll(mu, log_sigma, x):
 
 class VAEEncoder(nn.Module):
     def forward(self, x: Sequence[torch.Tensor]) -> torch.Tensor:
-        ...
+        raise NotImplementedError
 
 
 class VAEDecoder(nn.Module):
     def forward(self, x: torch.Tensor) -> Sequence[torch.Tensor]:
-        ...
+        raise NotImplementedError
 
 
 class VAE(nn.Module):
