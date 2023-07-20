@@ -211,10 +211,22 @@ class VariationalGlobalWorkspace(nn.Module):
     def translate(self, x: Mapping[str, torch.Tensor], to: str):
         return self.decode(self.encode(x)[0], domains={to})[to]
 
+    def translate_mean(self, x: Mapping[str, torch.Tensor], to: str):
+        _, (mean, _) = self.encode(x)
+        return self.decode(self.fusion_mechanism(mean), domains={to})[to]
+
     def cycle(self, x: Mapping[str, torch.Tensor], through: str):
         return {
             domain: self.translate(
                 {through: self.translate(x, through)}, domain
+            )
+            for domain in x.keys()
+        }
+
+    def cycle_mean(self, x: Mapping[str, torch.Tensor], through: str):
+        return {
+            domain: self.translate_mean(
+                {through: self.translate_mean(x, through)}, domain
             )
             for domain in x.keys()
         }
