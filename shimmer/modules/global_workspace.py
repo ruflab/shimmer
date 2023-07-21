@@ -13,11 +13,7 @@ def get_n_layers(n_layers: int, hidden_dim: int):
     return layers
 
 
-class GWEncoder(nn.Module):
-    pass
-
-
-class DeterministicGWEncoder(GWEncoder):
+class DeterministicGWEncoder(nn.Sequential):
     def __init__(
         self,
         in_dim: int,
@@ -39,7 +35,7 @@ class DeterministicGWEncoder(GWEncoder):
         )
 
 
-class VariationalGWEncoder(GWEncoder):
+class VariationalGWEncoder(nn.Module):
     def __init__(
         self,
         in_dim: int,
@@ -71,7 +67,8 @@ class GlobalWorkspace(nn.Module):
     def __init__(
         self,
         domains: Iterable[str],
-        encoder_type: type[GWEncoder],
+        encoder_type: type[DeterministicGWEncoder]
+        | type[VariationalGWEncoder],
         latent_dim: int,
         input_dim: Mapping[str, int],
         encoder_hidden_dim: Mapping[str, int],
