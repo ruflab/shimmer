@@ -13,7 +13,11 @@ def get_n_layers(n_layers: int, hidden_dim: int):
     return layers
 
 
-class Encoder(nn.Sequential):
+class _Encoder(nn.Module):
+    pass
+
+
+class DeterministicEncoder(_Encoder):
     def __init__(
         self,
         in_dim: int,
@@ -27,7 +31,7 @@ class Encoder(nn.Sequential):
 
         self.n_layers = n_layers
 
-        super(Encoder, self).__init__(
+        super(DeterministicEncoder, self).__init__(
             nn.Linear(self.in_dim, self.hidden_dim),
             nn.ReLU(),
             *get_n_layers(n_layers, self.hidden_dim),
@@ -35,7 +39,7 @@ class Encoder(nn.Sequential):
         )
 
 
-class VariationalEncoder(nn.Module):
+class VariationalEncoder(_Encoder):
     def __init__(
         self,
         in_dim: int,
@@ -63,10 +67,11 @@ class VariationalEncoder(nn.Module):
         return self.mean_layer(z), self.logvar_layer(z)
 
 
-class GlobalWorkspace(nn.Module):
+class _GlobalWorkspace(nn.Module):
     def __init__(
         self,
         domains: set[str],
+        encoder_type: type[_Encoder],
         latent_dim: int,
         input_dim: Mapping[str, int],
         encoder_hidden_dim: Mapping[str, int],
@@ -87,7 +92,7 @@ class GlobalWorkspace(nn.Module):
 
         self.encoders = nn.ModuleDict(
             {
-                domain: Encoder(
+                domain: encoder_type(
                     self.input_dim[domain],
                     self.encoder_hidden_dim[domain],
                     self.latent_dim,
@@ -98,7 +103,7 @@ class GlobalWorkspace(nn.Module):
         )
         self.decoders = nn.ModuleDict(
             {
-                domain: Encoder(
+                domain: DeterministicEncoder(
                     self.latent_dim,
                     self.decoder_hidden_dim[domain],
                     self.input_dim[domain],
@@ -112,9 +117,7 @@ class GlobalWorkspace(nn.Module):
         return torch.mean(torch.stack(list(x.values())), dim=0)
 
     def encode(self, x: Mapping[str, torch.Tensor]) -> torch.Tensor:
-        return self.fusion_mechanism(
-            {domain: self.encoders[domain](x[domain]) for domain in x.keys()}
-        )
+        raise NotImplementedError
 
     def decode(
         self, z: torch.Tensor, domains: set[str] | None = None
@@ -136,7 +139,7 @@ class GlobalWorkspace(nn.Module):
         }
 
 
-class VariationalGlobalWorkspace(nn.Module):
+class DeterministicGlobalWorkspace(_GlobalWorkspace):
     def __init__(
         self,
         domains: set[str],
@@ -147,81 +150,70 @@ class VariationalGlobalWorkspace(nn.Module):
         decoder_hidden_dim: Mapping[str, int],
         decoder_n_layers: Mapping[str, int],
     ) -> None:
-        super().__init__()
-
-        self.domains = domains
-        self.latent_dim = latent_dim
-
-        self.input_dim = input_dim
-        self.encoder_hidden_dim = encoder_hidden_dim
-        self.encoder_n_layers = encoder_n_layers
-        self.decoder_hidden_dim = decoder_hidden_dim
-        self.decoder_n_layers = decoder_n_layers
-
-        self.encoders = nn.ModuleDict(
-            {
-                domain: VariationalEncoder(
-                    self.input_dim[domain],
-                    self.encoder_hidden_dim[domain],
-                    self.latent_dim,
-                    self.encoder_n_layers[domain],
-                )
-                for domain in domains
-            }
-        )
-        self.decoders = nn.ModuleDict(
-            {
-                domain: Encoder(
-                    self.latent_dim,
-                    self.decoder_hidden_dim[domain],
-                    self.input_dim[domain],
-                    self.decoder_n_layers[domain],
-                )
-                for domain in domains
-            }
+        super().__init__(
+            domains,
+            DeterministicEncoder,
+            latent_dim,
+            input_dim,
+            encoder_hidden_dim,
+            encoder_n_layers,
+            decoder_hidden_dim,
+            decoder_n_layers,
         )
 
-    def fusion_mechanism(self, x: Mapping[str, torch.Tensor]) -> torch.Tensor:
-        return torch.mean(torch.stack(list(x.values())), dim=0)
+    def encode(self, x: Mapping[str, torch.Tensor]) -> torch.Tensor:
+        return self.fusion_mechanism(
+            {domain: self.encoders[domain](x[domain]) for domain in x.keys()}
+        )
+
+
+class VariationalGlobalWorkspace(_GlobalWorkspace):
+    def __init__(
+        self,
+        domains: set[str],
+        latent_dim: int,
+        input_dim: Mapping[str, int],
+        encoder_hidden_dim: Mapping[str, int],
+        encoder_n_layers: Mapping[str, int],
+        decoder_hidden_dim: Mapping[str, int],
+        decoder_n_layers: Mapping[str, int],
+    ) -> None:
+        super().__init__(
+            domains,
+            VariationalEncoder,
+            latent_dim,
+            input_dim,
+            encoder_hidden_dim,
+            encoder_n_layers,
+            decoder_hidden_dim,
+            decoder_n_layers,
+        )
 
     def encode(
         self,
         x: Mapping[str, torch.Tensor],
-    ) -> tuple[
-        torch.Tensor, tuple[dict[str, torch.Tensor], dict[str, torch.Tensor]]
-    ]:
+    ) -> torch.Tensor:
         latents: dict[str, torch.Tensor] = {}
+        for domain in x.keys():
+            mean, logvar = self.encoders[domain](x[domain])
+            latents[domain] = reparameterize(mean, logvar)
+        return self.fusion_mechanism(latents)
+
+    def encoded_distribution(
+        self,
+        x: Mapping[str, torch.Tensor],
+    ) -> tuple[dict[str, torch.Tensor], dict[str, torch.Tensor]]:
         means: dict[str, torch.Tensor] = {}
         logvars: dict[str, torch.Tensor] = {}
         for domain in x.keys():
             mean, logvar = self.encoders[domain](x[domain])
-            latents[domain] = reparameterize(mean, logvar)
             means[domain] = mean
             logvars[domain] = logvar
-        return self.fusion_mechanism(latents), (means, logvars)
-
-    def decode(
-        self, z: torch.Tensor, domains: set[str] | None = None
-    ) -> dict[str, torch.Tensor]:
-        return {
-            domain: self.decoders[domain](z)
-            for domain in domains or self.domains
-        }
-
-    def translate(self, x: Mapping[str, torch.Tensor], to: str):
-        return self.decode(self.encode(x)[0], domains={to})[to]
+        return means, logvars
 
     def translate_mean(self, x: Mapping[str, torch.Tensor], to: str):
-        _, (mean, _) = self.encode(x)
+        mean, _ = self.encoded_distribution(x)
         return self.decode(self.fusion_mechanism(mean), domains={to})[to]
-
-    def cycle(self, x: Mapping[str, torch.Tensor], through: str):
-        return {
-            domain: self.translate(
-                {through: self.translate(x, through)}, domain
-            )
-            for domain in x.keys()
-        }
 
     def cycle_mean(self, x: Mapping[str, torch.Tensor], through: str):
         return {
