@@ -67,7 +67,7 @@ class VariationalEncoder(_Encoder):
         return self.mean_layer(z), self.logvar_layer(z)
 
 
-class _GlobalWorkspace(nn.Module):
+class GlobalWorkspace(nn.Module):
     def __init__(
         self,
         domains: Iterable[str],
@@ -139,7 +139,7 @@ class _GlobalWorkspace(nn.Module):
         }
 
 
-class DeterministicGlobalWorkspace(_GlobalWorkspace):
+class DeterministicGlobalWorkspace(GlobalWorkspace):
     def __init__(
         self,
         domains: Iterable[str],
@@ -167,7 +167,7 @@ class DeterministicGlobalWorkspace(_GlobalWorkspace):
         )
 
 
-class VariationalGlobalWorkspace(_GlobalWorkspace):
+class VariationalGlobalWorkspace(GlobalWorkspace):
     def __init__(
         self,
         domains: Iterable[str],
