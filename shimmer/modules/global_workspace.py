@@ -1,4 +1,4 @@
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 
 import torch
 from torch import nn
@@ -70,7 +70,7 @@ class VariationalEncoder(_Encoder):
 class _GlobalWorkspace(nn.Module):
     def __init__(
         self,
-        domains: set[str],
+        domains: Iterable[str],
         encoder_type: type[_Encoder],
         latent_dim: int,
         input_dim: Mapping[str, int],
@@ -120,7 +120,7 @@ class _GlobalWorkspace(nn.Module):
         raise NotImplementedError
 
     def decode(
-        self, z: torch.Tensor, domains: set[str] | None = None
+        self, z: torch.Tensor, domains: Iterable[str] | None = None
     ) -> dict[str, torch.Tensor]:
         return {
             domain: self.decoders[domain](z)
@@ -142,7 +142,7 @@ class _GlobalWorkspace(nn.Module):
 class DeterministicGlobalWorkspace(_GlobalWorkspace):
     def __init__(
         self,
-        domains: set[str],
+        domains: Iterable[str],
         latent_dim: int,
         input_dim: Mapping[str, int],
         encoder_hidden_dim: Mapping[str, int],
@@ -170,7 +170,7 @@ class DeterministicGlobalWorkspace(_GlobalWorkspace):
 class VariationalGlobalWorkspace(_GlobalWorkspace):
     def __init__(
         self,
-        domains: set[str],
+        domains: Iterable[str],
         latent_dim: int,
         input_dim: Mapping[str, int],
         encoder_hidden_dim: Mapping[str, int],
