@@ -727,6 +727,20 @@ files = [
 ]
 
 [[package]]
+name = "info-nce-pytorch"
+version = "0.1.4"
+description = "PyTorch implementation of the InfoNCE loss for self-supervised learning."
+optional = false
+python-versions = "*"
+files = [
+    {file = "info-nce-pytorch-0.1.4.tar.gz", hash = "sha256:e1c3019be1238dd42cb2a6f71825483869a78340585a6772b154fd134d2b48c5"},
+    {file = "info_nce_pytorch-0.1.4-py3-none-any.whl", hash = "sha256:1dd232e7503828bdee1bd7ea29d92ac4b3c6c5d15e53adbdb1830574d992ba79"},
+]
+
+[package.dependencies]
+torch = "*"
+
+[[package]]
 name = "iniconfig"
 version = "2.0.0"
 description = "brain-dead simple config-ini parsing"
@@ -2541,4 +2555,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "a09aacd22ae8b0dea765edda161db3385c27af04ec3402634e021d59967f5cf3"
+content-hash = "9802a0ce53f64d0c78346102a4dc03983c66a2de13b2113e73236b6e28a6393f"

@@ -1,7 +1,7 @@
 import torch.utils.data
 from utils import DummyData, DummyDataset, DummyDomainModule
 
-from shimmer.modules.global_workspace import GlobalWorkspace
+from shimmer.modules.global_workspace import DeterministicGlobalWorkspace
 
 
 def test_training():
@@ -15,7 +15,7 @@ def test_training():
         "t": DummyDomainModule(),
     }
 
-    global_workspace = GlobalWorkspace(
+    global_workspace = DeterministicGlobalWorkspace(
         domains={"v", "t", "a"},
         latent_dim=16,
         input_dim={"v": 128, "t": 128, "a": 128},
