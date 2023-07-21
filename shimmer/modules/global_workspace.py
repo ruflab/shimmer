@@ -13,11 +13,11 @@ def get_n_layers(n_layers: int, hidden_dim: int):
     return layers
 
 
-class _Encoder(nn.Module):
+class GWEncoder(nn.Module):
     pass
 
 
-class DeterministicEncoder(_Encoder):
+class DeterministicGWEncoder(GWEncoder):
     def __init__(
         self,
         in_dim: int,
@@ -31,7 +31,7 @@ class DeterministicEncoder(_Encoder):
 
         self.n_layers = n_layers
 
-        super(DeterministicEncoder, self).__init__(
+        super(DeterministicGWEncoder, self).__init__(
             nn.Linear(self.in_dim, self.hidden_dim),
             nn.ReLU(),
             *get_n_layers(n_layers, self.hidden_dim),
@@ -39,7 +39,7 @@ class DeterministicEncoder(_Encoder):
         )
 
 
-class VariationalEncoder(_Encoder):
+class VariationalGWEncoder(GWEncoder):
     def __init__(
         self,
         in_dim: int,
@@ -47,7 +47,7 @@ class VariationalEncoder(_Encoder):
         out_dim: int,
         n_layers: int,
     ):
-        super(VariationalEncoder, self).__init__()
+        super(VariationalGWEncoder, self).__init__()
 
         self.in_dim = in_dim
         self.hidden_dim = hidden_dim
@@ -71,7 +71,7 @@ class GlobalWorkspace(nn.Module):
     def __init__(
         self,
         domains: Iterable[str],
-        encoder_type: type[_Encoder],
+        encoder_type: type[GWEncoder],
         latent_dim: int,
         input_dim: Mapping[str, int],
         encoder_hidden_dim: Mapping[str, int],
@@ -103,7 +103,7 @@ class GlobalWorkspace(nn.Module):
         )
         self.decoders = nn.ModuleDict(
             {
-                domain: DeterministicEncoder(
+                domain: DeterministicGWEncoder(
                     self.latent_dim,
                     self.decoder_hidden_dim[domain],
                     self.input_dim[domain],
@@ -152,7 +152,7 @@ class DeterministicGlobalWorkspace(GlobalWorkspace):
     ) -> None:
         super().__init__(
             domains,
-            DeterministicEncoder,
+            DeterministicGWEncoder,
             latent_dim,
             input_dim,
             encoder_hidden_dim,
@@ -180,7 +180,7 @@ class VariationalGlobalWorkspace(GlobalWorkspace):
     ) -> None:
         super().__init__(
             domains,
-            VariationalEncoder,
+            VariationalGWEncoder,
             latent_dim,
             input_dim,
             encoder_hidden_dim,
