@@ -198,7 +198,7 @@ class GlobalWorkspaceLightningModule(LightningModule):
         for latents in latent_domains.values():
             if len(latents) < 2:
                 continue
-            cont_losses = self.global_workspace.contrastive_loss(
+            cont_losses = self.global_workspace.contrastive_losses(
                 latents, reduction="sum"
             )
             for d, loss in cont_losses.items():
