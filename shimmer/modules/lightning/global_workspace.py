@@ -202,6 +202,8 @@ class GlobalWorkspaceLightningModule(LightningModule):
                 latents, reduction="sum"
             )
             for d, loss in cont_losses.items():
+                assert len(d) == 2, f"{d} is not a domain pair."
+
                 domain_source, domain_target = d
                 loss_name = (
                     f"contrastive_{domain_source}" f"_and_{domain_target}"

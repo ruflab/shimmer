@@ -182,7 +182,7 @@ class GlobalWorkspace(nn.Module):
             z1 = self.encode({domain1: x[domain1]})
             for domain2 in x.keys():
                 key = frozenset([domain1, domain2])
-                if key in losses:
+                if domain1 == domain2 or key in losses:
                     continue
 
                 z2 = self.encode({domain2: x[domain2]})
