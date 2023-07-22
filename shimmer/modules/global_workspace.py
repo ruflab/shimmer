@@ -1,7 +1,9 @@
 from collections.abc import Iterable, Mapping
 
 import torch
+from info_nce import info_nce
 from torch import nn
+from torch.nn.functional import mse_loss
 
 from shimmer.modules.vae import reparameterize
 
@@ -123,16 +125,69 @@ class GlobalWorkspace(nn.Module):
             for domain in domains or self.domains
         }
 
-    def translate(self, x: Mapping[str, torch.Tensor], to: str):
-        return self.decode(self.encode(x), domains={to})[to]
+    def translate(
+        self, x: Mapping[str, torch.Tensor], to: str
+    ) -> torch.Tensor:
+        raise NotImplementedError
 
-    def cycle(self, x: Mapping[str, torch.Tensor], through: str):
-        return {
-            domain: self.translate(
-                {through: self.translate(x, through)}, domain
+    def cycle(
+        self, x: Mapping[str, torch.Tensor], through: str
+    ) -> dict[str, torch.Tensor]:
+        raise NotImplementedError
+
+    def demi_cycle_loss(
+        self, x: Mapping[str, torch.Tensor], **kwargs
+    ) -> torch.Tensor:
+        domain_name = next(iter(x.keys()))
+        x_recons = self.decode(self.encode(x), domains={domain_name})[
+            domain_name
+        ]
+        return mse_loss(x_recons, x[domain_name], **kwargs)
+
+    def cycle_loss(
+        self, x: Mapping[str, torch.Tensor], through: str, **kwargs
+    ) -> dict[str, torch.Tensor]:
+        losses: dict[str, torch.Tensor] = {}
+        for domain in x.keys():
+            x_pred = self.decode(self.encode(x), domains={through})[through]
+            x_recons = self.decode(
+                self.encode({through: x_pred}), domains={domain}
+            )[domain]
+
+            losses[domain] = mse_loss(
+                x_recons,
+                x[domain],
+                **kwargs,
             )
-            for domain in x.keys()
-        }
+        return losses
+
+    def translation_loss(
+        self,
+        x: Mapping[str, torch.Tensor],
+        target: torch.Tensor,
+        to: str,
+        **kwargs,
+    ) -> torch.Tensor:
+        z = self.encode(x)
+        prediction = self.decode(z, domains={to})[to]
+        return mse_loss(prediction, target, **kwargs)
+
+    def contrastive_losses(
+        self,
+        x: Mapping[str, torch.Tensor],
+        **kwargs,
+    ) -> dict[frozenset[str], torch.Tensor]:
+        losses: dict[frozenset[str], torch.Tensor] = {}
+        for domain1 in x.keys():
+            z1 = self.encode({domain1: x[domain1]})
+            for domain2 in x.keys():
+                key = frozenset([domain1, domain2])
+                if key in losses:
+                    continue
+
+                z2 = self.encode({domain2: x[domain2]})
+                losses[key] = info_nce(z1, z2, **kwargs)
+        return losses
 
 
 class DeterministicGlobalWorkspace(GlobalWorkspace):
@@ -161,6 +216,21 @@ class DeterministicGlobalWorkspace(GlobalWorkspace):
         return self.fusion_mechanism(
             {domain: self.encoders[domain](x[domain]) for domain in x.keys()}
         )
+
+    def translate(
+        self, x: Mapping[str, torch.Tensor], to: str
+    ) -> torch.Tensor:
+        return self.decode(self.encode(x), domains={to})[to]
+
+    def cycle(
+        self, x: Mapping[str, torch.Tensor], through: str
+    ) -> dict[str, torch.Tensor]:
+        return {
+            domain: self.translate(
+                {through: self.translate(x, through)}, domain
+            )
+            for domain in x.keys()
+        }
 
 
 class VariationalGlobalWorkspace(GlobalWorkspace):
@@ -207,14 +277,23 @@ class VariationalGlobalWorkspace(GlobalWorkspace):
             logvars[domain] = logvar
         return means, logvars
 
-    def translate_mean(self, x: Mapping[str, torch.Tensor], to: str):
-        mean, _ = self.encoded_distribution(x)
-        return self.decode(self.fusion_mechanism(mean), domains={to})[to]
+    def encode_mean(
+        self,
+        x: Mapping[str, torch.Tensor],
+    ) -> torch.Tensor:
+        return self.fusion_mechanism(self.encoded_distribution(x)[0])
 
-    def cycle_mean(self, x: Mapping[str, torch.Tensor], through: str):
+    def translate(
+        self, x: Mapping[str, torch.Tensor], to: str
+    ) -> torch.Tensor:
+        return self.decode(self.encode_mean(x), domains={to})[to]
+
+    def cycle(
+        self, x: Mapping[str, torch.Tensor], through: str
+    ) -> dict[str, torch.Tensor]:
         return {
-            domain: self.translate_mean(
-                {through: self.translate_mean(x, through)}, domain
+            domain: self.translate(
+                {through: self.translate(x, through)}, domain
             )
             for domain in x.keys()
         }
