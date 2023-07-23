@@ -14,6 +14,7 @@ def test_training():
     domains = {
         "v": DummyDomainModule(),
         "t": DummyDomainModule(),
+        "a": DummyDomainModule(),
     }
     domain_description = {
         "v": DomainDescription(
@@ -26,6 +27,14 @@ def test_training():
         ),
         "t": DomainDescription(
             module=domains["t"],
+            latent_dim=128,
+            encoder_hidden_dim=64,
+            encoder_n_layers=1,
+            decoder_hidden_dim=64,
+            decoder_n_layers=1,
+        ),
+        "a": DomainDescription(
+            module=domains["a"],
             latent_dim=128,
             encoder_hidden_dim=64,
             encoder_n_layers=1,
@@ -48,7 +57,7 @@ def test_training():
     assert isinstance(batch["v"], DummyData)
 
     unimodal_latents = {
-        domain: domains[domain].encode(batch[domain]) for domain in domains
+        domain: domains[domain].encode(batch[domain]) for domain in batch
     }
     assert isinstance(unimodal_latents["v"], torch.Tensor)
     assert unimodal_latents["v"].size() == (32, 128)
