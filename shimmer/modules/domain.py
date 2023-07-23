@@ -17,3 +17,7 @@ class DomainModule(pl.LightningModule):
 class DomainDescription:
     module: DomainModule
     latent_dim: int
+    encoder_hidden_dim: int
+    encoder_n_layers: int
+    decoder_hidden_dim: int
+    decoder_n_layers: int

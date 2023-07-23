@@ -21,4 +21,4 @@ jobs:
           poetry run flake8 .
       - name: Analysing the code with mypy
         run: |
-          poetry run mypy .
+          poetry run mypy --install-types --non-interactive .

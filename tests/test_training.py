@@ -1,6 +1,7 @@
 import torch.utils.data
 from utils import DummyData, DummyDataset, DummyDomainModule
 
+from shimmer.modules.domain import DomainDescription
 from shimmer.modules.global_workspace import DeterministicGlobalWorkspace
 
 
@@ -14,15 +15,29 @@ def test_training():
         "v": DummyDomainModule(),
         "t": DummyDomainModule(),
     }
+    domain_description = {
+        "v": DomainDescription(
+            module=domains["v"],
+            latent_dim=128,
+            encoder_hidden_dim=64,
+            encoder_n_layers=1,
+            decoder_hidden_dim=64,
+            decoder_n_layers=1,
+        ),
+        "t": DomainDescription(
+            module=domains["t"],
+            latent_dim=128,
+            encoder_hidden_dim=64,
+            encoder_n_layers=1,
+            decoder_hidden_dim=64,
+            decoder_n_layers=1,
+        ),
+    }
 
     global_workspace = DeterministicGlobalWorkspace(
-        domains={"v", "t", "a"},
+        domain_description,
         latent_dim=16,
-        input_dim={"v": 128, "t": 128, "a": 128},
-        encoder_hidden_dim={"v": 64, "t": 64, "a": 64},
-        encoder_n_layers={"v": 1, "t": 1, "a": 1},
-        decoder_hidden_dim={"v": 64, "t": 64, "a": 64},
-        decoder_n_layers={"v": 1, "t": 1, "a": 1},
+        loss_coefficients={},
     )
 
     train_datalader = torch.utils.data.DataLoader(train_dataset, batch_size=32)

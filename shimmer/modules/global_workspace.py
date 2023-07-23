@@ -73,19 +73,15 @@ class VariationalGWEncoder(nn.Module):
         return self.mean_layer(z), self.logvar_layer(z)
 
 
-class GlobalWorkspaceLightningModule(LightningModule):
+class GlobalWorkspace(LightningModule):
     def __init__(
         self,
         domain_descriptions: Mapping[str, DomainDescription],
         encoder_type: type[GWEncoder] | type[VariationalGWEncoder],
         latent_dim: int,
-        encoder_hidden_dim: Mapping[str, int],
-        encoder_n_layers: Mapping[str, int],
-        decoder_hidden_dim: Mapping[str, int],
-        decoder_n_layers: Mapping[str, int],
-        loss_coefficients: Mapping[str, float],
-        optim_lr: float,
-        optim_weight_decay: float,
+        loss_coefficients: Mapping[str, float] | None = None,
+        optim_lr: float = 1e-3,
+        optim_weight_decay: float = 0.0,
         scheduler_args: dict[str, Any] | None = None,
     ) -> None:
         super().__init__()
@@ -93,14 +89,18 @@ class GlobalWorkspaceLightningModule(LightningModule):
         self.domains = set(domain_descriptions.keys())
         self.latent_dim = latent_dim
 
-        self.input_dim = {
-            name: domain.latent_dim
-            for name, domain in domain_descriptions.items()
-        }
-        self.encoder_hidden_dim = encoder_hidden_dim
-        self.encoder_n_layers = encoder_n_layers
-        self.decoder_hidden_dim = decoder_hidden_dim
-        self.decoder_n_layers = decoder_n_layers
+        self.input_dim: dict[str, int] = {}
+        self.encoder_hidden_dim: dict[str, int] = {}
+        self.encoder_n_layers: dict[str, int] = {}
+        self.decoder_hidden_dim: dict[str, int] = {}
+        self.decoder_n_layers: dict[str, int] = {}
+
+        for name, domain in domain_descriptions.items():
+            self.input_dim[name] = domain.latent_dim
+            self.encoder_hidden_dim[name] = domain.encoder_hidden_dim
+            self.encoder_n_layers[name] = domain.encoder_n_layers
+            self.decoder_hidden_dim[name] = domain.decoder_hidden_dim
+            self.decoder_n_layers[name] = domain.decoder_n_layers
 
         self.encoders = nn.ModuleDict(
             {
@@ -136,7 +136,7 @@ class GlobalWorkspaceLightningModule(LightningModule):
             dict[str, DomainModule], ModuleDict(domain_modules)
         )
 
-        self.loss_coefficients = loss_coefficients
+        self.loss_coefficients = loss_coefficients or {}
         self.optim_lr = optim_lr
         self.optim_weight_decay = optim_weight_decay
         self.scheduler_args: dict[str, Any] = {
@@ -403,30 +403,20 @@ class GlobalWorkspaceLightningModule(LightningModule):
         }
 
 
-class DeterministicGlobalWorkspaceLightningModule(
-    GlobalWorkspaceLightningModule
-):
+class DeterministicGlobalWorkspace(GlobalWorkspace):
     def __init__(
         self,
         domain_descriptions: Mapping[str, DomainDescription],
         latent_dim: int,
-        encoder_hidden_dim: Mapping[str, int],
-        encoder_n_layers: Mapping[str, int],
-        decoder_hidden_dim: Mapping[str, int],
-        decoder_n_layers: Mapping[str, int],
-        loss_coefficients: Mapping[str, float],
-        optim_lr: float,
-        optim_weight_decay: float,
+        loss_coefficients: Mapping[str, float] | None = None,
+        optim_lr: float = 1e-3,
+        optim_weight_decay: float = 0.0,
         scheduler_args: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(
             domain_descriptions,
             GWEncoder,
             latent_dim,
-            encoder_hidden_dim,
-            encoder_n_layers,
-            decoder_hidden_dim,
-            decoder_n_layers,
             loss_coefficients,
             optim_lr,
             optim_weight_decay,
@@ -482,30 +472,20 @@ class DeterministicGlobalWorkspaceLightningModule(
         return losses["loss"]
 
 
-class VariationalGlobalWorkspaceLightningModule(
-    GlobalWorkspaceLightningModule
-):
+class VariationalGlobalWorkspace(GlobalWorkspace):
     def __init__(
         self,
         domain_descriptions: Mapping[str, DomainDescription],
         latent_dim: int,
-        encoder_hidden_dim: Mapping[str, int],
-        encoder_n_layers: Mapping[str, int],
-        decoder_hidden_dim: Mapping[str, int],
-        decoder_n_layers: Mapping[str, int],
-        loss_coefficients: Mapping[str, float],
-        optim_lr: float,
-        optim_weight_decay: float,
+        loss_coefficients: Mapping[str, float] | None = None,
+        optim_lr: float = 1e-3,
+        optim_weight_decay: float = 0.0,
         scheduler_args: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(
             domain_descriptions,
             VariationalGWEncoder,
             latent_dim,
-            encoder_hidden_dim,
-            encoder_n_layers,
-            decoder_hidden_dim,
-            decoder_n_layers,
             loss_coefficients,
             optim_lr,
             optim_weight_decay,
