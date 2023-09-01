@@ -1,5 +1,5 @@
 from collections.abc import Iterable, Mapping
-from typing import Any, cast
+from typing import Any, TypedDict, cast
 
 import torch
 import torch.nn as nn
@@ -73,6 +73,11 @@ class VariationalGWEncoder(nn.Module):
         return self.mean_layer(z), self.logvar_layer(z)
 
 
+class SchedulerArgs(TypedDict):
+    max_lr: float
+    total_steps: int
+
+
 class GlobalWorkspace(LightningModule):
     def __init__(
         self,
@@ -82,7 +87,7 @@ class GlobalWorkspace(LightningModule):
         loss_coefficients: Mapping[str, float] | None = None,
         optim_lr: float = 1e-3,
         optim_weight_decay: float = 0.0,
-        scheduler_args: dict[str, Any] | None = None,
+        scheduler_args: SchedulerArgs | None = None,
     ) -> None:
         super().__init__()
 
@@ -139,10 +144,7 @@ class GlobalWorkspace(LightningModule):
         self.loss_coefficients = loss_coefficients or {}
         self.optim_lr = optim_lr
         self.optim_weight_decay = optim_weight_decay
-        self.scheduler_args: dict[str, Any] = {
-            "max_lr": optim_lr,
-            "total_steps": 1,
-        }
+        self.scheduler_args = SchedulerArgs(max_lr=optim_lr, total_steps=1)
         self.scheduler_args.update(scheduler_args or {})
 
     def fusion_mechanism(self, x: Mapping[str, torch.Tensor]) -> torch.Tensor:
@@ -411,7 +413,7 @@ class DeterministicGlobalWorkspace(GlobalWorkspace):
         loss_coefficients: Mapping[str, float] | None = None,
         optim_lr: float = 1e-3,
         optim_weight_decay: float = 0.0,
-        scheduler_args: dict[str, Any] | None = None,
+        scheduler_args: SchedulerArgs | None = None,
     ) -> None:
         super().__init__(
             domain_descriptions,
@@ -480,7 +482,7 @@ class VariationalGlobalWorkspace(GlobalWorkspace):
         loss_coefficients: Mapping[str, float] | None = None,
         optim_lr: float = 1e-3,
         optim_weight_decay: float = 0.0,
-        scheduler_args: dict[str, Any] | None = None,
+        scheduler_args: SchedulerArgs | None = None,
     ) -> None:
         super().__init__(
             domain_descriptions,
