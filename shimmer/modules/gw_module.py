@@ -93,7 +93,7 @@ class DeterministicGWModule(GWModule):
         domain_descriptions: Mapping[str, DomainDescription],
         latent_dim: int,
     ):
-        super(DeterministicGWModule, self).__init__()
+        super().__init__()
 
         self.domains = set(domain_descriptions.keys())
         self.latent_dim = latent_dim
@@ -172,7 +172,7 @@ class VariationalGWModule(GWModule):
         domain_descriptions: Mapping[str, DomainDescription],
         latent_dim: int,
     ):
-        super(VariationalGWModule, self).__init__()
+        super().__init__()
 
         self.domains = set(domain_descriptions.keys())
         self.latent_dim = latent_dim
