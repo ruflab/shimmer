@@ -106,6 +106,9 @@ class GlobalWorkspace(LightningModule):
                     ] = prediction
         return predictions
 
+    def encode_domain(self, domain: Any, name: str) -> torch.Tensor:
+        return self.domain_mods[name].encode(domain)
+
     def encode_domains(
         self,
         batch: Mapping[frozenset[str], Mapping[str, Any]],
@@ -117,6 +120,9 @@ class GlobalWorkspace(LightningModule):
             }
             for domains, data in batch.items()
         }
+
+    def decode_domain(self, domain: torch.Tensor, name: str) -> Any:
+        return self.domain_mods[name].decode(domain)
 
     def decode_domains(
         self,
