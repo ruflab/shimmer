@@ -1,4 +1,4 @@
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from typing import Any, TypedDict, cast
 
 import torch
@@ -109,6 +109,14 @@ class GlobalWorkspace(LightningModule):
         self.scheduler_args = SchedulerArgs(max_lr=optim_lr, total_steps=1)
         if scheduler_args:
             self.scheduler_args.update(scheduler_args)
+
+    def encode(self, x: Mapping[str, torch.Tensor]) -> torch.Tensor:
+        return self.gw_mod.encode(x)
+
+    def decode(
+        self, z: torch.Tensor, domains: Iterable[str] | None = None
+    ) -> dict[str, torch.Tensor]:
+        return self.gw_mod.decode(z, domains)
 
     def batch_demi_cycles(
         self, latent_domains: LatentsT

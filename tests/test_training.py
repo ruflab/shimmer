@@ -46,7 +46,7 @@ def test_training():
     global_workspace = DeterministicGlobalWorkspace(
         domain_description,
         latent_dim=16,
-        loss_coefficients={},
+        loss_coefs={},
     )
 
     train_datalader = torch.utils.data.DataLoader(train_dataset, batch_size=32)
