@@ -80,7 +80,7 @@ class VariationalGWEncoder(nn.Module):
         return self.mean_layer(z), self.logvar_layer(z)
 
 
-class SchedulerArgs(TypedDict):
+class SchedulerArgs(TypedDict, total=False):
     max_lr: float
     total_steps: int
 
@@ -105,7 +105,7 @@ class GlobalWorkspace(LightningModule):
         self.optim_lr = optim_lr
         self.optim_weight_decay = optim_weight_decay
         self.scheduler_args = SchedulerArgs(max_lr=optim_lr, total_steps=1)
-        if scheduler_args:
+        if scheduler_args is not None:
             self.scheduler_args.update(scheduler_args)
 
     def encode(self, x: Mapping[str, torch.Tensor]) -> torch.Tensor:
