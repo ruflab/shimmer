@@ -107,7 +107,8 @@ class GlobalWorkspace(LightningModule):
         self.optim_lr = optim_lr
         self.optim_weight_decay = optim_weight_decay
         self.scheduler_args = SchedulerArgs(max_lr=optim_lr, total_steps=1)
-        self.scheduler_args.update(scheduler_args or {})
+        if scheduler_args:
+            self.scheduler_args.update(scheduler_args)
 
     def batch_demi_cycles(
         self, latent_domains: LatentsT
