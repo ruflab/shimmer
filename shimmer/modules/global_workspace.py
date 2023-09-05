@@ -96,9 +96,7 @@ class GlobalWorkspace(LightningModule):
         scheduler_args: SchedulerArgs | None = None,
     ) -> None:
         super().__init__()
-        self.save_hyperparameters(
-            ignore=["gw_mod", "loss_mod", "domain_descriptions"]
-        )
+        self.save_hyperparameters(ignore=["gw_mod", "domain_mods", "loss_mod"])
 
         self.gw_mod = gw_mod
         self.domain_mods = domain_mods
