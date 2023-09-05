@@ -4,8 +4,64 @@ import torch
 from torch import nn
 
 from shimmer.modules.domain import DomainDescription
-from shimmer.modules.global_workspace import GWEncoder, VariationalGWEncoder
 from shimmer.modules.vae import reparameterize
+
+
+def get_n_layers(n_layers: int, hidden_dim: int):
+    layers = []
+    for _ in range(n_layers):
+        layers.extend([nn.Linear(hidden_dim, hidden_dim), nn.ReLU()])
+    return layers
+
+
+class GWEncoder(nn.Sequential):
+    def __init__(
+        self,
+        in_dim: int,
+        hidden_dim: int,
+        out_dim: int,
+        n_layers: int,
+    ):
+        self.in_dim = in_dim
+        self.hidden_dim = hidden_dim
+        self.out_dim = out_dim
+
+        self.n_layers = n_layers
+
+        super(GWEncoder, self).__init__(
+            nn.Linear(self.in_dim, self.hidden_dim),
+            nn.ReLU(),
+            *get_n_layers(n_layers, self.hidden_dim),
+            nn.Linear(self.hidden_dim, self.out_dim),
+        )
+
+
+class VariationalGWEncoder(nn.Module):
+    def __init__(
+        self,
+        in_dim: int,
+        hidden_dim: int,
+        out_dim: int,
+        n_layers: int,
+    ):
+        super(VariationalGWEncoder, self).__init__()
+
+        self.in_dim = in_dim
+        self.hidden_dim = hidden_dim
+        self.out_dim = out_dim
+        self.n_layers = n_layers
+
+        self.layers = nn.Sequential(
+            nn.Linear(self.in_dim, self.hidden_dim),
+            nn.ReLU(),
+            *get_n_layers(n_layers, self.hidden_dim),
+        )
+        self.mean_layer = nn.Linear(self.hidden_dim, self.out_dim)
+        self.logvar_layer = nn.Linear(self.hidden_dim, self.out_dim)
+
+    def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        z = self.layers(x)
+        return self.mean_layer(z), self.logvar_layer(z)
 
 
 class GWModule(nn.Module):
@@ -37,6 +93,8 @@ class DeterministicGWModule(GWModule):
         domain_descriptions: Mapping[str, DomainDescription],
         latent_dim: int,
     ):
+        super(DeterministicGWModule, self).__init__()
+
         self.domains = set(domain_descriptions.keys())
         self.latent_dim = latent_dim
 
@@ -114,6 +172,8 @@ class VariationalGWModule(GWModule):
         domain_descriptions: Mapping[str, DomainDescription],
         latent_dim: int,
     ):
+        super(VariationalGWModule, self).__init__()
+
         self.domains = set(domain_descriptions.keys())
         self.latent_dim = latent_dim
 

@@ -4,13 +4,15 @@ from info_nce import info_nce, torch
 from torch.nn.functional import mse_loss
 
 from shimmer.modules.domain import DomainModule
-from shimmer.modules.global_workspace import LatentsT
 from shimmer.modules.gw_module import (
     DeterministicGWModule,
     GWModule,
     VariationalGWModule,
 )
 from shimmer.modules.vae import kl_divergence_loss
+
+LatentsDomainGroupT = Mapping[str, torch.Tensor]
+LatentsT = Mapping[frozenset[str], LatentsDomainGroupT]
 
 
 class GWLosses:

@@ -2,7 +2,6 @@ from collections.abc import Iterable, Mapping
 from typing import Any, TypedDict, cast
 
 import torch
-import torch.nn as nn
 from lightning.pytorch import LightningModule
 from torch.nn import ModuleDict
 from torch.optim.lr_scheduler import OneCycleLR
@@ -16,68 +15,9 @@ from shimmer.modules.gw_module import (
 from shimmer.modules.losses import (
     DeterministicGWLosses,
     GWLosses,
+    LatentsT,
     VariationalGWLosses,
 )
-
-LatentsDomainGroupT = Mapping[str, torch.Tensor]
-LatentsT = Mapping[frozenset[str], LatentsDomainGroupT]
-
-
-def get_n_layers(n_layers: int, hidden_dim: int):
-    layers = []
-    for _ in range(n_layers):
-        layers.extend([nn.Linear(hidden_dim, hidden_dim), nn.ReLU()])
-    return layers
-
-
-class GWEncoder(nn.Sequential):
-    def __init__(
-        self,
-        in_dim: int,
-        hidden_dim: int,
-        out_dim: int,
-        n_layers: int,
-    ):
-        self.in_dim = in_dim
-        self.hidden_dim = hidden_dim
-        self.out_dim = out_dim
-
-        self.n_layers = n_layers
-
-        super(GWEncoder, self).__init__(
-            nn.Linear(self.in_dim, self.hidden_dim),
-            nn.ReLU(),
-            *get_n_layers(n_layers, self.hidden_dim),
-            nn.Linear(self.hidden_dim, self.out_dim),
-        )
-
-
-class VariationalGWEncoder(nn.Module):
-    def __init__(
-        self,
-        in_dim: int,
-        hidden_dim: int,
-        out_dim: int,
-        n_layers: int,
-    ):
-        super(VariationalGWEncoder, self).__init__()
-
-        self.in_dim = in_dim
-        self.hidden_dim = hidden_dim
-        self.out_dim = out_dim
-        self.n_layers = n_layers
-
-        self.layers = nn.Sequential(
-            nn.Linear(self.in_dim, self.hidden_dim),
-            nn.ReLU(),
-            *get_n_layers(n_layers, self.hidden_dim),
-        )
-        self.mean_layer = nn.Linear(self.hidden_dim, self.out_dim)
-        self.logvar_layer = nn.Linear(self.hidden_dim, self.out_dim)
-
-    def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        z = self.layers(x)
-        return self.mean_layer(z), self.logvar_layer(z)
 
 
 class SchedulerArgs(TypedDict, total=False):
