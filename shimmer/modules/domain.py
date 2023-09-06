@@ -3,6 +3,7 @@ from typing import Any
 
 import lightning.pytorch as pl
 import torch
+from torch.nn.functional import mse_loss
 
 
 class DomainModule(pl.LightningModule):
@@ -11,6 +12,11 @@ class DomainModule(pl.LightningModule):
 
     def decode(self, z: torch.Tensor) -> Any:
         raise NotImplementedError
+
+    def compute_loss(
+        self, pred: torch.Tensor, target: torch.Tensor
+    ) -> dict[str, torch.Tensor]:
+        return {"loss": mse_loss(pred, target, reduction="sum")}
 
 
 @dataclass

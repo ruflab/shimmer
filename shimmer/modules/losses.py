@@ -1,7 +1,6 @@
 from collections.abc import Mapping
 
 from info_nce import info_nce, torch
-from torch.nn.functional import mse_loss
 
 from shimmer.modules.domain import DomainModule
 from shimmer.modules.gw_module import (
@@ -22,21 +21,39 @@ class GWLosses:
     ) -> dict[str, torch.Tensor]:
         raise NotImplementedError
 
+    def domain_metrics(
+        self,
+        domain_latents: Mapping[frozenset[str], Mapping[str, torch.Tensor]],
+    ) -> dict[str, torch.Tensor]:
+        raise NotImplementedError
+
 
 def _demi_cycle_loss(
-    gw_mod: GWModule, latent_domains: LatentsT
+    gw_mod: GWModule,
+    domain_mods: dict[str, DomainModule],
+    latent_domains: LatentsT,
 ) -> dict[str, torch.Tensor]:
     losses: dict[str, torch.Tensor] = {}
+    metrics: dict[str, torch.Tensor] = {}
     for domains, latents in latent_domains.items():
         if len(domains) > 1:
             continue
         domain_name = next(iter(domains))
+        domain_mod = domain_mods[domain_name]
         x_recons = gw_mod.decode(
             gw_mod.encode(latents), domains={domain_name}
         )[domain_name]
-        loss = mse_loss(x_recons, latents[domain_name], reduction="sum")
-        losses[f"demi_cycle_{domain_name}"] = loss
+        loss = domain_mod.compute_loss(x_recons, latents[domain_name])
+        losses[f"demi_cycle_{domain_name}"] = loss["loss"]
+        metrics.update(
+            {
+                f"demi_cycle_{domain_name}_{k}": v
+                for k, v in loss.items()
+                if k != "loss"
+            }
+        )
     losses["demi_cycles"] = torch.stack(list(losses.values()), dim=0).mean()
+    losses.update(metrics)
     return losses
 
 
@@ -46,34 +63,43 @@ def _cycle_loss(
     latent_domains: LatentsT,
 ) -> dict[str, torch.Tensor]:
     losses: dict[str, torch.Tensor] = {}
+    metrics: dict[str, torch.Tensor] = {}
     for domains_source, latents_source in latent_domains.items():
         if len(domains_source) > 1:
             continue
         domain_name_source = list(domains_source)[0]
         z = gw_mod.encode(latents_source)
-        for domain_name_target in domain_mods.keys():
+        for domain_name_target, mod in domain_mods.items():
             x_pred = gw_mod.decode(z, domains={domain_name_target})
             x_recons = gw_mod.decode(
                 gw_mod.encode(x_pred), domains={domain_name_source}
             )
 
-            loss_name = (
-                f"cycle_{domain_name_source}_through_{domain_name_target}"
-            )
-            losses[loss_name] = mse_loss(
+            loss_name = f"{domain_name_source}_through_{domain_name_target}"
+            loss = mod.compute_loss(
                 x_recons[domain_name_source],
                 latents_source[domain_name_source],
-                reduction="sum",
             )
-
+            metrics.update(
+                {
+                    f"cycle_{loss_name}_{k}": v
+                    for k, v in loss.items()
+                    if k != "loss"
+                }
+            )
+            losses[f"cycle_{loss_name}"] = loss["loss"]
     losses["cycles"] = torch.stack(list(losses.values()), dim=0).mean()
+    losses.update(metrics)
     return losses
 
 
 def _translation_loss(
-    gw_mod: GWModule, latent_domains: LatentsT
+    gw_mod: GWModule,
+    domain_mods: dict[str, DomainModule],
+    latent_domains: LatentsT,
 ) -> dict[str, torch.Tensor]:
     losses: dict[str, torch.Tensor] = {}
+    metrics: dict[str, torch.Tensor] = {}
     for domains, latents in latent_domains.items():
         if len(domains) < 2:
             continue
@@ -86,20 +112,26 @@ def _translation_loss(
                 if domain_name_source == domain_name_target:
                     continue
 
-                loss_name = (
-                    f"translation_{domain_name_source}"
-                    f"_to_{domain_name_target}"
-                )
+                mod = domain_mods[domain_name_target]
+
+                loss_name = f"{domain_name_source}_to_{domain_name_target}"
                 if loss_name in losses.keys():
                     raise ValueError(f"{loss_name} is already computed.")
 
                 prediction = gw_mod.decode(z, domains={domain_name_target})[
                     domain_name_target
                 ]
-                losses[loss_name] = mse_loss(
+                loss = mod.compute_loss(
                     prediction,
                     latents[domain_name_target],
-                    reduction="sum",
+                )
+                losses[f"translation_{loss_name}"] = loss["loss"]
+                metrics.update(
+                    {
+                        f"translation_{loss_name}_{k}": v
+                        for k, v in loss.items()
+                        if k != "loss"
+                    }
                 )
     losses["translations"] = torch.stack(list(losses.values()), dim=0).mean()
     return losses
@@ -145,7 +177,7 @@ class DeterministicGWLosses(GWLosses):
     def demi_cycle_loss(
         self, latent_domains: LatentsT
     ) -> dict[str, torch.Tensor]:
-        return _demi_cycle_loss(self.gw_mod, latent_domains)
+        return _demi_cycle_loss(self.gw_mod, self.domain_mods, latent_domains)
 
     def cycle_loss(self, latent_domains: LatentsT) -> dict[str, torch.Tensor]:
         return _cycle_loss(self.gw_mod, self.domain_mods, latent_domains)
@@ -153,7 +185,7 @@ class DeterministicGWLosses(GWLosses):
     def translation_loss(
         self, latent_domains: LatentsT
     ) -> dict[str, torch.Tensor]:
-        return _translation_loss(self.gw_mod, latent_domains)
+        return _translation_loss(self.gw_mod, self.domain_mods, latent_domains)
 
     def contrastive_loss(
         self, latent_domains: LatentsT
@@ -195,7 +227,7 @@ class VariationalGWLosses(GWLosses):
     def demi_cycle_loss(
         self, latent_domains: LatentsT
     ) -> dict[str, torch.Tensor]:
-        return _demi_cycle_loss(self.gw_mod, latent_domains)
+        return _demi_cycle_loss(self.gw_mod, self.domain_mods, latent_domains)
 
     def cycle_loss(self, latent_domains: LatentsT) -> dict[str, torch.Tensor]:
         return _cycle_loss(self.gw_mod, self.domain_mods, latent_domains)
@@ -203,7 +235,7 @@ class VariationalGWLosses(GWLosses):
     def translation_loss(
         self, latent_domains: LatentsT
     ) -> dict[str, torch.Tensor]:
-        return _translation_loss(self.gw_mod, latent_domains)
+        return _translation_loss(self.gw_mod, self.domain_mods, latent_domains)
 
     def contrastive_loss(
         self, latent_domains: LatentsT
