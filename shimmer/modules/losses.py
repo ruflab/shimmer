@@ -68,15 +68,20 @@ def _cycle_loss(
         if len(domains_source) > 1:
             continue
         domain_name_source = list(domains_source)[0]
+
+        domain_mod = domain_mods[domain_name_source]
         z = gw_mod.encode(latents_source)
-        for domain_name_target, mod in domain_mods.items():
+        for domain_name_target in domain_mods.keys():
+            if domain_name_target == domain_name_source:
+                continue
+
             x_pred = gw_mod.decode(z, domains={domain_name_target})
             x_recons = gw_mod.decode(
                 gw_mod.encode(x_pred), domains={domain_name_source}
             )
 
             loss_name = f"{domain_name_source}_through_{domain_name_target}"
-            loss = mod.compute_loss(
+            loss = domain_mod.compute_loss(
                 x_recons[domain_name_source],
                 latents_source[domain_name_source],
             )
