@@ -134,6 +134,7 @@ def _translation_loss(
                     }
                 )
     losses["translations"] = torch.stack(list(losses.values()), dim=0).mean()
+    losses.update(metrics)
     return losses
 
 
