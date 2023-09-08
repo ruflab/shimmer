@@ -44,7 +44,7 @@ def _demi_cycle_loss(
             gw_mod.encode(gw_mod.on_before_gw_encode_dcy(latents)),
             domains={domain_name},
         )[domain_name]
-        loss = domain_mod.compute_loss(x_recons, latents[domain_name])
+        loss = domain_mod.compute_dcy_loss(x_recons, latents[domain_name])
         losses[f"demi_cycle_{domain_name}"] = loss["loss"]
         metrics.update(
             {
