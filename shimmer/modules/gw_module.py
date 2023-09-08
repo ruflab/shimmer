@@ -68,6 +68,26 @@ class GWModule(nn.Module):
     def fusion_mechanism(self, x: Mapping[str, torch.Tensor]) -> torch.Tensor:
         raise NotImplementedError
 
+    def on_before_gw_encode_dcy(
+        self, x: Mapping[str, torch.Tensor]
+    ) -> dict[str, torch.Tensor]:
+        raise NotImplementedError
+
+    def on_before_gw_encode_cy(
+        self, x: Mapping[str, torch.Tensor]
+    ) -> dict[str, torch.Tensor]:
+        raise NotImplementedError
+
+    def on_before_gw_encode_tr(
+        self, x: Mapping[str, torch.Tensor]
+    ) -> dict[str, torch.Tensor]:
+        raise NotImplementedError
+
+    def on_before_gw_encode_cont(
+        self, x: Mapping[str, torch.Tensor]
+    ) -> dict[str, torch.Tensor]:
+        raise NotImplementedError
+
     def encode(self, x: Mapping[str, torch.Tensor]) -> torch.Tensor:
         raise NotImplementedError
 
@@ -96,6 +116,7 @@ class DeterministicGWModule(GWModule):
         super().__init__()
 
         self.domains = set(domain_descriptions.keys())
+        self.domain_descr = domain_descriptions
         self.latent_dim = latent_dim
 
         self.input_dim: dict[str, int] = {}
@@ -133,6 +154,46 @@ class DeterministicGWModule(GWModule):
                 for domain in self.domains
             }
         )
+
+    def on_before_gw_encode_dcy(
+        self, x: Mapping[str, torch.Tensor]
+    ) -> dict[str, torch.Tensor]:
+        return {
+            domain: self.domain_descr[domain].module.on_before_gw_encode_dcy(
+                x[domain]
+            )
+            for domain in x.keys()
+        }
+
+    def on_before_gw_encode_cy(
+        self, x: Mapping[str, torch.Tensor]
+    ) -> dict[str, torch.Tensor]:
+        return {
+            domain: self.domain_descr[domain].module.on_before_gw_encode_cy(
+                x[domain]
+            )
+            for domain in x.keys()
+        }
+
+    def on_before_gw_encode_tr(
+        self, x: Mapping[str, torch.Tensor]
+    ) -> dict[str, torch.Tensor]:
+        return {
+            domain: self.domain_descr[domain].module.on_before_gw_encode_tr(
+                x[domain]
+            )
+            for domain in x.keys()
+        }
+
+    def on_before_gw_encode_cont(
+        self, x: Mapping[str, torch.Tensor]
+    ) -> dict[str, torch.Tensor]:
+        return {
+            domain: self.domain_descr[domain].module.on_before_gw_encode_cont(
+                x[domain]
+            )
+            for domain in x.keys()
+        }
 
     def fusion_mechanism(self, x: Mapping[str, torch.Tensor]) -> torch.Tensor:
         return torch.mean(torch.stack(list(x.values())), dim=0)
@@ -175,6 +236,7 @@ class VariationalGWModule(GWModule):
         super().__init__()
 
         self.domains = set(domain_descriptions.keys())
+        self.domain_descr = domain_descriptions
         self.latent_dim = latent_dim
 
         self.input_dim: dict[str, int] = {}
@@ -212,6 +274,46 @@ class VariationalGWModule(GWModule):
                 for domain in self.domains
             }
         )
+
+    def on_before_gw_encode_dcy(
+        self, x: Mapping[str, torch.Tensor]
+    ) -> dict[str, torch.Tensor]:
+        return {
+            domain: self.domain_descr[domain].module.on_before_gw_encode_dcy(
+                x[domain]
+            )
+            for domain in x.keys()
+        }
+
+    def on_before_gw_encode_cy(
+        self, x: Mapping[str, torch.Tensor]
+    ) -> dict[str, torch.Tensor]:
+        return {
+            domain: self.domain_descr[domain].module.on_before_gw_encode_cy(
+                x[domain]
+            )
+            for domain in x.keys()
+        }
+
+    def on_before_gw_encode_tr(
+        self, x: Mapping[str, torch.Tensor]
+    ) -> dict[str, torch.Tensor]:
+        return {
+            domain: self.domain_descr[domain].module.on_before_gw_encode_tr(
+                x[domain]
+            )
+            for domain in x.keys()
+        }
+
+    def on_before_gw_encode_cont(
+        self, x: Mapping[str, torch.Tensor]
+    ) -> dict[str, torch.Tensor]:
+        return {
+            domain: self.domain_descr[domain].module.on_before_gw_encode_cont(
+                x[domain]
+            )
+            for domain in x.keys()
+        }
 
     def fusion_mechanism(self, x: Mapping[str, torch.Tensor]) -> torch.Tensor:
         return torch.mean(torch.stack(list(x.values())), dim=0)

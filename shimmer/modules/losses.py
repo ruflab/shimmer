@@ -41,7 +41,8 @@ def _demi_cycle_loss(
         domain_name = next(iter(domains))
         domain_mod = domain_mods[domain_name]
         x_recons = gw_mod.decode(
-            gw_mod.encode(latents), domains={domain_name}
+            gw_mod.encode(gw_mod.on_before_gw_encode_dcy(latents)),
+            domains={domain_name},
         )[domain_name]
         loss = domain_mod.compute_loss(x_recons, latents[domain_name])
         losses[f"demi_cycle_{domain_name}"] = loss["loss"]
@@ -70,7 +71,7 @@ def _cycle_loss(
         domain_name_source = list(domains_source)[0]
 
         domain_mod = domain_mods[domain_name_source]
-        z = gw_mod.encode(latents_source)
+        z = gw_mod.encode(gw_mod.on_before_gw_encode_cy(latents_source))
         for domain_name_target in domain_mods.keys():
             if domain_name_target == domain_name_source:
                 continue
@@ -81,7 +82,7 @@ def _cycle_loss(
             )
 
             loss_name = f"{domain_name_source}_through_{domain_name_target}"
-            loss = domain_mod.compute_loss(
+            loss = domain_mod.compute_cy_loss(
                 x_recons[domain_name_source],
                 latents_source[domain_name_source],
             )
@@ -110,7 +111,9 @@ def _translation_loss(
             continue
         for domain_name_source in domains:
             z = gw_mod.encode(
-                {domain_name_source: latents[domain_name_source]}
+                gw_mod.on_before_gw_encode_tr(
+                    {domain_name_source: latents[domain_name_source]}
+                )
             )
 
             for domain_name_target in domains:
@@ -126,7 +129,7 @@ def _translation_loss(
                 prediction = gw_mod.decode(z, domains={domain_name_target})[
                     domain_name_target
                 ]
-                loss = mod.compute_loss(
+                loss = mod.compute_tr_loss(
                     prediction,
                     latents[domain_name_target],
                 )
@@ -153,7 +156,9 @@ def _contrastive_loss(
         if len(latents) < 2:
             continue
         for domain1_name, domain1 in latents.items():
-            z1 = gw_mod.encode({domain1_name: domain1})
+            z1 = gw_mod.encode(
+                gw_mod.on_before_gw_encode_cont({domain1_name: domain1})
+            )
             for domain2_name, domain2 in latents.items():
                 selected_domains = {domain1_name, domain2_name}
                 if domain1_name == domain2_name or selected_domains in keys:
@@ -162,7 +167,9 @@ def _contrastive_loss(
                 keys.append(selected_domains)
 
                 loss_name = f"contrastive_{domain1_name}_and_{domain2_name}"
-                z2 = gw_mod.encode({domain2_name: domain2})
+                z2 = gw_mod.encode(
+                    gw_mod.on_before_gw_encode_cont({domain2_name: domain2})
+                )
                 losses[loss_name] = info_nce(z1, z2, reduction="sum")
 
     losses["contrastives"] = torch.stack(list(losses.values()), dim=0).mean()
