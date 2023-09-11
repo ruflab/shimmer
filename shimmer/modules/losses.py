@@ -1,6 +1,8 @@
 from collections.abc import Mapping
+from typing import Literal
 
-from info_nce import info_nce, torch
+import torch
+from torch.nn.functional import cross_entropy, normalize
 
 from shimmer.modules.domain import DomainModule
 from shimmer.modules.gw_module import (
@@ -12,6 +14,26 @@ from shimmer.modules.vae import kl_divergence_loss
 
 LatentsDomainGroupT = Mapping[str, torch.Tensor]
 LatentsT = Mapping[frozenset[str], LatentsDomainGroupT]
+
+
+def info_nce(
+    x: torch.Tensor,
+    y: torch.Tensor,
+    reduction: Literal["mean", "sum", "none"] = "mean",
+) -> torch.Tensor:
+    xn = normalize(x)
+    yn = normalize(y)
+    logits = xn @ yn.t()
+    labels = torch.arange(xn.size(0)).to(logits.device)
+    return cross_entropy(logits, labels, reduction=reduction)
+
+
+def contrastive_loss(
+    x: torch.Tensor,
+    y: torch.Tensor,
+    reduction: Literal["mean", "sum", "none"] = "mean",
+) -> torch.Tensor:
+    return 0.5 * (info_nce(x, y, reduction) + info_nce(y, x, reduction))
 
 
 class GWLosses:
@@ -170,7 +192,7 @@ def _contrastive_loss(
                 z2 = gw_mod.encode(
                     gw_mod.on_before_gw_encode_cont({domain2_name: domain2})
                 )
-                losses[loss_name] = info_nce(z1, z2, reduction="sum")
+                losses[loss_name] = contrastive_loss(z1, z2, reduction="sum")
 
     losses["contrastives"] = torch.stack(list(losses.values()), dim=0).mean()
     return losses
