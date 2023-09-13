@@ -44,8 +44,11 @@ def load_config(
         load_dirs.append("debug")
 
     configs: list[Config] = []
+    base_config: Config
     if structure is not None:
-        configs.append(OmegaConf.structured(structure))
+        base_config = OmegaConf.structured(structure)
+    else:
+        base_config = OmegaConf.create()
 
     for dir in load_dirs:
         path_dir = config_path / dir
@@ -75,7 +78,7 @@ def load_config(
         )
     )
 
-    return OmegaConf.merge(*configs)
+    return OmegaConf.merge(base_config, OmegaConf.merge(*configs))
 
 
 def load_structured_config(
