@@ -5,7 +5,7 @@ import torch
 from torch import nn
 
 
-def reparameterize(mean, logvar):
+def reparameterize(mean: torch.Tensor, logvar: torch.Tensor) -> torch.Tensor:
     std = (0.5 * logvar).exp()
     eps = torch.randn_like(std)
     return std * eps + mean
@@ -18,7 +18,9 @@ def kl_divergence_loss(
     return kl
 
 
-def gaussian_nll(mu, log_sigma, x):
+def gaussian_nll(
+    mu: torch.Tensor, log_sigma: torch.Tensor, x: torch.Tensor
+) -> torch.Tensor:
     return (
         0.5 * torch.pow((x - mu) / log_sigma.exp(), 2)
         + log_sigma
