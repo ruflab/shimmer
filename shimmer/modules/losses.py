@@ -73,6 +73,7 @@ class LearnableCoefs(LossCoefs, torch.nn.Module):
     def __init__(
         self, additional_coefs: Mapping[str, float] | None = None
     ) -> None:
+        super().__init__()
         self.additional_coefs = additional_coefs or {}
         self.cycle_coef = torch.nn.Parameter(torch.randn(1))
         self.demi_cycle_coef = torch.nn.Parameter(torch.randn(1))
