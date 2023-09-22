@@ -50,6 +50,52 @@ class GWLosses:
         raise NotImplementedError
 
 
+class LossCoefs:
+    def __getitem__(self, item: str) -> float:
+        raise NotImplementedError
+
+    def items(self):
+        raise NotImplementedError
+
+
+class ManualLossCoefs(LossCoefs):
+    def __init__(self, loss_coefs: Mapping[str, float] | None = None) -> None:
+        self.loss_coefs = loss_coefs or {}
+
+    def __getitem__(self, item: str) -> float:
+        return self.loss_coefs[item]
+
+    def items(self):
+        yield from self.loss_coefs.items()
+
+
+class LearnableCoefs(LossCoefs, torch.nn.Module):
+    def __init__(
+        self, additional_coefs: Mapping[str, float] | None = None
+    ) -> None:
+        self.additional_coefs = additional_coefs or {}
+        self.cycle_coef = torch.nn.Parameter(torch.randn(1))
+        self.demi_cycle_coef = torch.nn.Parameter(torch.randn(1))
+
+        self.keys = ["demi_cycles", "cycles", "translations"]
+        self.keys.extend(self.additional_coefs.keys())
+
+    def __getitem__(self, item: str) -> torch.Tensor:
+        if item == "demi_cycles":
+            return torch.sigmoid(self.demi_cycle_coef)
+        if item == "cycles":
+            return torch.sigmoid(self.cycle_coef)
+        if item == "translations":
+            return 1 - self["demi_cycles"] - self["cycles"]
+        return torch.tensor(self.additional_coefs[item]).to(
+            self.cycle_coef.device
+        )
+
+    def items(self):
+        for key in self.keys:
+            yield key, self[key]
+
+
 def _demi_cycle_loss(
     gw_mod: GWModule,
     domain_mods: dict[str, DomainModule],
@@ -203,11 +249,11 @@ class DeterministicGWLosses(GWLosses):
         self,
         gw_mod: DeterministicGWModule,
         domain_mods: dict[str, DomainModule],
-        loss_coefs: Mapping[str, float] | None = None,
+        loss_coefs: LossCoefs,
     ):
         self.gw_mod = gw_mod
         self.domain_mods = domain_mods
-        self.loss_coefs = loss_coefs or {}
+        self.loss_coefs = loss_coefs
 
     def demi_cycle_loss(
         self, latent_domains: LatentsT
@@ -251,11 +297,11 @@ class VariationalGWLosses(GWLosses):
         self,
         gw_mod: VariationalGWModule,
         domain_mods: dict[str, DomainModule],
-        loss_coefs: Mapping[str, float] | None = None,
+        loss_coefs: LossCoefs,
     ):
         self.gw_mod = gw_mod
         self.domain_mods = domain_mods
-        self.loss_coefs = loss_coefs or {}
+        self.loss_coefs = loss_coefs
 
     def demi_cycle_loss(
         self, latent_domains: LatentsT

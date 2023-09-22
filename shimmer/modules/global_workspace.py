@@ -16,6 +16,7 @@ from shimmer.modules.losses import (
     DeterministicGWLosses,
     GWLosses,
     LatentsT,
+    LossCoefs,
     VariationalGWLosses,
 )
 
@@ -196,7 +197,7 @@ class DeterministicGlobalWorkspace(GlobalWorkspace):
         self,
         domain_descriptions: Mapping[str, DomainDescription],
         latent_dim: int,
-        loss_coefs: Mapping[str, float] | None = None,
+        loss_coefs: LossCoefs,
         optim_lr: float = 1e-3,
         optim_weight_decay: float = 0.0,
         scheduler_args: SchedulerArgs | None = None,
@@ -227,7 +228,7 @@ class VariationalGlobalWorkspace(GlobalWorkspace):
         self,
         domain_descriptions: Mapping[str, DomainDescription],
         latent_dim: int,
-        loss_coefs: Mapping[str, float] | None = None,
+        loss_coefs: LossCoefs,
         optim_lr: float = 1e-3,
         optim_weight_decay: float = 0.0,
         scheduler_args: SchedulerArgs | None = None,
