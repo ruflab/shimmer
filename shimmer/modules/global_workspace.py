@@ -38,7 +38,13 @@ class GlobalWorkspace(LightningModule):
     ) -> None:
         super().__init__()
         self.save_hyperparameters(
-            ignore=["gw_mod", "domain_mods", "loss_mod", "domain_descriptions"]
+            ignore=[
+                "gw_mod",
+                "domain_mods",
+                "loss_mod",
+                "domain_descriptions",
+                "loss_coefs",
+            ]
         )
 
         self.gw_mod = gw_mod
