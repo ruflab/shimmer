@@ -31,6 +31,7 @@ class GlobalWorkspace(LightningModule):
         self,
         gw_mod: GWModule,
         domain_mods: dict[str, DomainModule],
+        loss_coefs: LossCoefs,
         loss_mod: GWLosses,
         optim_lr: float = 1e-3,
         optim_weight_decay: float = 0.0,
@@ -50,6 +51,7 @@ class GlobalWorkspace(LightningModule):
         self.gw_mod = gw_mod
         self.domain_mods = domain_mods
         self.loss_mod = loss_mod
+        self.loss_coefs = loss_coefs
 
         self.optim_lr = optim_lr
         self.optim_weight_decay = optim_weight_decay
@@ -222,6 +224,7 @@ class DeterministicGlobalWorkspace(GlobalWorkspace):
         super().__init__(
             gw_mod,
             domain_mods,
+            loss_coefs,
             loss_mod,
             optim_lr,
             optim_weight_decay,
@@ -253,6 +256,7 @@ class VariationalGlobalWorkspace(GlobalWorkspace):
         super().__init__(
             gw_mod,
             domain_mods,
+            loss_coefs,
             loss_mod,
             optim_lr,
             optim_weight_decay,
