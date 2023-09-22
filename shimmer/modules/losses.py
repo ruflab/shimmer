@@ -4,6 +4,7 @@ from typing import Literal
 import torch
 from torch.nn.functional import cross_entropy, normalize
 
+from shimmer.modules.dict_buffer import DictBuffer
 from shimmer.modules.domain import DomainModule
 from shimmer.modules.gw_module import (
     DeterministicGWModule,
@@ -50,8 +51,8 @@ class GWLosses:
         raise NotImplementedError
 
 
-class LossCoefs:
-    def __getitem__(self, item: str):
+class LossCoefs(torch.nn.Module):
+    def __getitem__(self, item: str) -> torch.Tensor:
         raise NotImplementedError
 
     def items(self):
@@ -60,23 +61,29 @@ class LossCoefs:
 
 class ManualLossCoefs(LossCoefs):
     def __init__(self, loss_coefs: Mapping[str, float] | None = None) -> None:
-        self.loss_coefs = loss_coefs or {}
+        coefs = loss_coefs or {}
+        self.loss_coefs = DictBuffer(
+            {name: torch.tensor(coefs[name]) for name in coefs}
+        )
 
-    def __getitem__(self, item: str) -> float:
+    def __getitem__(self, item: str) -> torch.Tensor:
         return self.loss_coefs[item]
 
     def items(self):
         yield from self.loss_coefs.items()
 
 
-class LearnableCoefs(torch.nn.Module, LossCoefs):
+class LearnableCoefs(LossCoefs):
     def __init__(
         self, additional_coefs: Mapping[str, float] | None = None
     ) -> None:
         super().__init__()
-        self.additional_coefs = additional_coefs or {}
-        self.cycle_coef = torch.nn.Parameter(torch.randn(1))
-        self.demi_cycle_coef = torch.nn.Parameter(torch.randn(1))
+        coefs = additional_coefs or {}
+        self.additional_coefs = DictBuffer(
+            {name: torch.tensor(coefs[name]) for name in coefs}
+        )
+        self.cycle_coef = torch.nn.Parameter(torch.randn(1)[0])
+        self.demi_cycle_coef = torch.nn.Parameter(torch.randn(1)[0])
 
         self.keys = ["demi_cycles", "cycles", "translations"]
         self.keys.extend(self.additional_coefs.keys())
@@ -88,9 +95,7 @@ class LearnableCoefs(torch.nn.Module, LossCoefs):
             return torch.sigmoid(self.cycle_coef)
         if item == "translations":
             return 1 - self["demi_cycles"] - self["cycles"]
-        return torch.tensor(self.additional_coefs[item]).to(
-            self.cycle_coef.device
-        )
+        return self.additional_coefs[item]
 
     def items(self):
         for key in self.keys:
