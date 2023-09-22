@@ -94,7 +94,7 @@ class LearnableCoefs(LossCoefs):
         if item == "cycles":
             return torch.sigmoid(self.cycle_coef)
         if item == "translations":
-            return 1 - self["demi_cycles"] - self["cycles"]
+            return 1 - 0.5 * (self["demi_cycles"] + self["cycles"])
         return self.additional_coefs[item]
 
     def items(self):
