@@ -51,7 +51,7 @@ class GWLosses:
 
 
 class LossCoefs:
-    def __getitem__(self, item: str) -> float:
+    def __getitem__(self, item: str):
         raise NotImplementedError
 
     def items(self):
