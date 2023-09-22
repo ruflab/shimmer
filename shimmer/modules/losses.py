@@ -69,7 +69,7 @@ class ManualLossCoefs(LossCoefs):
         yield from self.loss_coefs.items()
 
 
-class LearnableCoefs(LossCoefs, torch.nn.Module):
+class LearnableCoefs(torch.nn.Module, LossCoefs):
     def __init__(
         self, additional_coefs: Mapping[str, float] | None = None
     ) -> None:
