@@ -238,11 +238,9 @@ class DeterministicGWLosses(GWLosses):
         losses.update(self.translation_loss(domain_latents))
         losses.update(self.contrastive_loss(domain_latents))
 
-        for name, coef in self.loss_coefs.items():
-            losses[name] *= coef
-
         losses["loss"] = torch.stack(
-            [losses[name] for name in self.loss_coefs.keys()], dim=0
+            [losses[name] * coef for name, coef in self.loss_coefs.items()],
+            dim=0,
         ).mean()
 
         return losses
@@ -317,11 +315,8 @@ class VariationalGWLosses(GWLosses):
         kl_losses["kl"] *= kl_scale_coef
         losses.update(kl_losses)
 
-        for name, coef in self.loss_coefs.items():
-            losses[name] *= coef
-
         losses["loss"] = torch.stack(
-            [losses[name] for name in self.loss_coefs.keys()],
+            [losses[name] * coef for name, coef in self.loss_coefs.items()],
             dim=0,
         ).mean()
 
