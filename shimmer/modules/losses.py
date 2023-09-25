@@ -52,20 +52,13 @@ class GWLosses:
 
 
 class LossCoefs(torch.nn.Module):
-    def __init__(
-        self,
-        loss_coefs: Mapping[str, float] | None = None,
-        beta: float | None = None,
-    ) -> None:
+    def __init__(self, loss_coefs: Mapping[str, float] | None = None) -> None:
         coefs = loss_coefs or {}
         self.loss_coefs = DictBuffer(
             {name: torch.tensor(coefs[name]) for name in coefs}
         )
-        self.register_buffer("beta", torch.tensor(beta or 1.0))
 
     def __getitem__(self, item: str) -> torch.Tensor:
-        if item != "kl":
-            return self.loss_coefs[item] * self.beta
         return self.loss_coefs[item]
 
     def items(self) -> Generator[tuple[str, torch.Tensor], None, None]:
@@ -312,10 +305,12 @@ class VariationalGWLosses(GWLosses):
         gw_mod: VariationalGWModule,
         domain_mods: dict[str, DomainModule],
         loss_coefs: LossCoefs,
+        beta: float,
     ):
         self.gw_mod = gw_mod
         self.domain_mods = domain_mods
         self.loss_coefs = loss_coefs
+        self.beta = beta
 
     def demi_cycle_loss(
         self, latent_domains: LatentsT
@@ -368,12 +363,15 @@ class VariationalGWLosses(GWLosses):
         losses.update(tr_losses)
         cont_losses = self.contrastive_loss(domain_latents)
         losses.update(cont_losses)
+
+        total_loss_components = []
+        for name, coef in self.loss_coefs.items():
+            total_loss_components.append(losses[name] * coef * self.beta)
+
         kl_losses = self.kl_loss(domain_latents)
         losses.update(kl_losses)
+        total_loss_components.append(losses["kl"])
 
-        losses["loss"] = torch.stack(
-            [losses[name] * coef for name, coef in self.loss_coefs.items()],
-            dim=0,
-        ).mean()
+        losses["loss"] = torch.stack(total_loss_components, dim=0).mean()
 
         return losses

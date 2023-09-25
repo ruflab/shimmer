@@ -169,6 +169,9 @@ class GlobalWorkspace(LightningModule):
         for name, loss in losses.items():
             self.log(f"{mode}/{name}", loss, batch_size=batch_size)
 
+        for name, coef in self.loss_coefs.items():
+            self.log(f"{mode}/{name}_coef", coef, batch_size=batch_size)
+
         return losses["loss"]
 
     def validation_step(self, data: Mapping[str, Any], _) -> torch.Tensor:
@@ -238,6 +241,7 @@ class VariationalGlobalWorkspace(GlobalWorkspace):
         domain_descriptions: Mapping[str, DomainDescription],
         latent_dim: int,
         loss_coefs: LossCoefs,
+        beta: float,
         optim_lr: float = 1e-3,
         optim_weight_decay: float = 0.0,
         scheduler_args: SchedulerArgs | None = None,
@@ -251,7 +255,7 @@ class VariationalGlobalWorkspace(GlobalWorkspace):
             mod.freeze()
         domain_mods = cast(dict[str, DomainModule], ModuleDict(domain_mods))
 
-        loss_mod = VariationalGWLosses(gw_mod, domain_mods, loss_coefs)
+        loss_mod = VariationalGWLosses(gw_mod, domain_mods, loss_coefs, beta)
 
         super().__init__(
             gw_mod,
