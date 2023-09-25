@@ -73,35 +73,6 @@ class ManualLossCoefs(LossCoefs):
         yield from self.loss_coefs.items()
 
 
-class LearnableCoefs(LossCoefs):
-    def __init__(
-        self, additional_coefs: Mapping[str, float] | None = None
-    ) -> None:
-        super().__init__()
-        coefs = additional_coefs or {}
-        self.additional_coefs = DictBuffer(
-            {name: torch.tensor(coefs[name]) for name in coefs}
-        )
-        self.cycle_coef = torch.nn.Parameter(torch.randn(1)[0])
-        self.demi_cycle_coef = torch.nn.Parameter(torch.randn(1)[0])
-
-        self.keys = ["demi_cycles", "cycles", "translations"]
-        self.keys.extend(self.additional_coefs.keys())
-
-    def __getitem__(self, item: str) -> torch.Tensor:
-        if item == "demi_cycles":
-            return torch.sigmoid(self.demi_cycle_coef)
-        if item == "cycles":
-            return torch.sigmoid(self.cycle_coef)
-        if item == "translations":
-            return (1 - self["demi_cycles"]) * (1 - self["cycles"])
-        return self.additional_coefs[item]
-
-    def items(self):
-        for key in self.keys:
-            yield key, self[key]
-
-
 def _demi_cycle_loss(
     gw_mod: GWModule,
     domain_mods: dict[str, DomainModule],
