@@ -64,7 +64,7 @@ class LossCoefs(torch.nn.Module):
         return self.loss_coefs[item]
 
     def items(self) -> Generator[tuple[str, torch.Tensor], None, None]:
-        for name in self.loss_coefs:
+        for name in self.loss_coefs.keys():
             yield name, self[name]
 
 
@@ -365,14 +365,13 @@ class VariationalGWLosses(GWLosses):
         losses.update(tr_losses)
         cont_losses = self.contrastive_loss(domain_latents)
         losses.update(cont_losses)
-
-        total_loss_components = []
-        for name, coef in self.loss_coefs.items():
-            total_loss_components.append(losses[name] * coef)
-
         kl_losses = self.kl_loss(domain_latents)
         losses.update(kl_losses)
-        total_loss_components.append(self.beta * losses["kl"])
+
+        total_loss_components = [self.beta * losses["kl"]]
+        for name, coef in self.loss_coefs.items():
+            if name != "kl":
+                total_loss_components.append(losses[name] * coef)
 
         losses["loss"] = torch.stack(total_loss_components, dim=0).mean()
 
