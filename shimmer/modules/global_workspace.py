@@ -169,9 +169,6 @@ class GlobalWorkspace(LightningModule):
         for name, loss in losses.items():
             self.log(f"{mode}/{name}", loss, batch_size=batch_size)
 
-        for name, coef in self.loss_coefs.items():
-            self.log(f"{mode}/{name}_coef", coef, batch_size=batch_size)
-
         return losses["loss"]
 
     def validation_step(self, data: Mapping[str, Any], _) -> torch.Tensor:
