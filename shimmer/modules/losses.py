@@ -53,6 +53,8 @@ class GWLosses:
 
 class LossCoefs(torch.nn.Module):
     def __init__(self, loss_coefs: Mapping[str, float] | None = None) -> None:
+        super().__init__()
+
         coefs = loss_coefs or {}
         self.loss_coefs = DictBuffer(
             {name: torch.tensor(coefs[name]) for name in coefs}
