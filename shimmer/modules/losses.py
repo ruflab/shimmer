@@ -330,7 +330,7 @@ class VariationalGWLosses(GWLosses):
     def contrastive_loss(
         self, latent_domains: LatentsT
     ) -> dict[str, torch.Tensor]:
-        return _contrastive_loss(self.gw_mod, latent_domains)
+        return _var_contrastive_loss(self.gw_mod, latent_domains)
 
     def kl_loss(self, latent_domains: LatentsT) -> dict[str, torch.Tensor]:
         losses: dict[str, torch.Tensor] = {}
