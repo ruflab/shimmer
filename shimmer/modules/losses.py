@@ -1,5 +1,5 @@
 from collections.abc import Mapping
-from typing import Literal
+from typing import Generator, Literal
 
 import torch
 from torch.nn.functional import cross_entropy, normalize
@@ -51,18 +51,26 @@ class GWLosses:
         raise NotImplementedError
 
 
-class LossCoefs:
-    def __init__(self, loss_coefs: Mapping[str, float] | None = None) -> None:
+class LossCoefs(torch.nn.Module):
+    def __init__(
+        self,
+        loss_coefs: Mapping[str, float] | None = None,
+        beta: float | None = None,
+    ) -> None:
         coefs = loss_coefs or {}
         self.loss_coefs = DictBuffer(
             {name: torch.tensor(coefs[name]) for name in coefs}
         )
+        self.register_buffer("beta", torch.tensor(beta or 1.0))
 
     def __getitem__(self, item: str) -> torch.Tensor:
+        if item != "kl":
+            return self.loss_coefs[item] * self.beta
         return self.loss_coefs[item]
 
-    def items(self):
-        yield from self.loss_coefs.items()
+    def items(self) -> Generator[tuple[str, torch.Tensor], None, None]:
+        for name in self.loss_coefs:
+            yield name, self[name]
 
 
 def _demi_cycle_loss(
@@ -361,12 +369,6 @@ class VariationalGWLosses(GWLosses):
         cont_losses = self.contrastive_loss(domain_latents)
         losses.update(cont_losses)
         kl_losses = self.kl_loss(domain_latents)
-
-        kl_scale_coef = self.loss_coefs["demi_cycles"] * (len(dcy_losses) - 1)
-        kl_scale_coef += self.loss_coefs["translations"] * (len(tr_losses) - 1)
-        kl_scale_coef += self.loss_coefs["cycles"] * (len(cy_losses) - 1)
-
-        kl_losses["kl"] *= kl_scale_coef
         losses.update(kl_losses)
 
         losses["loss"] = torch.stack(
