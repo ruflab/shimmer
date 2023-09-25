@@ -366,11 +366,11 @@ class VariationalGWLosses(GWLosses):
 
         total_loss_components = []
         for name, coef in self.loss_coefs.items():
-            total_loss_components.append(losses[name] * coef * self.beta)
+            total_loss_components.append(losses[name] * coef)
 
         kl_losses = self.kl_loss(domain_latents)
         losses.update(kl_losses)
-        total_loss_components.append(losses["kl"])
+        total_loss_components.append(self.beta * losses["kl"])
 
         losses["loss"] = torch.stack(total_loss_components, dim=0).mean()
 
