@@ -22,7 +22,7 @@ class DictBuffer(nn.Module):
         return len(self._buffer_keys)
 
     def __iter__(self) -> Iterator[Any]:
-        return self.items()
+        return self.keys()
 
     def items(self):
         for key in self._buffer_keys:
