@@ -207,7 +207,7 @@ def _contrastive_loss(
                 z2 = gw_mod.encode(
                     gw_mod.on_before_gw_encode_cont({domain2_name: domain2})
                 )
-                losses[loss_name] = contrastive_loss(z1, z2, reduction="sum")
+                losses[loss_name] = contrastive_loss(z1, z2, reduction="mean")
 
     losses["contrastives"] = torch.stack(list(losses.values()), dim=0).mean()
     return losses
@@ -240,7 +240,7 @@ def _var_contrastive_loss(
                 norm = 1 + z1_std[domain1_name] + z2_std[domain2_name]
                 z1 = z1_mean[domain1_name] / norm
                 z2 = z2_mean[domain2_name] / norm
-                losses[loss_name] = contrastive_loss(z1, z2, reduction="sum")
+                losses[loss_name] = contrastive_loss(z1, z2, reduction="mean")
 
     losses["contrastives"] = torch.stack(list(losses.values()), dim=0).mean()
     return losses
