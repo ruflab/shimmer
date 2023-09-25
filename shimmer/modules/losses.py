@@ -338,8 +338,10 @@ class VariationalGWLosses(GWLosses):
                     {domain_name: latents[domain_name]}
                 )
                 loss_name = f"kl_{domain_name}"
-                losses[loss_name] = kl_divergence_loss(
-                    mean[domain_name], logvar[domain_name]
+                norm = mean[domain_name].size(0) + mean[domain_name].size(1)
+                losses[loss_name] = (
+                    kl_divergence_loss(mean[domain_name], logvar[domain_name])
+                    / norm
                 )
         losses["kl"] = torch.stack(list(losses.values()), dim=0).mean()
         return losses
