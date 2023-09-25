@@ -223,7 +223,7 @@ def _var_contrastive_loss(
         if len(latents) < 2:
             continue
         for domain1_name, domain1 in latents.items():
-            z1_mean, z1_std = gw_mod.encoded_distribution(
+            z1_mean, z1_logvar = gw_mod.encoded_distribution(
                 gw_mod.on_before_gw_encode_cont({domain1_name: domain1})
             )
             for domain2_name, domain2 in latents.items():
@@ -234,10 +234,14 @@ def _var_contrastive_loss(
                 keys.append(selected_domains)
 
                 loss_name = f"contrastive_{domain1_name}_and_{domain2_name}"
-                z2_mean, z2_std = gw_mod.encoded_distribution(
+                z2_mean, z2_logvar = gw_mod.encoded_distribution(
                     gw_mod.on_before_gw_encode_cont({domain2_name: domain2})
                 )
-                norm = 1 + z1_std[domain1_name] + z2_std[domain2_name]
+                norm = (
+                    1
+                    + torch.exp(0.5 * z1_logvar[domain1_name])
+                    + torch.exp(0.5 * z2_logvar[domain2_name])
+                )
                 z1 = z1_mean[domain1_name] / norm
                 z2 = z2_mean[domain2_name] / norm
                 losses[loss_name] = contrastive_loss(z1, z2, reduction="mean")
