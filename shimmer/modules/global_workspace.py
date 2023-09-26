@@ -238,7 +238,7 @@ class VariationalGlobalWorkspace(GlobalWorkspace):
         domain_descriptions: Mapping[str, DomainDescription],
         latent_dim: int,
         loss_coefs: LossCoefs,
-        beta: float,
+        var_contrastive_loss: bool = False,
         optim_lr: float = 1e-3,
         optim_weight_decay: float = 0.0,
         scheduler_args: SchedulerArgs | None = None,
@@ -252,7 +252,9 @@ class VariationalGlobalWorkspace(GlobalWorkspace):
             mod.freeze()
         domain_mods = cast(dict[str, DomainModule], ModuleDict(domain_mods))
 
-        loss_mod = VariationalGWLosses(gw_mod, domain_mods, loss_coefs, beta)
+        loss_mod = VariationalGWLosses(
+            gw_mod, domain_mods, loss_coefs, var_contrastive_loss
+        )
 
         super().__init__(
             gw_mod,
