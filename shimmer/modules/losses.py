@@ -34,7 +34,13 @@ def contrastive_loss(
     y: torch.Tensor,
     reduction: Literal["mean", "sum", "none"] = "mean",
 ) -> torch.Tensor:
-    return 0.5 * (info_nce(x, y, reduction) + info_nce(y, x, reduction))
+    xn = normalize(x)
+    yn = normalize(y)
+    logits = xn @ yn.t()
+    labels = torch.arange(xn.size(0)).to(logits.device)
+    ce = cross_entropy(logits, labels, reduction=reduction)
+    ce_t = cross_entropy(logits.t(), labels, reduction=reduction)
+    return 0.5 * (ce + ce_t)
 
 
 class GWLosses:
