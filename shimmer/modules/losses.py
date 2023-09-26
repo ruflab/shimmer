@@ -308,11 +308,13 @@ class VariationalGWLosses(GWLosses):
         domain_mods: dict[str, DomainModule],
         loss_coefs: LossCoefs,
         beta: float,
+        var_contrastive_loss: bool = True,
     ):
         self.gw_mod = gw_mod
         self.domain_mods = domain_mods
         self.loss_coefs = loss_coefs
         self.beta = beta
+        self.var_contrastive_loss = var_contrastive_loss
 
     def demi_cycle_loss(
         self, latent_domains: LatentsT
@@ -330,7 +332,9 @@ class VariationalGWLosses(GWLosses):
     def contrastive_loss(
         self, latent_domains: LatentsT
     ) -> dict[str, torch.Tensor]:
-        return _var_contrastive_loss(self.gw_mod, latent_domains)
+        if self.var_contrastive_loss:
+            return _var_contrastive_loss(self.gw_mod, latent_domains)
+        return _contrastive_loss(self.gw_mod, latent_domains)
 
     def kl_loss(self, latent_domains: LatentsT) -> dict[str, torch.Tensor]:
         losses: dict[str, torch.Tensor] = {}
