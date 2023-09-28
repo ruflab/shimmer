@@ -1,5 +1,5 @@
 from collections.abc import Mapping
-from typing import Generator, Literal
+from typing import Literal
 
 import torch
 from torch.nn.functional import cross_entropy, normalize
@@ -55,23 +55,6 @@ class GWLosses:
         domain_latents: Mapping[frozenset[str], Mapping[str, torch.Tensor]],
     ) -> dict[str, torch.Tensor]:
         raise NotImplementedError
-
-
-class LossCoefs(torch.nn.Module):
-    def __init__(self, loss_coefs: Mapping[str, float] | None = None) -> None:
-        super().__init__()
-
-        coefs = loss_coefs or {}
-        self.loss_coefs = DictBuffer(
-            {name: torch.tensor(coefs[name]) for name in coefs}
-        )
-
-    def __getitem__(self, item: str) -> torch.Tensor:
-        return self.loss_coefs[item]
-
-    def items(self) -> Generator[tuple[str, torch.Tensor], None, None]:
-        for name in self.loss_coefs.keys():
-            yield name, self[name]
 
 
 def _demi_cycle_loss(
@@ -264,11 +247,11 @@ class DeterministicGWLosses(GWLosses):
         self,
         gw_mod: DeterministicGWModule,
         domain_mods: dict[str, DomainModule],
-        loss_coefs: LossCoefs,
+        loss_coefs: dict[str, float],
     ):
         self.gw_mod = gw_mod
         self.domain_mods = domain_mods
-        self.loss_coefs = loss_coefs
+        self.loss_coefs = DictBuffer(loss_coefs)
 
     def demi_cycle_loss(
         self, latent_domains: LatentsT
@@ -312,12 +295,12 @@ class VariationalGWLosses(GWLosses):
         self,
         gw_mod: VariationalGWModule,
         domain_mods: dict[str, DomainModule],
-        loss_coefs: LossCoefs,
+        loss_coefs: dict[str, float],
         var_contrastive_loss: bool = True,
     ):
         self.gw_mod = gw_mod
         self.domain_mods = domain_mods
-        self.loss_coefs = loss_coefs
+        self.loss_coefs = DictBuffer(loss_coefs)
         self.var_contrastive_loss = var_contrastive_loss
 
     def demi_cycle_loss(
