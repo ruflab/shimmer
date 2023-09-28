@@ -43,7 +43,6 @@ class GlobalWorkspace(LightningModule):
                 "domain_mods",
                 "loss_mod",
                 "domain_descriptions",
-                "loss_coefs",
             ]
         )
 
