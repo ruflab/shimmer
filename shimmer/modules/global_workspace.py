@@ -25,6 +25,12 @@ class SchedulerArgs(TypedDict, total=False):
     total_steps: int
 
 
+class GWPredictions(TypedDict):
+    demi_cycles: dict[str, torch.Tensor]
+    cycles: dict[tuple[str, str], torch.Tensor]
+    translations: dict[tuple[str, str], torch.Tensor]
+
+
 class GlobalWorkspace(LightningModule):
     def __init__(
         self,
@@ -64,6 +70,16 @@ class GlobalWorkspace(LightningModule):
         self, z: torch.Tensor, domains: Iterable[str] | None = None
     ) -> dict[str, torch.Tensor]:
         return self.gw_mod.decode(z, domains)
+
+    def forward(self, latent_domains: LatentsT) -> GWPredictions:
+        outputs = GWPredictions(
+            **{
+                "demi_cycles": self.batch_demi_cycles(latent_domains),
+                "cycles": self.batch_cycles(latent_domains),
+                "translations": self.batch_translations(latent_domains),
+            }
+        )
+        return outputs
 
     def batch_demi_cycles(
         self, latent_domains: LatentsT
@@ -175,10 +191,22 @@ class GlobalWorkspace(LightningModule):
             batch[frozenset([domain])] = {domain: data[domain]}
         return self.generic_step(batch, mode="val")
 
+    def test_step(self, data: Mapping[str, Any], _) -> torch.Tensor:
+        batch = {frozenset(data.keys()): data}
+        for domain in data.keys():
+            batch[frozenset([domain])] = {domain: data[domain]}
+        return self.generic_step(batch, mode="test")
+
     def training_step(
         self, batch: Mapping[frozenset[str], Mapping[str, Any]], _
     ) -> torch.Tensor:
         return self.generic_step(batch, mode="train")
+
+    def predict_step(
+        self, batch: Mapping[frozenset[str], Mapping[str, Any]], _
+    ) -> GWPredictions:
+        domain_latents = self.encode_domains(batch)
+        return self.forward(domain_latents)
 
     def configure_optimizers(self) -> dict[str, Any]:
         optimizer = torch.optim.AdamW(
