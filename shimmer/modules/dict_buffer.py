@@ -6,7 +6,9 @@ from torch import nn
 
 
 class DictBuffer(nn.Module):
-    def __init__(self, buffer_dict: dict[str, Any], persistent: bool = True):
+    def __init__(
+        self, buffer_dict: dict[str, torch.Tensor], persistent: bool = True
+    ):
         super().__init__()
 
         self._buffer_keys = set()

@@ -247,7 +247,7 @@ class DeterministicGWLosses(GWLosses):
         self,
         gw_mod: DeterministicGWModule,
         domain_mods: dict[str, DomainModule],
-        loss_coefs: dict[str, float],
+        loss_coefs: dict[str, torch.Tensor],
     ):
         self.gw_mod = gw_mod
         self.domain_mods = domain_mods
@@ -295,7 +295,7 @@ class VariationalGWLosses(GWLosses):
         self,
         gw_mod: VariationalGWModule,
         domain_mods: dict[str, DomainModule],
-        loss_coefs: dict[str, float],
+        loss_coefs: dict[str, torch.Tensor],
         var_contrastive_loss: bool = True,
     ):
         self.gw_mod = gw_mod
