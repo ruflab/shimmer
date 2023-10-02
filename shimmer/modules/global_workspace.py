@@ -247,14 +247,14 @@ class DeterministicGlobalWorkspace(GlobalWorkspace):
             mod.freeze()
         domain_mods = cast(dict[str, DomainModule], ModuleDict(domain_mods))
 
-        coefs = DictBuffer(loss_coefs)
+        coef_buffers = DictBuffer(loss_coefs)
 
-        loss_mod = DeterministicGWLosses(gw_mod, domain_mods, coefs)
+        loss_mod = DeterministicGWLosses(gw_mod, domain_mods, coef_buffers)
 
         super().__init__(
             gw_mod,
             domain_mods,
-            coefs,
+            coef_buffers,
             loss_mod,
             optim_lr,
             optim_weight_decay,
@@ -282,16 +282,16 @@ class VariationalGlobalWorkspace(GlobalWorkspace):
             mod.freeze()
         domain_mods = cast(dict[str, DomainModule], ModuleDict(domain_mods))
 
-        coefs = DictBuffer(loss_coefs)
+        coef_buffers = DictBuffer(loss_coefs)
 
         loss_mod = VariationalGWLosses(
-            gw_mod, domain_mods, coefs, var_contrastive_loss
+            gw_mod, domain_mods, coef_buffers, var_contrastive_loss
         )
 
         super().__init__(
             gw_mod,
             domain_mods,
-            coefs,
+            coef_buffers,
             loss_mod,
             optim_lr,
             optim_weight_decay,

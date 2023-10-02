@@ -209,6 +209,7 @@ def _var_contrastive_loss(
     gw_mod: VariationalGWModule, latent_domains: LatentsT
 ) -> dict[str, torch.Tensor]:
     losses: dict[str, torch.Tensor] = {}
+    metrics: dict[str, torch.Tensor] = {}
     keys: list[set[str]] = []
 
     for latents in latent_domains.values():
@@ -237,8 +238,14 @@ def _var_contrastive_loss(
                 z1 = z1_mean[domain1_name] / norm
                 z2 = z2_mean[domain2_name] / norm
                 losses[loss_name] = contrastive_loss(z1, z2, reduction="mean")
+                metrics[loss_name + "_unormalized"] = contrastive_loss(
+                    z1_mean[domain1_name],
+                    z2_mean[domain2_name],
+                    reduction="mean",
+                )
 
     losses["contrastives"] = torch.stack(list(losses.values()), dim=0).mean()
+    losses.update(metrics)
     return losses
 
 
