@@ -1,4 +1,4 @@
-from collections.abc import Iterator
+from collections.abc import Generator, Iterator
 from typing import Any
 
 import torch
@@ -17,7 +17,7 @@ class DictBuffer(nn.Module):
             self._buffer_keys.add(key)
             self.register_buffer(f"buffer_{key}", value, persistent)
 
-    def __getitem__(self, item):
+    def __getitem__(self, item: str) -> torch.Tensor:
         return getattr(self, f"buffer_{item}")
 
     def __len__(self) -> int:
@@ -26,16 +26,16 @@ class DictBuffer(nn.Module):
     def __iter__(self) -> Iterator[Any]:
         return self.keys()
 
-    def items(self):
+    def items(self) -> Generator[tuple[str, torch.Tensor], None, None]:
         for key in self._buffer_keys:
             yield key, self[key]
 
-    def keys(self):
+    def keys(self) -> Generator[str, None, None]:
         yield from iter(self._buffer_keys)
 
-    def values(self):
+    def values(self) -> Generator[torch.Tensor, None, None]:
         for key in self._buffer_keys:
             yield self[key]
 
-    def __contains__(self, item):
+    def __contains__(self, item: str) -> bool:
         return item in self._buffer_keys

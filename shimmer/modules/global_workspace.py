@@ -6,6 +6,7 @@ from lightning.pytorch import LightningModule
 from torch.nn import ModuleDict
 from torch.optim.lr_scheduler import OneCycleLR
 
+from shimmer.modules.dict_buffer import DictBuffer
 from shimmer.modules.domain import DomainDescription, DomainModule
 from shimmer.modules.gw_module import (
     DeterministicGWModule,
@@ -36,7 +37,7 @@ class GlobalWorkspace(LightningModule):
         self,
         gw_mod: GWModule,
         domain_mods: dict[str, DomainModule],
-        loss_coefs: dict[str, torch.Tensor],
+        coef_buffers: DictBuffer,
         loss_mod: GWLosses,
         optim_lr: float = 1e-3,
         optim_weight_decay: float = 0.0,
@@ -49,13 +50,14 @@ class GlobalWorkspace(LightningModule):
                 "domain_mods",
                 "loss_mod",
                 "domain_descriptions",
+                "coef_buffers",
             ]
         )
 
         self.gw_mod = gw_mod
         self.domain_mods = domain_mods
         self.loss_mod = loss_mod
-        self.loss_coefs = loss_coefs
+        self.coef_buffers = coef_buffers
 
         self.optim_lr = optim_lr
         self.optim_weight_decay = optim_weight_decay
@@ -245,12 +247,14 @@ class DeterministicGlobalWorkspace(GlobalWorkspace):
             mod.freeze()
         domain_mods = cast(dict[str, DomainModule], ModuleDict(domain_mods))
 
-        loss_mod = DeterministicGWLosses(gw_mod, domain_mods, loss_coefs)
+        coefs = DictBuffer(loss_coefs)
+
+        loss_mod = DeterministicGWLosses(gw_mod, domain_mods, coefs)
 
         super().__init__(
             gw_mod,
             domain_mods,
-            loss_coefs,
+            coefs,
             loss_mod,
             optim_lr,
             optim_weight_decay,
@@ -278,14 +282,16 @@ class VariationalGlobalWorkspace(GlobalWorkspace):
             mod.freeze()
         domain_mods = cast(dict[str, DomainModule], ModuleDict(domain_mods))
 
+        coefs = DictBuffer(loss_coefs)
+
         loss_mod = VariationalGWLosses(
-            gw_mod, domain_mods, loss_coefs, var_contrastive_loss
+            gw_mod, domain_mods, coefs, var_contrastive_loss
         )
 
         super().__init__(
             gw_mod,
             domain_mods,
-            loss_coefs,
+            coefs,
             loss_mod,
             optim_lr,
             optim_weight_decay,
