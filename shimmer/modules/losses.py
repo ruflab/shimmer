@@ -43,7 +43,7 @@ def contrastive_loss(
     return 0.5 * (ce + ce_t)
 
 
-class GWLosses:
+class GWLosses(torch.nn.Module):
     def step(
         self,
         domain_latents: Mapping[frozenset[str], Mapping[str, torch.Tensor]],
