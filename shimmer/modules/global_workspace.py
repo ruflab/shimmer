@@ -205,8 +205,12 @@ class GlobalWorkspace(LightningModule):
         return self.generic_step(batch, mode="train")
 
     def predict_step(
-        self, batch: Mapping[frozenset[str], Mapping[str, Any]], _
+        self, data: Mapping[str, Any], _
     ) -> GWPredictions:
+        batch = {frozenset(data.keys()): data}
+        for domain in data.keys():
+            batch[frozenset([domain])] = {domain: data[domain]}
+
         domain_latents = self.encode_domains(batch)
         return self.forward(domain_latents)
 
