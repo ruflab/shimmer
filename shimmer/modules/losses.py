@@ -6,11 +6,8 @@ from torch.nn.functional import cross_entropy, normalize
 
 from shimmer.modules.dict_buffer import DictBuffer
 from shimmer.modules.domain import DomainModule
-from shimmer.modules.gw_module import (
-    DeterministicGWModule,
-    GWModule,
-    VariationalGWModule,
-)
+from shimmer.modules.gw_module import (DeterministicGWModule, GWModule,
+                                       VariationalGWModule)
 from shimmer.modules.vae import kl_divergence_loss
 
 LatentsDomainGroupT = Mapping[str, torch.Tensor]
@@ -36,7 +33,8 @@ def contrastive_loss(
 ) -> torch.Tensor:
     xn = normalize(x)
     yn = normalize(y)
-    logits = xn @ yn.t()
+    scale = 1 / 0.07
+    logits = scale * xn @ yn.t()
     labels = torch.arange(xn.size(0)).to(logits.device)
     ce = cross_entropy(logits, labels, reduction=reduction)
     ce_t = cross_entropy(logits.t(), labels, reduction=reduction)
