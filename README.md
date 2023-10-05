@@ -52,6 +52,30 @@ class MyDomain(DomainModule):
 
 ```
 
+## Use a GW
+
+### DomainDescription
 The GlobalWorkspace expects a DomainDescription dataclass.
 It contains the DomainModule, and additional information, such as the latent dim of the
 module, and how to configure the encoders and decoders.
+
+```python
+from shimmer.modules.domain import DomainDescription
+
+
+my_domain = MyDomain()
+my_domain_descr = DomainDescription(
+    module=my_domain,
+    latent_dim=12,  # latent dim of the domain module
+    encoder_hidden_dim=32,  # hidden dimension for the GW encoder
+    encoder_n_layers=3,  # n layers to use for the GW encoder
+    decoder_hidden_dim=32,  # hidden dimension for the GW decoder
+    decoder_n_layers=3,  # n layers to use for the GW decoder
+)
+```
+
+
+### GW
+There are two kinds of GW in the lib: Deterministic, and Variational.
+Deterministic is the one used in [this paper](https://arxiv.org/abs/2306.15711).
+The Variational one is under investigation.
