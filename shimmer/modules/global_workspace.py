@@ -8,17 +8,10 @@ from torch.optim.lr_scheduler import OneCycleLR
 
 from shimmer.modules.dict_buffer import DictBuffer
 from shimmer.modules.domain import DomainDescription, DomainModule
-from shimmer.modules.gw_module import (
-    DeterministicGWModule,
-    GWModule,
-    VariationalGWModule,
-)
-from shimmer.modules.losses import (
-    DeterministicGWLosses,
-    GWLosses,
-    LatentsT,
-    VariationalGWLosses,
-)
+from shimmer.modules.gw_module import (DeterministicGWModule, GWModule,
+                                       VariationalGWModule)
+from shimmer.modules.losses import (DeterministicGWLosses, GWLosses, LatentsT,
+                                    VariationalGWLosses)
 
 
 class SchedulerArgs(TypedDict, total=False):
@@ -204,9 +197,7 @@ class GlobalWorkspace(LightningModule):
     ) -> torch.Tensor:
         return self.generic_step(batch, mode="train")
 
-    def predict_step(
-        self, data: Mapping[str, Any], _
-    ) -> GWPredictions:
+    def predict_step(self, data: Mapping[str, Any], _) -> GWPredictions:  # type: ignore[override]
         batch = {frozenset(data.keys()): data}
         for domain in data.keys():
             batch[frozenset([domain])] = {domain: data[domain]}
