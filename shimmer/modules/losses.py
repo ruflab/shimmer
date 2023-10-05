@@ -21,7 +21,8 @@ def info_nce(
 ) -> torch.Tensor:
     xn = normalize(x)
     yn = normalize(y)
-    logits = xn @ yn.t()
+    scale = 1 / 0.07
+    logits = scale * xn @ yn.t()
     labels = torch.arange(xn.size(0)).to(logits.device)
     return cross_entropy(logits, labels, reduction=reduction)
 
