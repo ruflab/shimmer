@@ -3,6 +3,7 @@ from typing import Any, TypedDict, cast
 
 import torch
 from lightning.pytorch import LightningModule
+from lightning.pytorch.utilities.types import OptimizerLRSchedulerConfig
 from torch.nn import ModuleDict
 from torch.optim.lr_scheduler import OneCycleLR
 
@@ -197,7 +198,7 @@ class GlobalWorkspace(LightningModule):
     ) -> torch.Tensor:
         return self.generic_step(batch, mode="train")
 
-    def predict_step(self, data: Mapping[str, Any], _) -> GWPredictions:  # type: ignore[override]
+    def predict_step(self, data: Mapping[str, Any], _) -> GWPredictions:  # type: ignore
         batch = {frozenset(data.keys()): data}
         for domain in data.keys():
             batch[frozenset([domain])] = {domain: data[domain]}
@@ -205,7 +206,7 @@ class GlobalWorkspace(LightningModule):
         domain_latents = self.encode_domains(batch)
         return self.forward(domain_latents)
 
-    def configure_optimizers(self) -> dict[str, Any]:
+    def configure_optimizers(self) -> OptimizerLRSchedulerConfig:
         optimizer = torch.optim.AdamW(
             self.parameters(),
             lr=self.optim_lr,
