@@ -28,7 +28,7 @@ class DomainModule(pl.LightningModule):
     def compute_loss(
         self, pred: torch.Tensor, target: torch.Tensor
     ) -> dict[str, torch.Tensor]:
-        return {"loss": mse_loss(pred, target, reduction="sum")}
+        return {"loss": mse_loss(pred, target)}
 
     def compute_dcy_loss(
         self, pred: torch.Tensor, target: torch.Tensor
