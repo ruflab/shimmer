@@ -34,8 +34,8 @@ def contrastive_loss(
 ) -> torch.Tensor:
     xn = normalize(x)
     yn = normalize(y)
-    scale = 1 / 0.07
-    logits = scale * xn @ yn.t()
+    # scale = 1 / 0.07
+    logits = xn @ yn.t()
     labels = torch.arange(xn.size(0)).to(logits.device)
     ce = cross_entropy(logits, labels, reduction=reduction)
     ce_t = cross_entropy(logits.t(), labels, reduction=reduction)
