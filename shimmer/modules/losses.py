@@ -42,7 +42,7 @@ def contrastive_loss(
     return 0.5 * (ce + ce_t)
 
 
-class GWLosses:
+class GWLosses(torch.nn.Module):
     def step(
         self,
         domain_latents: Mapping[frozenset[str], Mapping[str, torch.Tensor]],
@@ -262,6 +262,7 @@ class DeterministicGWLosses(GWLosses):
         domain_mods: dict[str, DomainModule],
         coef_buffers: DictBuffer,
     ):
+        super().__init__()
         self.gw_mod = gw_mod
         self.domain_mods = domain_mods
         self.loss_coefs = coef_buffers
@@ -316,6 +317,8 @@ class VariationalGWLosses(GWLosses):
         coef_buffers: DictBuffer,
         var_contrastive_loss: bool = True,
     ):
+        super().__init__()
+
         self.gw_mod = gw_mod
         self.domain_mods = domain_mods
         self.loss_coefs = coef_buffers
