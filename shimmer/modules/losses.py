@@ -22,7 +22,7 @@ def info_nce(
 ) -> torch.Tensor:
     xn = normalize(x)
     yn = normalize(y)
-    logits = logit_scale * xn @ yn.t()
+    logits = logit_scale.exp() * xn @ yn.t()
     labels = torch.arange(xn.size(0)).to(logits.device)
     return cross_entropy(logits, labels, reduction=reduction)
 
@@ -35,7 +35,7 @@ def contrastive_loss(
 ) -> torch.Tensor:
     xn = normalize(x)
     yn = normalize(y)
-    logits = logit_scale * xn @ yn.t()
+    logits = logit_scale.exp() * xn @ yn.t()
     labels = torch.arange(xn.size(0)).to(logits.device)
     ce = cross_entropy(logits, labels, reduction=reduction)
     ce_t = cross_entropy(logits.t(), labels, reduction=reduction)
@@ -306,6 +306,8 @@ class DeterministicGWLosses(GWLosses):
             dim=0,
         ).mean()
 
+        losses["logit_scale"] = self.logit_scale.exp()
+
         return losses
 
 
@@ -391,5 +393,7 @@ class VariationalGWLosses(GWLosses):
             ],
             dim=0,
         ).mean()
+
+        losses["logit_scale"] = self.logit_scale.exp()
 
         return losses
