@@ -22,7 +22,7 @@ def info_nce(
 ) -> torch.Tensor:
     xn = normalize(x)
     yn = normalize(y)
-    logits = logit_scale.exp() * xn @ yn.t()
+    logits = torch.clamp(logit_scale.exp(), max=100) * xn @ yn.t()
     labels = torch.arange(xn.size(0)).to(logits.device)
     return cross_entropy(logits, labels, reduction=reduction)
 
@@ -35,7 +35,7 @@ def contrastive_loss(
 ) -> torch.Tensor:
     xn = normalize(x)
     yn = normalize(y)
-    logits = logit_scale.exp() * xn @ yn.t()
+    logits = torch.clamp(logit_scale.exp(), max=100) * xn @ yn.t()
     labels = torch.arange(xn.size(0)).to(logits.device)
     ce = cross_entropy(logits, labels, reduction=reduction)
     ce_t = cross_entropy(logits.t(), labels, reduction=reduction)
