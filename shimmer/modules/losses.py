@@ -42,6 +42,23 @@ def contrastive_loss(
     return 0.5 * (ce + ce_t)
 
 
+def contrastive_loss_with_confidence(
+    x: torch.Tensor,
+    logvar_x: torch.Tensor,
+    y: torch.Tensor,
+    logvar_y: torch.Tensor,
+    reduction: Literal["mean", "sum", "none"] = "mean",
+) -> torch.Tensor:
+    confidence_norm = 1 + torch.exp(0.5 * logvar_x) + torch.exp(0.5 * logvar_y)
+    xn = normalize(x) / confidence_norm
+    yn = normalize(y) / confidence_norm
+    logits = xn @ yn.t()
+    labels = torch.arange(xn.size(0)).to(logits.device)
+    ce = cross_entropy(logits, labels, reduction=reduction)
+    ce_t = cross_entropy(logits.t(), labels, reduction=reduction)
+    return 0.5 * (ce + ce_t)
+
+
 class GWLosses(torch.nn.Module):
     def step(
         self,
@@ -233,15 +250,12 @@ def _var_contrastive_loss(
                 z2_mean, z2_logvar = gw_mod.encoded_distribution(
                     gw_mod.on_before_gw_encode_cont({domain2_name: domain2})
                 )
-                norm = (
-                    1
-                    + torch.exp(0.5 * z1_logvar[domain1_name])
-                    + torch.exp(0.5 * z2_logvar[domain2_name])
-                )
-                z1 = z1_mean[domain1_name] / norm
-                z2 = z2_mean[domain2_name] / norm
-                losses[loss_name] = contrastive_loss(
-                    z1, z2, logit_scale, reduction="mean"
+                losses[loss_name] = contrastive_loss_with_confidence(
+                    z1_mean[domain1_name],
+                    z1_logvar[domain1_name],
+                    z2_mean[domain2_name],
+                    z2_logvar[domain2_name],
+                    reduction="mean",
                 )
                 metrics[loss_name + "_unormalized"] = contrastive_loss(
                     z1_mean[domain1_name],
@@ -312,6 +326,8 @@ class DeterministicGWLosses(GWLosses):
 
 
 class VariationalGWLosses(GWLosses):
+    logit_scale: torch.Tensor
+
     def __init__(
         self,
         gw_mod: VariationalGWModule,
@@ -325,7 +341,7 @@ class VariationalGWLosses(GWLosses):
         self.domain_mods = domain_mods
         self.loss_coefs = coef_buffers
         self.var_contrastive_loss = var_contrastive_loss
-        self.logit_scale = torch.nn.Parameter(torch.tensor([1 / 0.07]).log())
+        self.register_buffer("logit_scale", torch.tensor([0.0]))
 
     def demi_cycle_loss(
         self, latent_domains: LatentsT
