@@ -250,14 +250,16 @@ def _var_contrastive_loss(
                 z2_mean, z2_logvar = gw_mod.encoded_distribution(
                     gw_mod.on_before_gw_encode_cont({domain2_name: domain2})
                 )
-                losses[loss_name] = contrastive_loss_with_confidence(
+                losses[
+                    loss_name + "_normalized"
+                ] = contrastive_loss_with_confidence(
                     z1_mean[domain1_name],
                     z1_logvar[domain1_name],
                     z2_mean[domain2_name],
                     z2_logvar[domain2_name],
                     reduction="mean",
                 )
-                metrics[loss_name + "_unormalized"] = contrastive_loss(
+                metrics[loss_name] = contrastive_loss(
                     z1_mean[domain1_name],
                     z2_mean[domain2_name],
                     logit_scale,
