@@ -267,7 +267,8 @@ class VariationalGWModule(GWModule):
         latents: dict[str, torch.Tensor] = {}
         for domain in x.keys():
             mean, logvar = self.encoders[domain](x[domain])
-            latents[domain] = reparameterize(mean, logvar)
+            # latents[domain] = reparameterize(mean, logvar)
+            latents[domain] = mean
         return self.fusion_mechanism(latents)
 
     def encoded_distribution(
