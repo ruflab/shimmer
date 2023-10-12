@@ -55,13 +55,12 @@ class VariationalGWEncoder(nn.Module):
             nn.Linear(self.in_dim, self.hidden_dim),
             nn.ReLU(),
             *get_n_layers(n_layers, self.hidden_dim),
+            nn.Linear(self.hidden_dim, self.out_dim),
         )
-        self.mean_layer = nn.Linear(self.hidden_dim, self.out_dim)
-        self.logvar_layer = nn.Linear(self.hidden_dim, self.out_dim)
+        self.confidence_level = nn.Parameter(torch.full((self.out_dim,), 5.0))
 
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        z = self.layers(x)
-        return self.mean_layer(z), self.logvar_layer(z)
+        return self.layers(x), self.confidence_level
 
 
 class GWModule(nn.Module):
