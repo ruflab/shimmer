@@ -60,7 +60,7 @@ class VariationalGWEncoder(nn.Module):
         self.confidence_level = nn.Parameter(torch.full((self.out_dim,), 5.0))
 
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        return self.layers(x), self.confidence_level
+        return self.layers(x), self.confidence_level.expand(x.size(0), -1)
 
 
 class GWModule(nn.Module):
