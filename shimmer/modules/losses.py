@@ -228,7 +228,7 @@ def _contrastive_loss(
     return losses
 
 
-def _var_contrastive_loss(
+def _contrastive_loss_with_uncertainty(
     gw_mod: VariationalGWModule,
     latent_domains: LatentsT,
     logit_scale: torch.Tensor,
@@ -349,7 +349,7 @@ class VariationalGWLosses(GWLosses):
         self.domain_mods = domain_mods
         self.loss_coefs = coef_buffers
         self.var_contrastive_loss = var_contrastive_loss
-        self.logit_scale = torch.nn.Parameter(torch.tensor([1 / 0.07]).log())
+        self.register_buffer("logit_scale", torch.tensor([1]).log())
 
     def demi_cycle_loss(
         self, latent_domains: LatentsT
@@ -368,7 +368,7 @@ class VariationalGWLosses(GWLosses):
         self, latent_domains: LatentsT
     ) -> dict[str, torch.Tensor]:
         if self.var_contrastive_loss:
-            return _var_contrastive_loss(
+            return _contrastive_loss_with_uncertainty(
                 self.gw_mod, latent_domains, self.logit_scale
             )
         return _contrastive_loss(self.gw_mod, latent_domains, self.logit_scale)
