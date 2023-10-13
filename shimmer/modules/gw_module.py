@@ -57,10 +57,10 @@ class VariationalGWEncoder(nn.Module):
             *get_n_layers(n_layers, self.hidden_dim),
             nn.Linear(self.hidden_dim, self.out_dim),
         )
-        self.confidence_level = nn.Parameter(torch.full((self.out_dim,), 5.0))
+        self.uncertainty_level = nn.Parameter(torch.full((self.out_dim,), 5.0))
 
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        return self.layers(x), self.confidence_level.expand(x.size(0), -1)
+        return self.layers(x), self.uncertainty_level.expand(x.size(0), -1)
 
 
 class GWModule(nn.Module):
@@ -265,8 +265,8 @@ class VariationalGWModule(GWModule):
     ) -> torch.Tensor:
         latents: dict[str, torch.Tensor] = {}
         for domain in x.keys():
-            mean, logvar = self.encoders[domain](x[domain])
-            # latents[domain] = reparameterize(mean, logvar)
+            mean, log_uncertainty = self.encoders[domain](x[domain])
+            latents[domain] = reparameterize(mean, log_uncertainty)
             latents[domain] = mean
         return self.fusion_mechanism(latents)
 
@@ -275,12 +275,12 @@ class VariationalGWModule(GWModule):
         x: Mapping[str, torch.Tensor],
     ) -> tuple[dict[str, torch.Tensor], dict[str, torch.Tensor]]:
         means: dict[str, torch.Tensor] = {}
-        logvars: dict[str, torch.Tensor] = {}
+        log_uncertainties: dict[str, torch.Tensor] = {}
         for domain in x.keys():
-            mean, logvar = self.encoders[domain](x[domain])
+            mean, log_uncertainty = self.encoders[domain](x[domain])
             means[domain] = mean
-            logvars[domain] = logvar
-        return means, logvars
+            log_uncertainties[domain] = log_uncertainty
+        return means, log_uncertainties
 
     def encode_mean(
         self,
