@@ -42,17 +42,22 @@ def contrastive_loss(
     return 0.5 * (ce + ce_t)
 
 
-def contrastive_loss_with_confidence(
+def contrastive_loss_with_uncertainty(
     x: torch.Tensor,
-    logvar_x: torch.Tensor,
+    x_log_uncertainty: torch.Tensor,
     y: torch.Tensor,
-    logvar_y: torch.Tensor,
+    y_log_uncertainty: torch.Tensor,
+    logit_scale: torch.Tensor,
     reduction: Literal["mean", "sum", "none"] = "mean",
 ) -> torch.Tensor:
-    confidence_norm = 1 + torch.exp(0.5 * logvar_x) + torch.exp(0.5 * logvar_y)
-    xn = normalize(x) / confidence_norm
-    yn = normalize(y) / confidence_norm
-    logits = xn @ yn.t()
+    uncertainty_norm = (
+        1
+        + torch.exp(0.5 * x_log_uncertainty)
+        + torch.exp(0.5 * y_log_uncertainty)
+    )
+    xn = normalize(x) / uncertainty_norm
+    yn = normalize(y) / uncertainty_norm
+    logits = torch.clamp(logit_scale.exp(), max=100) * xn @ yn.t()
     labels = torch.arange(xn.size(0)).to(logits.device)
     ce = cross_entropy(logits, labels, reduction=reduction)
     ce_t = cross_entropy(logits.t(), labels, reduction=reduction)
@@ -236,7 +241,7 @@ def _var_contrastive_loss(
         if len(latents) < 2:
             continue
         for domain1_name, domain1 in latents.items():
-            z1_mean, z1_logvar = gw_mod.encoded_distribution(
+            z1_mean, z1_log_uncertainty = gw_mod.encoded_distribution(
                 gw_mod.on_before_gw_encode_cont({domain1_name: domain1})
             )
             for domain2_name, domain2 in latents.items():
@@ -247,16 +252,17 @@ def _var_contrastive_loss(
                 keys.append(selected_domains)
 
                 loss_name = f"contrastive_{domain1_name}_and_{domain2_name}"
-                z2_mean, z2_logvar = gw_mod.encoded_distribution(
+                z2_mean, z2_log_uncertainty = gw_mod.encoded_distribution(
                     gw_mod.on_before_gw_encode_cont({domain2_name: domain2})
                 )
                 losses[
                     loss_name + "_normalized"
-                ] = contrastive_loss_with_confidence(
+                ] = contrastive_loss_with_uncertainty(
                     z1_mean[domain1_name],
-                    z1_logvar[domain1_name],
+                    z1_log_uncertainty[domain1_name],
                     z2_mean[domain2_name],
-                    z2_logvar[domain2_name],
+                    z2_log_uncertainty[domain2_name],
+                    logit_scale,
                     reduction="mean",
                 )
                 metrics[loss_name] = contrastive_loss(
@@ -343,7 +349,7 @@ class VariationalGWLosses(GWLosses):
         self.domain_mods = domain_mods
         self.loss_coefs = coef_buffers
         self.var_contrastive_loss = var_contrastive_loss
-        self.register_buffer("logit_scale", torch.tensor([0.0]))
+        self.logit_scale = torch.nn.Parameter(torch.tensor([1 / 0.07]).log())
 
     def demi_cycle_loss(
         self, latent_domains: LatentsT
