@@ -57,7 +57,9 @@ class VariationalGWEncoder(nn.Module):
             *get_n_layers(n_layers, self.hidden_dim),
             nn.Linear(self.hidden_dim, self.out_dim),
         )
-        self.uncertainty_level = nn.Parameter(torch.full((self.out_dim,), -3))
+        self.uncertainty_level = nn.Parameter(
+            torch.full((self.out_dim,), -3.0)
+        )
 
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         return self.layers(x), self.uncertainty_level.expand(x.size(0), -1)
