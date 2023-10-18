@@ -181,17 +181,25 @@ class GlobalWorkspace(LightningModule):
 
         return losses["loss"]
 
-    def validation_step(self, data: Mapping[str, Any], _) -> torch.Tensor:
+    def validation_step(
+        self, data: Mapping[str, Any], _, dataloader_idx: int
+    ) -> torch.Tensor:
         batch = {frozenset(data.keys()): data}
         for domain in data.keys():
             batch[frozenset([domain])] = {domain: data[domain]}
-        return self.generic_step(batch, mode="val")
+        if dataloader_idx == 0:
+            return self.generic_step(batch, mode="val")
+        return self.generic_step(batch, mode="val/ood")
 
-    def test_step(self, data: Mapping[str, Any], _) -> torch.Tensor:
+    def test_step(
+        self, data: Mapping[str, Any], _, dataloader_idx: int
+    ) -> torch.Tensor:
         batch = {frozenset(data.keys()): data}
         for domain in data.keys():
             batch[frozenset([domain])] = {domain: data[domain]}
-        return self.generic_step(batch, mode="test")
+        if dataloader_idx == 0:
+            return self.generic_step(batch, mode="test")
+        return self.generic_step(batch, mode="test/ood")
 
     def training_step(
         self, batch: Mapping[frozenset[str], Mapping[str, Any]], _
