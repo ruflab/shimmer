@@ -177,7 +177,12 @@ class GlobalWorkspace(LightningModule):
         losses = self.loss_mod.step(domain_latents)
 
         for name, loss in losses.items():
-            self.log(f"{mode}/{name}", loss, batch_size=batch_size)
+            self.log(
+                f"{mode}/{name}",
+                loss,
+                batch_size=batch_size,
+                add_dataloader_idx=False,
+            )
 
         return losses["loss"]
 
