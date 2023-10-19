@@ -47,10 +47,10 @@ class GWEncoder(GWDecoder):
         super().__init__(in_dim, hidden_dim, out_dim, n_layers)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return torch.tanh(x)
+        return torch.tanh(super().forward(x))
 
 
-class VariationalGWDecoder(nn.Module):
+class VariationalGWEncoder(nn.Module):
     def __init__(
         self,
         in_dim: int,
@@ -70,25 +70,12 @@ class VariationalGWDecoder(nn.Module):
             nn.ReLU(),
             *get_n_layers(n_layers, self.hidden_dim),
             nn.Linear(self.hidden_dim, self.out_dim),
+            nn.Tanh(),
         )
         self.uncertainty_level = nn.Parameter(torch.full((self.out_dim,), 3.0))
 
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         return self.layers(x), self.uncertainty_level.expand(x.size(0), -1)
-
-
-class VariationalGWEncoder(VariationalGWDecoder):
-    def __init__(
-        self,
-        in_dim: int,
-        hidden_dim: int,
-        out_dim: int,
-        n_layers: int,
-    ):
-        super().__init__(in_dim, hidden_dim, out_dim, n_layers)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return torch.tanh(x)
 
 
 class GWModule(nn.Module):
@@ -274,7 +261,7 @@ class VariationalGWModule(GWModule):
         )
         self.decoders = nn.ModuleDict(
             {
-                domain: VariationalGWDecoder(
+                domain: GWDecoder(
                     self.latent_dim,
                     self.decoder_hidden_dim[domain],
                     self.input_dim[domain],
