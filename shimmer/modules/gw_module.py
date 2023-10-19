@@ -14,7 +14,7 @@ def get_n_layers(n_layers: int, hidden_dim: int):
     return layers
 
 
-class GWEncoder(nn.Sequential):
+class GWDecoder(nn.Sequential):
     def __init__(
         self,
         in_dim: int,
@@ -28,7 +28,7 @@ class GWEncoder(nn.Sequential):
 
         self.n_layers = n_layers
 
-        super(GWEncoder, self).__init__(
+        super().__init__(
             nn.Linear(self.in_dim, self.hidden_dim),
             nn.ReLU(),
             *get_n_layers(n_layers, self.hidden_dim),
@@ -36,7 +36,7 @@ class GWEncoder(nn.Sequential):
         )
 
 
-class VariationalGWEncoder(nn.Module):
+class GWEncoder(GWDecoder):
     def __init__(
         self,
         in_dim: int,
@@ -44,7 +44,21 @@ class VariationalGWEncoder(nn.Module):
         out_dim: int,
         n_layers: int,
     ):
-        super(VariationalGWEncoder, self).__init__()
+        super().__init__(in_dim, hidden_dim, out_dim, n_layers)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return torch.tanh(x)
+
+
+class VariationalGWDecoder(nn.Module):
+    def __init__(
+        self,
+        in_dim: int,
+        hidden_dim: int,
+        out_dim: int,
+        n_layers: int,
+    ):
+        super().__init__()
 
         self.in_dim = in_dim
         self.hidden_dim = hidden_dim
@@ -61,6 +75,20 @@ class VariationalGWEncoder(nn.Module):
 
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         return self.layers(x), self.uncertainty_level.expand(x.size(0), -1)
+
+
+class VariationalGWEncoder(VariationalGWDecoder):
+    def __init__(
+        self,
+        in_dim: int,
+        hidden_dim: int,
+        out_dim: int,
+        n_layers: int,
+    ):
+        super().__init__(in_dim, hidden_dim, out_dim, n_layers)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return torch.tanh(x)
 
 
 class GWModule(nn.Module):
@@ -166,7 +194,7 @@ class DeterministicGWModule(GWModule):
         )
         self.decoders = nn.ModuleDict(
             {
-                domain: GWEncoder(
+                domain: GWDecoder(
                     self.latent_dim,
                     self.decoder_hidden_dim[domain],
                     self.input_dim[domain],
@@ -246,7 +274,7 @@ class VariationalGWModule(GWModule):
         )
         self.decoders = nn.ModuleDict(
             {
-                domain: GWEncoder(
+                domain: VariationalGWDecoder(
                     self.latent_dim,
                     self.decoder_hidden_dim[domain],
                     self.input_dim[domain],
