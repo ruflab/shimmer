@@ -278,6 +278,8 @@ def _contrastive_loss_with_uncertainty(
 
 
 class DeterministicGWLosses(GWLosses):
+    logit_scale: torch.Tensor
+
     def __init__(
         self,
         gw_mod: DeterministicGWModule,
