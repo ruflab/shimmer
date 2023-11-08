@@ -290,7 +290,7 @@ class DeterministicGWLosses(GWLosses):
         self.gw_mod = gw_mod
         self.domain_mods = domain_mods
         self.loss_coefs = coef_buffers
-        self.register_buffer("logit_scale", torch.tensor([1 / 0.01]).log())
+        self.register_buffer("logit_scale", torch.tensor([1 / 0.07]).log())
 
     def demi_cycle_loss(
         self, latent_domains: LatentsT
