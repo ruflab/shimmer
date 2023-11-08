@@ -24,7 +24,7 @@ def load_config(
     load_dirs: list[str] | None = None,
     use_cli: bool = True,
     debug_mode: bool = False,
-    argv: Any = None,
+    argv: list[str] | None = None,
 ) -> Config:
     config_path = Path(path)
     if not config_path.is_dir():
@@ -88,6 +88,7 @@ def load_structured_config(
     load_dirs: list[str] | None = None,
     use_cli: bool = True,
     debug_mode: bool = False,
+    argv: list[str] | None = None,
 ) -> T:
-    config = load_config(path, structure, load_dirs, use_cli, debug_mode)
+    config = load_config(path, structure, load_dirs, use_cli, debug_mode, argv)
     return cast(T, config)
