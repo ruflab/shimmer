@@ -24,6 +24,7 @@ def load_config(
     load_dirs: list[str] | None = None,
     use_cli: bool = True,
     debug_mode: bool = False,
+    argv: Any = None,
 ) -> Config:
     config_path = Path(path)
     if not config_path.is_dir():
@@ -61,7 +62,7 @@ def load_config(
                 configs.append(OmegaConf.load(config.resolve()))
 
     if use_cli:
-        cli_conf = OmegaConf.from_cli()
+        cli_conf = OmegaConf.from_cli(argv)
         configs.append(cli_conf)
     else:
         cli_conf = OmegaConf.create()
