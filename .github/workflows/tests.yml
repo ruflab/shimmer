@@ -23,6 +23,7 @@ jobs:
           poetry install --with test
           poetry run python -m pip install --upgrade pip
           poetry run pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+          poetry run pip install lightning
       - name: Test with pytest
         run: |
           poetry run pytest tests/
