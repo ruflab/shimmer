@@ -24,6 +24,7 @@ class GWPredictions(TypedDict):
     demi_cycles: dict[str, torch.Tensor]
     cycles: dict[tuple[str, str], torch.Tensor]
     translations: dict[tuple[str, str], torch.Tensor]
+    states: dict[str, torch.Tensor]
 
 
 class GlobalWorkspace(LightningModule):
@@ -73,9 +74,22 @@ class GlobalWorkspace(LightningModule):
                 "demi_cycles": self.batch_demi_cycles(latent_domains),
                 "cycles": self.batch_cycles(latent_domains),
                 "translations": self.batch_translations(latent_domains),
+                "states": self.batch_gw_states(latent_domains),
             }
         )
         return outputs
+
+    def batch_gw_states(
+        self, latent_domains: LatentsT
+    ) -> dict[str, torch.Tensor]:
+        predictions: dict[str, torch.Tensor] = {}
+        for domains, latents in latent_domains.items():
+            if len(domains) > 1:
+                continue
+            domain_name = list(domains)[0]
+            z = self.gw_mod.encode(latents)
+            predictions[domain_name] = z
+        return predictions
 
     def batch_demi_cycles(
         self, latent_domains: LatentsT
