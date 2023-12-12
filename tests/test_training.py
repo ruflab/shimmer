@@ -2,7 +2,7 @@ import torch.utils.data
 from utils import DummyData, DummyDataset, DummyDomainModule
 
 from shimmer.modules.domain import DomainDescription
-from shimmer.modules.global_workspace import DeterministicGlobalWorkspace
+from shimmer.modules.global_workspace import global_workspace
 
 
 def test_training():
@@ -43,7 +43,7 @@ def test_training():
         ),
     }
 
-    global_workspace = DeterministicGlobalWorkspace(
+    gw = global_workspace(
         domain_description,
         latent_dim=16,
         loss_coefs={},
@@ -62,11 +62,11 @@ def test_training():
     assert isinstance(unimodal_latents["v"], torch.Tensor)
     assert unimodal_latents["v"].size() == (32, 128)
 
-    workspace_latent = global_workspace.encode(unimodal_latents)
+    workspace_latent = gw.encode(unimodal_latents)
 
     assert workspace_latent.size() == (32, 16)
 
-    reconstructed_unimodal_latents = global_workspace.decode(
+    reconstructed_unimodal_latents = gw.decode(
         workspace_latent, domains={"v", "a"}
     )
 
