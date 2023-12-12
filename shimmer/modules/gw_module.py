@@ -143,11 +143,41 @@ class GWModule(nn.Module):
         raise NotImplementedError
 
 
+def default_encoders(
+    domain_descriptions: Mapping[str, DomainDescription], latent_dim: int
+) -> dict[str, GWEncoder]:
+    return {
+        name: GWEncoder(
+            domain.latent_dim,
+            domain.encoder_hidden_dim,
+            latent_dim,
+            domain.encoder_n_layers,
+        )
+        for name, domain in domain_descriptions.items()
+    }
+
+
+def default_decoders(
+    domain_descriptions: Mapping[str, DomainDescription], latent_dim: int
+) -> dict[str, GWDecoder]:
+    return {
+        name: GWDecoder(
+            domain.latent_dim,
+            domain.decoder_hidden_dim,
+            latent_dim,
+            domain.decoder_n_layers,
+        )
+        for name, domain in domain_descriptions.items()
+    }
+
+
 class DeterministicGWModule(GWModule):
     def __init__(
         self,
         domain_descriptions: Mapping[str, DomainDescription],
         latent_dim: int,
+        encoders: Mapping[str, nn.Module] | None = None,
+        decoders: Mapping[str, nn.Module] | None = None,
     ):
         super().__init__()
 
@@ -155,40 +185,11 @@ class DeterministicGWModule(GWModule):
         self.domain_descr = domain_descriptions
         self.latent_dim = latent_dim
 
-        self.input_dim: dict[str, int] = {}
-        self.encoder_hidden_dim: dict[str, int] = {}
-        self.encoder_n_layers: dict[str, int] = {}
-        self.decoder_hidden_dim: dict[str, int] = {}
-        self.decoder_n_layers: dict[str, int] = {}
-
-        for name, domain in domain_descriptions.items():
-            self.input_dim[name] = domain.latent_dim
-            self.encoder_hidden_dim[name] = domain.encoder_hidden_dim
-            self.encoder_n_layers[name] = domain.encoder_n_layers
-            self.decoder_hidden_dim[name] = domain.decoder_hidden_dim
-            self.decoder_n_layers[name] = domain.decoder_n_layers
-
         self.encoders = nn.ModuleDict(
-            {
-                domain: GWEncoder(
-                    self.input_dim[domain],
-                    self.encoder_hidden_dim[domain],
-                    self.latent_dim,
-                    self.encoder_n_layers[domain],
-                )
-                for domain in self.domains
-            }
+            encoders or default_encoders(domain_descriptions, latent_dim)
         )
         self.decoders = nn.ModuleDict(
-            {
-                domain: GWDecoder(
-                    self.latent_dim,
-                    self.decoder_hidden_dim[domain],
-                    self.input_dim[domain],
-                    self.decoder_n_layers[domain],
-                )
-                for domain in self.domains
-            }
+            decoders or default_decoders(domain_descriptions, latent_dim)
         )
 
     def fusion_mechanism(self, x: Mapping[str, torch.Tensor]) -> torch.Tensor:
@@ -223,11 +224,27 @@ class DeterministicGWModule(GWModule):
         }
 
 
+def default_var_encoders(
+    domain_descriptions: Mapping[str, DomainDescription], latent_dim: int
+) -> dict[str, VariationalGWEncoder]:
+    return {
+        name: VariationalGWEncoder(
+            domain.latent_dim,
+            domain.encoder_hidden_dim,
+            latent_dim,
+            domain.encoder_n_layers,
+        )
+        for name, domain in domain_descriptions.items()
+    }
+
+
 class VariationalGWModule(GWModule):
     def __init__(
         self,
         domain_descriptions: Mapping[str, DomainDescription],
         latent_dim: int,
+        encoders: Mapping[str, nn.Module] | None = None,
+        decoders: Mapping[str, nn.Module] | None = None,
     ):
         super().__init__()
 
@@ -235,40 +252,11 @@ class VariationalGWModule(GWModule):
         self.domain_descr = domain_descriptions
         self.latent_dim = latent_dim
 
-        self.input_dim: dict[str, int] = {}
-        self.encoder_hidden_dim: dict[str, int] = {}
-        self.encoder_n_layers: dict[str, int] = {}
-        self.decoder_hidden_dim: dict[str, int] = {}
-        self.decoder_n_layers: dict[str, int] = {}
-
-        for name, domain in domain_descriptions.items():
-            self.input_dim[name] = domain.latent_dim
-            self.encoder_hidden_dim[name] = domain.encoder_hidden_dim
-            self.encoder_n_layers[name] = domain.encoder_n_layers
-            self.decoder_hidden_dim[name] = domain.decoder_hidden_dim
-            self.decoder_n_layers[name] = domain.decoder_n_layers
-
         self.encoders = nn.ModuleDict(
-            {
-                domain: VariationalGWEncoder(
-                    self.input_dim[domain],
-                    self.encoder_hidden_dim[domain],
-                    self.latent_dim,
-                    self.encoder_n_layers[domain],
-                )
-                for domain in self.domains
-            }
+            encoders or default_var_encoders(domain_descriptions, latent_dim)
         )
         self.decoders = nn.ModuleDict(
-            {
-                domain: GWDecoder(
-                    self.latent_dim,
-                    self.decoder_hidden_dim[domain],
-                    self.input_dim[domain],
-                    self.decoder_n_layers[domain],
-                )
-                for domain in self.domains
-            }
+            decoders or default_decoders(domain_descriptions, latent_dim)
         )
 
     def fusion_mechanism(self, x: Mapping[str, torch.Tensor]) -> torch.Tensor:

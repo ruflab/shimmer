@@ -4,12 +4,13 @@ from typing import Any, TypedDict, cast
 import torch
 from lightning.pytorch import LightningModule
 from lightning.pytorch.utilities.types import OptimizerLRSchedulerConfig
-from torch.nn import ModuleDict
+from torch.nn import Module, ModuleDict
 from torch.optim.lr_scheduler import OneCycleLR
 
 from shimmer.modules.dict_buffer import DictBuffer
 from shimmer.modules.domain import DomainDescription, DomainModule
-from shimmer.modules.gw_module import (DeterministicGWModule, GWModule,
+from shimmer.modules.gw_module import (DeterministicGWModule, GWDecoder,
+                                       GWEncoder, GWModule,
                                        VariationalGWModule)
 from shimmer.modules.losses import (DeterministicGWLosses, GWLosses, LatentsT,
                                     VariationalGWLosses)
@@ -251,72 +252,74 @@ class GlobalWorkspace(LightningModule):
         }
 
 
-class DeterministicGlobalWorkspace(GlobalWorkspace):
-    def __init__(
-        self,
-        domain_descriptions: Mapping[str, DomainDescription],
-        latent_dim: int,
-        loss_coefs: dict[str, torch.Tensor],
-        optim_lr: float = 1e-3,
-        optim_weight_decay: float = 0.0,
-        scheduler_args: SchedulerArgs | None = None,
-    ) -> None:
-        gw_mod = DeterministicGWModule(domain_descriptions, latent_dim)
+def global_workspace(
+    domain_descriptions: Mapping[str, DomainDescription],
+    latent_dim: int,
+    loss_coefs: dict[str, torch.Tensor],
+    optim_lr: float = 1e-3,
+    optim_weight_decay: float = 0.0,
+    scheduler_args: SchedulerArgs | None = None,
+    gw_encoders: Mapping[str, Module] | None = None,
+    gw_decoders: Mapping[str, Module] | None = None,
+) -> GlobalWorkspace:
+    gw_mod = DeterministicGWModule(
+        domain_descriptions, latent_dim, gw_encoders, gw_decoders
+    )
 
-        domain_mods = {
-            name: domain.module for name, domain in domain_descriptions.items()
-        }
-        for mod in domain_mods.values():
-            mod.freeze()
-        domain_mods = cast(dict[str, DomainModule], ModuleDict(domain_mods))
+    domain_mods = {
+        name: domain.module for name, domain in domain_descriptions.items()
+    }
+    for mod in domain_mods.values():
+        mod.freeze()
+    domain_mods = cast(dict[str, DomainModule], ModuleDict(domain_mods))
 
-        coef_buffers = DictBuffer(loss_coefs)
+    coef_buffers = DictBuffer(loss_coefs)
 
-        loss_mod = DeterministicGWLosses(gw_mod, domain_mods, coef_buffers)
+    loss_mod = DeterministicGWLosses(gw_mod, domain_mods, coef_buffers)
+    return GlobalWorkspace(
+        gw_mod,
+        domain_mods,
+        coef_buffers,
+        loss_mod,
+        optim_lr,
+        optim_weight_decay,
+        scheduler_args,
+    )
 
-        super().__init__(
-            gw_mod,
-            domain_mods,
-            coef_buffers,
-            loss_mod,
-            optim_lr,
-            optim_weight_decay,
-            scheduler_args,
-        )
 
+def variational_global_workspace(
+    domain_descriptions: Mapping[str, DomainDescription],
+    latent_dim: int,
+    loss_coefs: dict[str, torch.Tensor],
+    var_contrastive_loss: bool = False,
+    optim_lr: float = 1e-3,
+    optim_weight_decay: float = 0.0,
+    scheduler_args: SchedulerArgs | None = None,
+    gw_encoders: Mapping[str, Module] | None = None,
+    gw_decoders: Mapping[str, Module] | None = None,
+) -> GlobalWorkspace:
+    gw_mod = VariationalGWModule(
+        domain_descriptions, latent_dim, gw_encoders, gw_decoders
+    )
 
-class VariationalGlobalWorkspace(GlobalWorkspace):
-    def __init__(
-        self,
-        domain_descriptions: Mapping[str, DomainDescription],
-        latent_dim: int,
-        loss_coefs: dict[str, torch.Tensor],
-        var_contrastive_loss: bool = False,
-        optim_lr: float = 1e-3,
-        optim_weight_decay: float = 0.0,
-        scheduler_args: SchedulerArgs | None = None,
-    ) -> None:
-        gw_mod = VariationalGWModule(domain_descriptions, latent_dim)
+    domain_mods = {
+        name: domain.module for name, domain in domain_descriptions.items()
+    }
+    for mod in domain_mods.values():
+        mod.freeze()
+    domain_mods = cast(dict[str, DomainModule], ModuleDict(domain_mods))
 
-        domain_mods = {
-            name: domain.module for name, domain in domain_descriptions.items()
-        }
-        for mod in domain_mods.values():
-            mod.freeze()
-        domain_mods = cast(dict[str, DomainModule], ModuleDict(domain_mods))
+    coef_buffers = DictBuffer(loss_coefs)
 
-        coef_buffers = DictBuffer(loss_coefs)
-
-        loss_mod = VariationalGWLosses(
-            gw_mod, domain_mods, coef_buffers, var_contrastive_loss
-        )
-
-        super().__init__(
-            gw_mod,
-            domain_mods,
-            coef_buffers,
-            loss_mod,
-            optim_lr,
-            optim_weight_decay,
-            scheduler_args,
-        )
+    loss_mod = VariationalGWLosses(
+        gw_mod, domain_mods, coef_buffers, var_contrastive_loss
+    )
+    return GlobalWorkspace(
+        gw_mod,
+        domain_mods,
+        coef_buffers,
+        loss_mod,
+        optim_lr,
+        optim_weight_decay,
+        scheduler_args,
+    )

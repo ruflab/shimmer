@@ -8,4 +8,14 @@ Fix missing individual metrics for translation loss.
 Fix wrong module used to compute the cycle losses. Don't do cycle with the same domain as target and source.
 
 # 0.2.0
-Add callback on_before_gw_encode and individual compute_losses for each loss type.
+Add callback on\_before\_gw\_encode and individual compute\_losses for each loss type.
+Fix bugs
+
+# 0.3.0
+* Breaking change: remove `DeterministGlobaleWorkspace` and `VariationalGlobalWorkspace`
+in favor of the functions: `global_workspace` and `variational_global_workspace`.
+* Allow setting custom GW encoders and decoders.
+* Breaking change: remove `self.input_dim`, `self.encoder_hidden_dim`, 
+`self.encoder_n_layers`, `self.decoder_hidden_dim`, and `self.decoder_n_layers`
+in `GWModule`s.
+
