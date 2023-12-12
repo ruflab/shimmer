@@ -72,10 +72,21 @@ my_domain_descr = DomainDescription(
     decoder_hidden_dim=32,  # hidden dimension for the GW decoder
     decoder_n_layers=3,  # n layers to use for the GW decoder
 )
+
+
+domain_descriptions = {
+    "domain1": my_domain_descr,
+    "domain2": ...
+}
 ```
 
 
 ### GW
-There are two kinds of GW in the lib: Deterministic, and Variational.
-Deterministic is the one used in [this paper](https://arxiv.org/abs/2306.15711).
-The Variational one is under investigation.
+To load a global workspace, use: 
+```python
+from shimmer.modules.global_workspace import global_workspace
+
+
+workspace_dim = 32
+model = global_workspace(domain_descriptions, workspace_dim)
+```
