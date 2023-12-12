@@ -162,9 +162,9 @@ def default_decoders(
 ) -> dict[str, GWDecoder]:
     return {
         name: GWDecoder(
-            domain.latent_dim,
-            domain.decoder_hidden_dim,
             latent_dim,
+            domain.decoder_hidden_dim,
+            domain.latent_dim,
             domain.decoder_n_layers,
         )
         for name, domain in domain_descriptions.items()
