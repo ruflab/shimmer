@@ -14,12 +14,12 @@ Use it as a requirement in your own project.
 
 For now, there is no PyPI entry, so in your requirements.txt:
 ```
-shimmer@git+github.com:bdvllrs/shimmer.git@0.3.0#egg=shimmer
+shimmer@git+github.com:bdvllrs/shimmer.git@0.3.1#egg=shimmer
 ```
 
 or in your pyproject.toml (with poetry for example):
 ```
-shimmer = {git = "git@github.com:bdvllrs/shimmer.git", rev = "0.3.0"}
+shimmer = {git = "git@github.com:bdvllrs/shimmer.git", rev = "0.3.1"}
 ```
 
 ## Make a domain

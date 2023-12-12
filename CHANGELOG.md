@@ -19,3 +19,5 @@ in favor of the functions: `global_workspace` and `variational_global_workspace`
 `self.encoder_n_layers`, `self.decoder_hidden_dim`, and `self.decoder_n_layers`
 in `GWModule`s.
 
+# 0.3.1
+Fix bugs related to imports and `default_decoders`.
