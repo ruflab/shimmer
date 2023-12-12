@@ -9,7 +9,8 @@ from torch.optim.lr_scheduler import OneCycleLR
 
 from shimmer.modules.dict_buffer import DictBuffer
 from shimmer.modules.domain import DomainDescription, DomainModule
-from shimmer.modules.gw_module import GWModule, VariationalGWModule
+from shimmer.modules.gw_module import (DeterministicGWModule, GWModule,
+                                       VariationalGWModule)
 from shimmer.modules.losses import (DeterministicGWLosses, GWLosses, LatentsT,
                                     VariationalGWLosses)
 
