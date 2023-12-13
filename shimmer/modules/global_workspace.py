@@ -251,6 +251,18 @@ class GlobalWorkspace(LightningModule):
         }
 
 
+def extract_domain_modules(
+    domain_descriptions: Mapping[str, DomainDescription],
+) -> dict[str, DomainModule]:
+    domain_mods = {
+        name: domain.module for name, domain in domain_descriptions.items()
+    }
+    for mod in domain_mods.values():
+        mod.freeze()
+    # Cast for better auto-completion at the expense of ModuleDict
+    return cast(dict[str, DomainModule], ModuleDict(domain_mods))
+
+
 def global_workspace(
     domain_descriptions: Mapping[str, DomainDescription],
     latent_dim: int,
@@ -264,16 +276,8 @@ def global_workspace(
     gw_mod = DeterministicGWModule(
         domain_descriptions, latent_dim, gw_encoders, gw_decoders
     )
-
-    domain_mods = {
-        name: domain.module for name, domain in domain_descriptions.items()
-    }
-    for mod in domain_mods.values():
-        mod.freeze()
-    domain_mods = cast(dict[str, DomainModule], ModuleDict(domain_mods))
-
+    domain_mods = extract_domain_modules(domain_descriptions)
     coef_buffers = DictBuffer(loss_coefs)
-
     loss_mod = DeterministicGWLosses(gw_mod, domain_mods, coef_buffers)
     return GlobalWorkspace(
         gw_mod,
@@ -300,16 +304,8 @@ def variational_global_workspace(
     gw_mod = VariationalGWModule(
         domain_descriptions, latent_dim, gw_encoders, gw_decoders
     )
-
-    domain_mods = {
-        name: domain.module for name, domain in domain_descriptions.items()
-    }
-    for mod in domain_mods.values():
-        mod.freeze()
-    domain_mods = cast(dict[str, DomainModule], ModuleDict(domain_mods))
-
+    domain_mods = extract_domain_modules(domain_descriptions)
     coef_buffers = DictBuffer(loss_coefs)
-
     loss_mod = VariationalGWLosses(
         gw_mod, domain_mods, coef_buffers, var_contrastive_loss
     )
