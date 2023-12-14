@@ -2,7 +2,7 @@ import torch.utils.data
 from utils import DummyData, DummyDataset, DummyDomainModule
 
 from shimmer.modules.domain import DomainDescription
-from shimmer.modules.global_workspace import global_workspace
+from shimmer.modules.global_workspace import GlobalWorkspace
 
 
 def test_training():
@@ -43,7 +43,7 @@ def test_training():
         ),
     }
 
-    gw = global_workspace(
+    gw = GlobalWorkspace(
         domain_description,
         latent_dim=16,
         loss_coefs={},
