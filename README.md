@@ -84,9 +84,16 @@ domain_descriptions = {
 ### GW
 To load a global workspace, use: 
 ```python
-from shimmer.modules.global_workspace import global_workspace
+from shimmer.modules.global_workspace import GlobalWorkspace
 
 
 workspace_dim = 32
-model = global_workspace(domain_descriptions, workspace_dim)
+loss_coefs = {
+    "translations": 1.0,
+    "demi_cycles": 0.0,
+    "cycles": 1.0,
+    "contrastives": 0.1,
+}
+
+model = GlobalWorkspace(domain_descriptions, workspace_dim, loss_coefs)
 ```

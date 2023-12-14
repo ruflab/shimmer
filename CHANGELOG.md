@@ -21,3 +21,9 @@ in `GWModule`s.
 
 # 0.3.1
 Fix bugs related to imports and `default_decoders`.
+
+# 0.3.2
+* Revert to using classes for GWs (it's easier when loading from checkpoints.)
+
+* `GlobalWorkspace` is renamed to `GlobalWorkspaceBase` and `GlobalWorkspace` now
+refers to `DeterministicGlobalWorkspace`.

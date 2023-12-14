@@ -4,7 +4,7 @@ from typing import Any, TypedDict, cast
 import torch
 from lightning.pytorch import LightningModule
 from lightning.pytorch.utilities.types import OptimizerLRSchedulerConfig
-from torch.nn import Module, ModuleDict
+from torch.nn import ModuleDict
 from torch.optim.lr_scheduler import OneCycleLR
 
 from shimmer.modules.dict_buffer import DictBuffer
@@ -27,7 +27,7 @@ class GWPredictions(TypedDict):
     states: dict[str, torch.Tensor]
 
 
-class GlobalWorkspace(LightningModule):
+class GlobalWorkspaceBase(LightningModule):
     def __init__(
         self,
         gw_mod: GWModule,
@@ -263,58 +263,56 @@ def extract_domain_modules(
     return cast(dict[str, DomainModule], ModuleDict(domain_mods))
 
 
-def global_workspace(
-    domain_descriptions: Mapping[str, DomainDescription],
-    latent_dim: int,
-    loss_coefs: dict[str, torch.Tensor],
-    optim_lr: float = 1e-3,
-    optim_weight_decay: float = 0.0,
-    scheduler_args: SchedulerArgs | None = None,
-    gw_encoders: Mapping[str, Module] | None = None,
-    gw_decoders: Mapping[str, Module] | None = None,
-) -> GlobalWorkspace:
-    gw_mod = DeterministicGWModule(
-        domain_descriptions, latent_dim, gw_encoders, gw_decoders
-    )
-    domain_mods = extract_domain_modules(domain_descriptions)
-    coef_buffers = DictBuffer(loss_coefs)
-    loss_mod = DeterministicGWLosses(gw_mod, domain_mods, coef_buffers)
-    return GlobalWorkspace(
-        gw_mod,
-        domain_mods,
-        coef_buffers,
-        loss_mod,
-        optim_lr,
-        optim_weight_decay,
-        scheduler_args,
-    )
+class GlobalWorkspace(GlobalWorkspaceBase):
+    def __init__(
+        self,
+        domain_descriptions: Mapping[str, DomainDescription],
+        latent_dim: int,
+        loss_coefs: dict[str, torch.Tensor],
+        optim_lr: float = 1e-3,
+        optim_weight_decay: float = 0.0,
+        scheduler_args: SchedulerArgs | None = None,
+    ) -> None:
+        gw_mod = DeterministicGWModule(domain_descriptions, latent_dim)
+        domain_mods = extract_domain_modules(domain_descriptions)
+        coef_buffers = DictBuffer(loss_coefs)
+        loss_mod = DeterministicGWLosses(gw_mod, domain_mods, coef_buffers)
+
+        super().__init__(
+            gw_mod,
+            domain_mods,
+            coef_buffers,
+            loss_mod,
+            optim_lr,
+            optim_weight_decay,
+            scheduler_args,
+        )
 
 
-def variational_global_workspace(
-    domain_descriptions: Mapping[str, DomainDescription],
-    latent_dim: int,
-    loss_coefs: dict[str, torch.Tensor],
-    var_contrastive_loss: bool = False,
-    optim_lr: float = 1e-3,
-    optim_weight_decay: float = 0.0,
-    scheduler_args: SchedulerArgs | None = None,
-    gw_encoders: Mapping[str, Module] | None = None,
-    gw_decoders: Mapping[str, Module] | None = None,
-) -> GlobalWorkspace:
-    gw_mod = VariationalGWModule(
-        domain_descriptions, latent_dim, gw_encoders, gw_decoders
-    )
-    domain_mods = extract_domain_modules(domain_descriptions)
-    coef_buffers = DictBuffer(loss_coefs)
-    loss_mod = VariationalGWLosses(
-        gw_mod, domain_mods, coef_buffers, var_contrastive_loss
-    )
-    return GlobalWorkspace(
-        gw_mod,
-        domain_mods,
-        coef_buffers,
-        loss_mod,
-        optim_lr,
-        optim_weight_decay,
-        scheduler_args,
-    )
+class VariationalGlobalWorkspace(GlobalWorkspaceBase):
+    def __init__(
+        self,
+        domain_descriptions: Mapping[str, DomainDescription],
+        latent_dim: int,
+        loss_coefs: dict[str, torch.Tensor],
+        var_contrastive_loss: bool = False,
+        optim_lr: float = 1e-3,
+        optim_weight_decay: float = 0.0,
+        scheduler_args: SchedulerArgs | None = None,
+    ) -> None:
+        gw_mod = VariationalGWModule(domain_descriptions, latent_dim)
+        domain_mods = extract_domain_modules(domain_descriptions)
+        coef_buffers = DictBuffer(loss_coefs)
+        loss_mod = VariationalGWLosses(
+            gw_mod, domain_mods, coef_buffers, var_contrastive_loss
+        )
+
+        super().__init__(
+            gw_mod,
+            domain_mods,
+            coef_buffers,
+            loss_mod,
+            optim_lr,
+            optim_weight_decay,
+            scheduler_args,
+        )
