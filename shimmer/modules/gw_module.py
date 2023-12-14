@@ -80,6 +80,7 @@ class VariationalGWEncoder(nn.Module):
 
 class GWModule(nn.Module):
     domain_descr: Mapping[str, DomainDescription]
+    latent_dim: int
 
     def fusion_mechanism(self, x: Mapping[str, torch.Tensor]) -> torch.Tensor:
         raise NotImplementedError
