@@ -27,3 +27,6 @@ Fix bugs related to imports and `default_decoders`.
 
 * `GlobalWorkspace` is renamed to `GlobalWorkspaceBase` and `GlobalWorkspace` now
 refers to `DeterministicGlobalWorkspace`.
+
+# 0.4.0
+* Use ABCMeta for abstract methods.
