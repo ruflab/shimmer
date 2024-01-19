@@ -1,3 +1,4 @@
+from abc import ABCMeta, abstractmethod
 from collections.abc import Iterable, Mapping
 
 import torch
@@ -78,16 +79,21 @@ class VariationalGWEncoder(nn.Module):
         return self.layers(x), self.uncertainty_level.expand(x.size(0), -1)
 
 
-class GWModule(nn.Module):
+class GWModule(nn.Module, metaclass=ABCMeta):
     domain_descr: Mapping[str, DomainDescription]
     latent_dim: int
-
-    def fusion_mechanism(self, x: Mapping[str, torch.Tensor]) -> torch.Tensor:
-        raise NotImplementedError
 
     def on_before_gw_encode_dcy(
         self, x: Mapping[str, torch.Tensor]
     ) -> dict[str, torch.Tensor]:
+        """
+        Callback used before projecting the unimodal representations to the GW
+        representation when computing the demi-cycle loss. Defaults to identity.
+        Args:
+            x: mapping of domain name to latent representation.
+        Returns:
+            the same mapping with updated representations
+        """
         return {
             domain: self.domain_descr[domain].module.on_before_gw_encode_dcy(
                 x[domain]
@@ -98,6 +104,14 @@ class GWModule(nn.Module):
     def on_before_gw_encode_cy(
         self, x: Mapping[str, torch.Tensor]
     ) -> dict[str, torch.Tensor]:
+        """
+        Callback used before projecting the unimodal representations to the GW
+        representation when computing the cycle loss. Defaults to identity.
+        Args:
+            x: mapping of domain name to latent representation.
+        Returns:
+            the same mapping with updated representations
+        """
         return {
             domain: self.domain_descr[domain].module.on_before_gw_encode_cy(
                 x[domain]
@@ -108,6 +122,14 @@ class GWModule(nn.Module):
     def on_before_gw_encode_tr(
         self, x: Mapping[str, torch.Tensor]
     ) -> dict[str, torch.Tensor]:
+        """
+        Callback used before projecting the unimodal representations to the GW
+        representation when computing the translation loss. Defaults to identity.
+        Args:
+            x: mapping of domain name to latent representation.
+        Returns:
+            the same mapping with updated representations
+        """
         return {
             domain: self.domain_descr[domain].module.on_before_gw_encode_tr(
                 x[domain]
@@ -118,6 +140,14 @@ class GWModule(nn.Module):
     def on_before_gw_encode_cont(
         self, x: Mapping[str, torch.Tensor]
     ) -> dict[str, torch.Tensor]:
+        """
+        Callback used before projecting the unimodal representations to the GW
+        representation when computing the contrastive loss. Defaults to identity.
+        Args:
+            x: mapping of domain name to latent representation.
+        Returns:
+            the same mapping with updated representations
+        """
         return {
             domain: self.domain_descr[domain].module.on_before_gw_encode_cont(
                 x[domain]
@@ -125,23 +155,58 @@ class GWModule(nn.Module):
             for domain in x.keys()
         }
 
+    @abstractmethod
     def encode(self, x: Mapping[str, torch.Tensor]) -> torch.Tensor:
-        raise NotImplementedError
+        """
+        Encode the unimodal representations to the GW representation.
+        Args:
+            x: mapping of domain name to unimodal representation.
+        Returns:
+            GW representation
+        """
+        ...
 
+    @abstractmethod
     def decode(
         self, z: torch.Tensor, domains: Iterable[str] | None = None
     ) -> dict[str, torch.Tensor]:
-        raise NotImplementedError
+        """
+        Decode the GW representation to the unimodal representations.
+        Args:
+            z: GW representation
+            domains: iterable of domains to decode to. Defaults to all domains.
+        Returns:
+            dict of domain name to decoded unimodal representation.
+        """
+        ...
 
+    @abstractmethod
     def translate(
         self, x: Mapping[str, torch.Tensor], to: str
     ) -> torch.Tensor:
-        raise NotImplementedError
+        """
+        Translate from one domain to another.
+        Args:
+            x: mapping of domain name to unimodal representation.
+            to: domain to translate to.
+        Returns:
+            the unimodal representation of domain given by `to`.
+        """
+        ...
 
+    @abstractmethod
     def cycle(
         self, x: Mapping[str, torch.Tensor], through: str
     ) -> dict[str, torch.Tensor]:
-        raise NotImplementedError
+        """
+        Cycle from one domain through another.
+        Args:
+            x: mapping of domain name to unimodal representation.
+            through: domain to translate to.
+        Returns:
+            the unimodal representations cycles through the given domain.
+        """
+        ...
 
 
 def default_encoders(
@@ -194,6 +259,13 @@ class DeterministicGWModule(GWModule):
         )
 
     def fusion_mechanism(self, x: Mapping[str, torch.Tensor]) -> torch.Tensor:
+        """
+        Merge function used to combine domains.
+        Args:
+            x: mapping of domain name to latent representation.
+        Returns:
+            The merged representation
+        """
         return torch.mean(torch.stack(list(x.values())), dim=0)
 
     def encode(self, x: Mapping[str, torch.Tensor]) -> torch.Tensor:

@@ -1,4 +1,5 @@
 import math
+from abc import ABCMeta, abstractmethod
 from collections.abc import Sequence
 
 import torch
@@ -28,16 +29,40 @@ def gaussian_nll(
     )
 
 
-class VAEEncoder(nn.Module):
+class VAEEncoder(nn.Module, metaclass=ABCMeta):
+    """
+    Base class for a VAE encoder.
+    """
+
+    @abstractmethod
     def forward(
         self, x: Sequence[torch.Tensor]
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        raise NotImplementedError
+        """
+        Encode representation with VAE
+        Args:
+            x: sequence of tensors
+        Retunrs:
+            tuple with the mean and the log variance
+        """
+        ...
 
 
-class VAEDecoder(nn.Module):
+class VAEDecoder(nn.Module, metaclass=ABCMeta):
+    """
+    Base class for a VAE decoder.
+    """
+
+    @abstractmethod
     def forward(self, x: torch.Tensor) -> Sequence[torch.Tensor]:
-        raise NotImplementedError
+        """
+        Decode representation with VAE
+        Args:
+            x: representation
+        Retunrs:
+            Sequence of tensors reconstructing input
+        """
+        ...
 
 
 class VAE(nn.Module):
