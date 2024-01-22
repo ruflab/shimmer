@@ -30,3 +30,9 @@ refers to `DeterministicGlobalWorkspace`.
 
 # 0.4.0
 * Use ABC for abstract methods.
+* Replace `DomainDescription` with `GWInterface`.
+* Add `contrastive_fn` attribute in `DeterministicGWLosses` to compute the contrastive loss.
+    It can then be customized.
+* Rename every abstract class with ClassNameBase. Rename every "Deterministic" classes 
+    to remove "Deterministic".
+

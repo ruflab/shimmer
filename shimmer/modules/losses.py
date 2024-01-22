@@ -7,7 +7,7 @@ from torch.nn.functional import cross_entropy, normalize
 
 from shimmer.modules.dict_buffer import DictBuffer
 from shimmer.modules.domain import DomainModule
-from shimmer.modules.gw_module import (DeterministicGWModule, GWModule,
+from shimmer.modules.gw_module import (GWModule, GWModuleBase,
                                        VariationalGWModule)
 from shimmer.modules.vae import kl_divergence_loss
 
@@ -134,7 +134,7 @@ class GWLossesBase(torch.nn.Module, ABC):
 
 
 def _demi_cycle_loss(
-    gw_mod: GWModule,
+    gw_mod: GWModuleBase,
     domain_mods: dict[str, DomainModule],
     latent_domains: LatentsT,
 ) -> dict[str, torch.Tensor]:
@@ -164,7 +164,7 @@ def _demi_cycle_loss(
 
 
 def _cycle_loss(
-    gw_mod: GWModule,
+    gw_mod: GWModuleBase,
     domain_mods: dict[str, DomainModule],
     latent_domains: LatentsT,
 ) -> dict[str, torch.Tensor]:
@@ -205,7 +205,7 @@ def _cycle_loss(
 
 
 def _translation_loss(
-    gw_mod: GWModule,
+    gw_mod: GWModuleBase,
     domain_mods: dict[str, DomainModule],
     latent_domains: LatentsT,
 ) -> dict[str, torch.Tensor]:
@@ -252,7 +252,7 @@ def _translation_loss(
 
 
 def _contrastive_loss(
-    gw_mod: GWModule,
+    gw_mod: GWModuleBase,
     latent_domains: LatentsT,
     contrastive_fn: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
 ) -> dict[str, torch.Tensor]:
@@ -330,7 +330,7 @@ def _contrastive_loss_with_uncertainty(
 class GWLosses(GWLossesBase):
     def __init__(
         self,
-        gw_mod: DeterministicGWModule,
+        gw_mod: GWModule,
         domain_mods: dict[str, DomainModule],
         coef_buffers: DictBuffer,
     ):
