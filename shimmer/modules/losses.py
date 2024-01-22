@@ -111,7 +111,7 @@ class ContrastiveLossWithUncertainty(torch.nn.Module):
         )
 
 
-class GWLosses(torch.nn.Module, ABC):
+class GWLossesBase(torch.nn.Module, ABC):
     """
     Base Abstract Class for Global Workspace (GW) losses. This module is used
     to compute the different losses of the GW (typically translation, cycle,
@@ -327,7 +327,7 @@ def _contrastive_loss_with_uncertainty(
     return losses
 
 
-class DeterministicGWLosses(GWLosses):
+class GWLosses(GWLossesBase):
     def __init__(
         self,
         gw_mod: DeterministicGWModule,
@@ -387,7 +387,7 @@ class DeterministicGWLosses(GWLosses):
         return losses
 
 
-class VariationalGWLosses(GWLosses):
+class VariationalGWLosses(GWLossesBase):
     def __init__(
         self,
         gw_mod: VariationalGWModule,

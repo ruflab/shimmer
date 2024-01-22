@@ -97,7 +97,7 @@ class GWInterfaceBase(nn.Module, ABC):
         ...
 
 
-class GWModule(nn.Module, ABC):
+class GWModuleBase(nn.Module, ABC):
     def __init__(
         self, gw_interfaces: Mapping[str, GWInterfaceBase], workspace_dim: int
     ) -> None:
@@ -266,7 +266,7 @@ class GWInterface(GWInterfaceBase):
         return self.decoder(z)
 
 
-class DeterministicGWModule(GWModule):
+class GWModule(GWModuleBase):
     def fusion_mechanism(self, x: Mapping[str, torch.Tensor]) -> torch.Tensor:
         """
         Merge function used to combine domains.
@@ -341,7 +341,7 @@ class VariationalGWInterface(GWInterfaceBase):
         return self.decoder(z)
 
 
-class VariationalGWModule(GWModule):
+class VariationalGWModule(GWModuleBase):
     def fusion_mechanism(self, x: Mapping[str, torch.Tensor]) -> torch.Tensor:
         return torch.mean(torch.stack(list(x.values())), dim=0)
 

@@ -10,9 +10,9 @@ from torch.optim.lr_scheduler import OneCycleLR
 
 from shimmer.modules.dict_buffer import DictBuffer
 from shimmer.modules.domain import DomainModule
-from shimmer.modules.gw_module import (DeterministicGWModule, GWInterfaceBase,
-                                       GWModule, VariationalGWModule)
-from shimmer.modules.losses import (DeterministicGWLosses, GWLosses, LatentsT,
+from shimmer.modules.gw_module import (GWInterfaceBase, GWModule, GWModuleBase,
+                                       VariationalGWModule)
+from shimmer.modules.losses import (GWLosses, GWLossesBase, LatentsT,
                                     VariationalGWLosses)
 
 
@@ -31,10 +31,10 @@ class GWPredictions(TypedDict):
 class GlobalWorkspaceBase(LightningModule):
     def __init__(
         self,
-        gw_mod: GWModule,
+        gw_mod: GWModuleBase,
         domain_mods: Mapping[str, DomainModule],
         coef_buffers: DictBuffer,
-        loss_mod: GWLosses,
+        loss_mod: GWLossesBase,
         optim_lr: float = 1e-3,
         optim_weight_decay: float = 0.0,
         scheduler_args: SchedulerArgs | None = None,
@@ -276,10 +276,10 @@ class GlobalWorkspace(GlobalWorkspaceBase):
         optim_weight_decay: float = 0.0,
         scheduler_args: SchedulerArgs | None = None,
     ) -> None:
-        gw_mod = DeterministicGWModule(gw_interfaces, workspace_dim)
+        gw_mod = GWModule(gw_interfaces, workspace_dim)
         domain_mods = freeze_domain_modules(domain_mods)
         coef_buffers = DictBuffer(loss_coefs)
-        loss_mod = DeterministicGWLosses(gw_mod, domain_mods, coef_buffers)
+        loss_mod = GWLosses(gw_mod, domain_mods, coef_buffers)
 
         super().__init__(
             gw_mod,
