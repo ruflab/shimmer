@@ -1,4 +1,4 @@
-from abc import ABCMeta, abstractmethod
+from abc import ABC, abstractmethod
 from collections.abc import Iterable, Mapping
 
 import torch
@@ -79,7 +79,7 @@ class VariationalGWEncoder(nn.Module):
         return self.layers(x), self.uncertainty_level.expand(x.size(0), -1)
 
 
-class GWModule(nn.Module, metaclass=ABCMeta):
+class GWModule(nn.Module, ABC):
     domain_descr: Mapping[str, DomainDescription]
     latent_dim: int
 

@@ -1,5 +1,5 @@
 import math
-from abc import ABCMeta, abstractmethod
+from abc import ABC, abstractmethod
 from collections.abc import Sequence
 
 import torch
@@ -29,7 +29,7 @@ def gaussian_nll(
     )
 
 
-class VAEEncoder(nn.Module, metaclass=ABCMeta):
+class VAEEncoder(nn.Module, ABC):
     """
     Base class for a VAE encoder.
     """
@@ -48,7 +48,7 @@ class VAEEncoder(nn.Module, metaclass=ABCMeta):
         ...
 
 
-class VAEDecoder(nn.Module, metaclass=ABCMeta):
+class VAEDecoder(nn.Module, ABC):
     """
     Base class for a VAE decoder.
     """

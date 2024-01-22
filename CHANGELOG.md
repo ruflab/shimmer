@@ -29,4 +29,4 @@ Fix bugs related to imports and `default_decoders`.
 refers to `DeterministicGlobalWorkspace`.
 
 # 0.4.0
-* Use ABCMeta for abstract methods.
+* Use ABC for abstract methods.

@@ -8,7 +8,7 @@ import torch
 class DomainModule(pl.LightningModule):
     """
     Base class for a DomainModule.
-    We do not use ABCMeta here because some modules could be without encore or decoder.
+    We do not use ABC here because some modules could be without encore or decoder.
     """
 
     def encode(self, x: Any) -> torch.Tensor:

@@ -1,4 +1,4 @@
-from abc import ABCMeta, abstractmethod
+from abc import ABC, abstractmethod
 from collections.abc import Mapping
 from typing import Literal
 
@@ -65,7 +65,7 @@ def contrastive_loss_with_uncertainty(
     return 0.5 * (ce + ce_t)
 
 
-class GWLosses(torch.nn.Module, metaclass=ABCMeta):
+class GWLosses(torch.nn.Module, ABC):
     """
     Base Abstract Class for Global Workspace (GW) losses. This module is used
     to compute the different losses of the GW (typically translation, cycle,
