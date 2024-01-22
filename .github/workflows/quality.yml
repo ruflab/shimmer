@@ -18,7 +18,7 @@ jobs:
             poetry install --with dev
       - name: Update pip
         run: |
-            pip install --upgrade pip
+            poetry run pip install --upgrade pip
       - name: Analysing the code with flake8
         run: |
           poetry run flake8 .
