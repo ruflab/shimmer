@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from typing import Literal
 
 import torch
@@ -43,6 +43,21 @@ def contrastive_loss(
     return 0.5 * (ce + ce_t)
 
 
+class ContrastiveLoss(torch.nn.Module):
+    logit_scale: torch.Tensor
+
+    def __init__(
+        self,
+        logit_scale: torch.Tensor,
+        reduction: Literal["mean", "sum", "none"] = "mean",
+    ) -> None:
+        self.register_buffer("logit_scale", logit_scale)
+        self.reduction: Literal["mean", "sum", "none"] = reduction
+
+    def forward(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+        return contrastive_loss(x, y, self.logit_scale, self.reduction)
+
+
 def contrastive_loss_with_uncertainty(
     x: torch.Tensor,
     x_log_uncertainty: torch.Tensor,
@@ -63,6 +78,37 @@ def contrastive_loss_with_uncertainty(
     ce = cross_entropy(logits, labels, reduction=reduction)
     ce_t = cross_entropy(logits.t(), labels, reduction=reduction)
     return 0.5 * (ce + ce_t)
+
+
+class ContrastiveLossWithUncertainty(torch.nn.Module):
+    logit_scale: torch.Tensor
+
+    def __init__(
+        self,
+        logit_scale: torch.Tensor,
+        reduction: Literal["mean", "sum", "none"] = "mean",
+    ) -> None:
+        self.register_buffer("logit_scale", logit_scale)
+        self.reduction: Literal["mean", "sum", "none"] = reduction
+
+    def forward(
+        self,
+        x: torch.Tensor,
+        x_log_uncertainty: torch.Tensor,
+        y: torch.Tensor,
+        y_log_uncertainty: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        return (
+            contrastive_loss_with_uncertainty(
+                x,
+                x_log_uncertainty,
+                y,
+                y_log_uncertainty,
+                self.logit_scale,
+                self.reduction,
+            ),
+            contrastive_loss(x, y, self.logit_scale, self.reduction),
+        )
 
 
 class GWLosses(torch.nn.Module, ABC):
@@ -206,7 +252,9 @@ def _translation_loss(
 
 
 def _contrastive_loss(
-    gw_mod: GWModule, latent_domains: LatentsT, logit_scale: torch.Tensor
+    gw_mod: GWModule,
+    latent_domains: LatentsT,
+    contrastive_fn: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
 ) -> dict[str, torch.Tensor]:
     losses: dict[str, torch.Tensor] = {}
     keys: list[set[str]] = []
@@ -229,9 +277,7 @@ def _contrastive_loss(
                 z2 = gw_mod.encode(
                     gw_mod.on_before_gw_encode_cont({domain2_name: domain2})
                 )
-                losses[loss_name] = contrastive_loss(
-                    z1, z2, logit_scale, reduction="mean"
-                )
+                losses[loss_name] = contrastive_fn(z1, z2)
 
     losses["contrastives"] = torch.stack(list(losses.values()), dim=0).mean()
     return losses
@@ -240,7 +286,10 @@ def _contrastive_loss(
 def _contrastive_loss_with_uncertainty(
     gw_mod: VariationalGWModule,
     latent_domains: LatentsT,
-    logit_scale: torch.Tensor,
+    contrastive_fn: Callable[
+        [torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor],
+        tuple[torch.Tensor, torch.Tensor],
+    ],
 ) -> dict[str, torch.Tensor]:
     losses: dict[str, torch.Tensor] = {}
     metrics: dict[str, torch.Tensor] = {}
@@ -264,22 +313,14 @@ def _contrastive_loss_with_uncertainty(
                 z2_mean, z2_log_uncertainty = gw_mod.encoded_distribution(
                     gw_mod.on_before_gw_encode_cont({domain2_name: domain2})
                 )
-                losses[
-                    loss_name + "_normalized"
-                ] = contrastive_loss_with_uncertainty(
+                loss, loss_no_uncertainty = contrastive_fn(
                     z1_mean[domain1_name],
                     z1_log_uncertainty[domain1_name],
                     z2_mean[domain2_name],
                     z2_log_uncertainty[domain2_name],
-                    logit_scale,
-                    reduction="mean",
                 )
-                metrics[loss_name] = contrastive_loss(
-                    z1_mean[domain1_name],
-                    z2_mean[domain2_name],
-                    logit_scale,
-                    reduction="mean",
-                )
+                losses[loss_name + "_normalized"] = loss
+                metrics[loss_name] = loss_no_uncertainty
 
     losses["contrastives"] = torch.stack(list(losses.values()), dim=0).mean()
     losses.update(metrics)
@@ -287,8 +328,6 @@ def _contrastive_loss_with_uncertainty(
 
 
 class DeterministicGWLosses(GWLosses):
-    logit_scale: torch.Tensor
-
     def __init__(
         self,
         gw_mod: DeterministicGWModule,
@@ -299,7 +338,9 @@ class DeterministicGWLosses(GWLosses):
         self.gw_mod = gw_mod
         self.domain_mods = domain_mods
         self.loss_coefs = coef_buffers
-        self.register_buffer("logit_scale", torch.tensor([1 / 0.07]).log())
+        self.contrastive_fn = ContrastiveLoss(
+            torch.tensor([1 / 0.07]).log(), "mean"
+        )
 
     def demi_cycle_loss(
         self, latent_domains: LatentsT
@@ -317,7 +358,9 @@ class DeterministicGWLosses(GWLosses):
     def contrastive_loss(
         self, latent_domains: LatentsT
     ) -> dict[str, torch.Tensor]:
-        return _contrastive_loss(self.gw_mod, latent_domains, self.logit_scale)
+        return _contrastive_loss(
+            self.gw_mod, latent_domains, self.contrastive_fn
+        )
 
     def step(
         self,
@@ -339,14 +382,12 @@ class DeterministicGWLosses(GWLosses):
             dim=0,
         ).mean()
 
-        losses["logit_scale"] = self.logit_scale.exp()
+        losses["logit_scale"] = self.contrastive_fn.logit_scale.exp()
 
         return losses
 
 
 class VariationalGWLosses(GWLosses):
-    logit_scale: torch.Tensor
-
     def __init__(
         self,
         gw_mod: VariationalGWModule,
@@ -360,7 +401,14 @@ class VariationalGWLosses(GWLosses):
         self.domain_mods = domain_mods
         self.loss_coefs = coef_buffers
         self.var_contrastive_loss = var_contrastive_loss
-        self.register_buffer("logit_scale", torch.tensor([1]).log())
+        if self.var_contrastive_loss:
+            self.contrastive_fn = ContrastiveLossWithUncertainty(
+                torch.tensor([1]).log(), "mean"
+            )
+        else:
+            self.contrastive_fn = ContrastiveLoss(
+                torch.tensor([1]).log(), "mean"
+            )
 
     def demi_cycle_loss(
         self, latent_domains: LatentsT
@@ -380,9 +428,11 @@ class VariationalGWLosses(GWLosses):
     ) -> dict[str, torch.Tensor]:
         if self.var_contrastive_loss:
             return _contrastive_loss_with_uncertainty(
-                self.gw_mod, latent_domains, self.logit_scale
+                self.gw_mod, latent_domains, self.contrastive_fn
             )
-        return _contrastive_loss(self.gw_mod, latent_domains, self.logit_scale)
+        return _contrastive_loss(
+            self.gw_mod, latent_domains, self.contrastive_fn
+        )
 
     def kl_loss(self, latent_domains: LatentsT) -> dict[str, torch.Tensor]:
         losses: dict[str, torch.Tensor] = {}
@@ -429,6 +479,6 @@ class VariationalGWLosses(GWLosses):
             dim=0,
         ).mean()
 
-        losses["logit_scale"] = self.logit_scale.exp()
+        losses["logit_scale"] = self.contrastive_fn.logit_scale.exp()
 
         return losses
