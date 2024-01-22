@@ -1,4 +1,5 @@
 from collections.abc import Iterable, Mapping
+from pathlib import Path
 from typing import Any, TypedDict, cast
 
 import torch
@@ -9,7 +10,7 @@ from torch.optim.lr_scheduler import OneCycleLR
 
 from shimmer.modules.dict_buffer import DictBuffer
 from shimmer.modules.domain import DomainModule
-from shimmer.modules.gw_module import (BaseGWInterface, DeterministicGWModule,
+from shimmer.modules.gw_module import (DeterministicGWModule, GWInterfaceBase,
                                        GWModule, VariationalGWModule)
 from shimmer.modules.losses import (DeterministicGWLosses, GWLosses, LatentsT,
                                     VariationalGWLosses)
@@ -268,7 +269,7 @@ class GlobalWorkspace(GlobalWorkspaceBase):
     def __init__(
         self,
         domain_mods: Mapping[str, DomainModule],
-        gw_interfaces: Mapping[str, BaseGWInterface],
+        gw_interfaces: Mapping[str, GWInterfaceBase],
         workspace_dim: int,
         loss_coefs: dict[str, torch.Tensor],
         optim_lr: float = 1e-3,
@@ -295,7 +296,7 @@ class VariationalGlobalWorkspace(GlobalWorkspaceBase):
     def __init__(
         self,
         domain_mods: Mapping[str, DomainModule],
-        gw_interfaces: Mapping[str, BaseGWInterface],
+        gw_interfaces: Mapping[str, GWInterfaceBase],
         workspace_dim: int,
         loss_coefs: dict[str, torch.Tensor],
         var_contrastive_loss: bool = False,
@@ -319,3 +320,32 @@ class VariationalGlobalWorkspace(GlobalWorkspaceBase):
             optim_weight_decay,
             scheduler_args,
         )
+
+
+def pretrained_global_workspace(
+    checkpoint_path: str | Path,
+    domain_mods: Mapping[str, DomainModule],
+    gw_interfaces: Mapping[str, GWInterfaceBase],
+    workspace_dim: int,
+    loss_coefs: dict[str, torch.Tensor],
+    var_contrastive_loss: bool = False,
+    **kwargs,
+) -> GlobalWorkspaceBase:
+    gw_mod = VariationalGWModule(gw_interfaces, workspace_dim)
+    domain_mods = freeze_domain_modules(domain_mods)
+    coef_buffers = DictBuffer(loss_coefs)
+    loss_mod = VariationalGWLosses(
+        gw_mod, domain_mods, coef_buffers, var_contrastive_loss
+    )
+
+    return cast(
+        GlobalWorkspaceBase,
+        GlobalWorkspaceBase.load_from_checkpoint(
+            checkpoint_path,
+            domain_mods=domain_mods,
+            gw_mod=gw_mod,
+            coef_buffers=coef_buffers,
+            loss_mod=loss_mod,
+            **kwargs,
+        ),
+    )

@@ -80,7 +80,7 @@ class VariationalGWEncoder(nn.Module):
         return self.layers(x), self.uncertainty_level.expand(x.size(0), -1)
 
 
-class BaseGWInterface(nn.Module, ABC):
+class GWInterfaceBase(nn.Module, ABC):
     def __init__(
         self, domain_module: DomainModule, workspace_dim: int
     ) -> None:
@@ -99,12 +99,12 @@ class BaseGWInterface(nn.Module, ABC):
 
 class GWModule(nn.Module, ABC):
     def __init__(
-        self, gw_interfaces: Mapping[str, BaseGWInterface], workspace_dim: int
+        self, gw_interfaces: Mapping[str, GWInterfaceBase], workspace_dim: int
     ) -> None:
         super().__init__()
         # casting for LSP autocompletion
         self.gw_interfaces = cast(
-            dict[str, BaseGWInterface], nn.ModuleDict(gw_interfaces)
+            dict[str, GWInterfaceBase], nn.ModuleDict(gw_interfaces)
         )
         self.workspace_dim = workspace_dim
 
@@ -234,7 +234,7 @@ class GWModule(nn.Module, ABC):
         ...
 
 
-class GWInterface(BaseGWInterface):
+class GWInterface(GWInterfaceBase):
     def __init__(
         self,
         domain_module: DomainModule,
@@ -309,7 +309,7 @@ class DeterministicGWModule(GWModule):
         }
 
 
-class VariationalGWInterface(BaseGWInterface):
+class VariationalGWInterface(GWInterfaceBase):
     def __init__(
         self,
         domain_module: DomainModule,

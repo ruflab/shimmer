@@ -3,9 +3,11 @@ from shimmer.config import (ShimmerInfoConfig, load_config,
 from shimmer.modules.domain import DomainModule
 from shimmer.modules.global_workspace import (GlobalWorkspace,
                                               GlobalWorkspaceBase,
-                                              VariationalGlobalWorkspace)
-from shimmer.modules.gw_module import (BaseGWInterface, DeterministicGWModule,
-                                       GWDecoder, GWEncoder, GWInterface,
+                                              SchedulerArgs,
+                                              VariationalGlobalWorkspace,
+                                              pretrained_global_workspace)
+from shimmer.modules.gw_module import (DeterministicGWModule, GWDecoder,
+                                       GWEncoder, GWInterface, GWInterfaceBase,
                                        GWModule, VariationalGWEncoder,
                                        VariationalGWInterface,
                                        VariationalGWModule)
@@ -19,7 +21,7 @@ __all__ = [
     "load_structured_config",
     "ShimmerInfoConfig",
     "DomainModule",
-    "BaseGWInterface",
+    "GWInterfaceBase",
     "DeterministicGWModule",
     "GWDecoder",
     "GWEncoder",
@@ -34,4 +36,6 @@ __all__ = [
     "GlobalWorkspace",
     "GlobalWorkspaceBase",
     "VariationalGlobalWorkspace",
+    "SchedulerArgs",
+    "pretrained_global_workspace",
 ]
