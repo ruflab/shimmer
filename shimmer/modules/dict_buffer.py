@@ -1,4 +1,4 @@
-from collections.abc import Generator, Iterator
+from collections.abc import Generator, Iterator, Mapping
 from typing import Any
 
 import torch
@@ -7,7 +7,7 @@ from torch import nn
 
 class DictBuffer(nn.Module):
     def __init__(
-        self, buffer_dict: dict[str, torch.Tensor], persistent: bool = True
+        self, buffer_dict: Mapping[str, torch.Tensor], persistent: bool = True
     ):
         super().__init__()
 
