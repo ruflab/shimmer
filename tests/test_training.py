@@ -16,12 +16,12 @@ def test_training():
         "a": DummyDomainModule(latent_dim=128),
     }
 
-    gw_latent_dim = 16
+    workspace_dim = 16
 
     gw_interfaces = {
         "v": GWInterface(
             domains["v"],
-            gw_latent_dim=gw_latent_dim,
+            workspace_dim=workspace_dim,
             encoder_hidden_dim=64,
             encoder_n_layers=1,
             decoder_hidden_dim=64,
@@ -29,7 +29,7 @@ def test_training():
         ),
         "t": GWInterface(
             domains["t"],
-            gw_latent_dim=gw_latent_dim,
+            workspace_dim=workspace_dim,
             encoder_hidden_dim=64,
             encoder_n_layers=1,
             decoder_hidden_dim=64,
@@ -37,7 +37,7 @@ def test_training():
         ),
         "a": GWInterface(
             domains["a"],
-            gw_latent_dim=gw_latent_dim,
+            workspace_dim=workspace_dim,
             encoder_hidden_dim=64,
             encoder_n_layers=1,
             decoder_hidden_dim=64,
@@ -48,7 +48,7 @@ def test_training():
     gw = GlobalWorkspace(
         domains,
         gw_interfaces,
-        gw_latent_dim=16,
+        workspace_dim=16,
         loss_coefs={},
     )
 

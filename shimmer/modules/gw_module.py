@@ -82,11 +82,11 @@ class VariationalGWEncoder(nn.Module):
 
 class BaseGWInterface(nn.Module, ABC):
     def __init__(
-        self, domain_module: DomainModule, gw_latent_dim: int
+        self, domain_module: DomainModule, workspace_dim: int
     ) -> None:
         super().__init__()
         self.domain_module = domain_module
-        self.gw_latent_dim = gw_latent_dim
+        self.workspace_dim = workspace_dim
 
     @abstractmethod
     def encode(self, x: torch.Tensor) -> torch.Tensor:
@@ -99,14 +99,14 @@ class BaseGWInterface(nn.Module, ABC):
 
 class GWModule(nn.Module, ABC):
     def __init__(
-        self, gw_interfaces: Mapping[str, BaseGWInterface], gw_latent_dim: int
+        self, gw_interfaces: Mapping[str, BaseGWInterface], workspace_dim: int
     ) -> None:
         super().__init__()
         # casting for LSP autocompletion
         self.gw_interfaces = cast(
             dict[str, BaseGWInterface], nn.ModuleDict(gw_interfaces)
         )
-        self.latent_dim = gw_latent_dim
+        self.workspace_dim = workspace_dim
 
     def on_before_gw_encode_dcy(
         self, x: Mapping[str, torch.Tensor]
@@ -238,22 +238,22 @@ class GWInterface(BaseGWInterface):
     def __init__(
         self,
         domain_module: DomainModule,
-        gw_latent_dim: int,
+        workspace_dim: int,
         encoder_hidden_dim: int,
         encoder_n_layers: int,
         decoder_hidden_dim: int,
         decoder_n_layers: int,
     ) -> None:
-        super().__init__(domain_module, gw_latent_dim)
+        super().__init__(domain_module, workspace_dim)
 
         self.encoder = GWEncoder(
             domain_module.latent_dim,
             encoder_hidden_dim,
-            gw_latent_dim,
+            workspace_dim,
             encoder_n_layers,
         )
         self.decoder = GWDecoder(
-            gw_latent_dim,
+            workspace_dim,
             decoder_hidden_dim,
             domain_module.latent_dim,
             decoder_n_layers,
@@ -313,22 +313,22 @@ class VariationalGWInterface(BaseGWInterface):
     def __init__(
         self,
         domain_module: DomainModule,
-        gw_latent_dim: int,
+        workspace_dim: int,
         encoder_hidden_dim: int,
         encoder_n_layers: int,
         decoder_hidden_dim: int,
         decoder_n_layers: int,
     ) -> None:
-        super().__init__(domain_module, gw_latent_dim)
+        super().__init__(domain_module, workspace_dim)
 
         self.encoder = VariationalGWEncoder(
             domain_module.latent_dim,
             encoder_hidden_dim,
-            gw_latent_dim,
+            workspace_dim,
             encoder_n_layers,
         )
         self.decoder = GWDecoder(
-            gw_latent_dim,
+            workspace_dim,
             decoder_hidden_dim,
             domain_module.latent_dim,
             decoder_n_layers,

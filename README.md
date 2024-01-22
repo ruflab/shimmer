@@ -68,7 +68,7 @@ from shimmer import GWInterface
 my_domain = MyDomain()
 my_domain_gw_interface = GWInterface(
     my_domain,
-    gw_latent_dim=12,  # latent dim of the global workspace
+    workspace_dim=12,  # latent dim of the global workspace
     encoder_hidden_dim=32,  # hidden dimension for the GW encoder
     encoder_n_layers=3,  # n layers to use for the GW encoder
     decoder_hidden_dim=32,  # hidden dimension for the GW decoder
