@@ -1,8 +1,7 @@
 import torch.utils.data
 from utils import DummyData, DummyDataset, DummyDomainModule
 
-from shimmer.modules.domain import DomainDescription
-from shimmer.modules.global_workspace import GlobalWorkspace
+from shimmer import GlobalWorkspace, GWInterface
 
 
 def test_training():
@@ -12,30 +11,33 @@ def test_training():
     )
 
     domains = {
-        "v": DummyDomainModule(),
-        "t": DummyDomainModule(),
-        "a": DummyDomainModule(),
+        "v": DummyDomainModule(latent_dim=128),
+        "t": DummyDomainModule(latent_dim=128),
+        "a": DummyDomainModule(latent_dim=128),
     }
-    domain_description = {
-        "v": DomainDescription(
-            module=domains["v"],
-            latent_dim=128,
+
+    gw_latent_dim = 16
+
+    gw_interfaces = {
+        "v": GWInterface(
+            domains["v"],
+            gw_latent_dim=gw_latent_dim,
             encoder_hidden_dim=64,
             encoder_n_layers=1,
             decoder_hidden_dim=64,
             decoder_n_layers=1,
         ),
-        "t": DomainDescription(
-            module=domains["t"],
-            latent_dim=128,
+        "t": GWInterface(
+            domains["t"],
+            gw_latent_dim=gw_latent_dim,
             encoder_hidden_dim=64,
             encoder_n_layers=1,
             decoder_hidden_dim=64,
             decoder_n_layers=1,
         ),
-        "a": DomainDescription(
-            module=domains["a"],
-            latent_dim=128,
+        "a": GWInterface(
+            domains["a"],
+            gw_latent_dim=gw_latent_dim,
             encoder_hidden_dim=64,
             encoder_n_layers=1,
             decoder_hidden_dim=64,
@@ -44,8 +46,9 @@ def test_training():
     }
 
     gw = GlobalWorkspace(
-        domain_description,
-        latent_dim=16,
+        domains,
+        gw_interfaces,
+        gw_latent_dim=16,
         loss_coefs={},
     )
 

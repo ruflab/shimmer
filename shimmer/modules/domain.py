@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from typing import Any
 
 import lightning.pytorch as pl
@@ -10,6 +9,19 @@ class DomainModule(pl.LightningModule):
     Base class for a DomainModule.
     We do not use ABC here because some modules could be without encore or decoder.
     """
+
+    def __init__(
+        self,
+        latent_dim: int,
+    ) -> None:
+        """
+        Args:
+            latent_dim: latent dimension of the unimodal module
+            encoder_hidden_dim: number of hidden
+        """
+        super().__init__()
+
+        self.latent_dim = latent_dim
 
     def encode(self, x: Any) -> torch.Tensor:
         """
@@ -103,13 +115,3 @@ class DomainModule(pl.LightningModule):
             used for training. Any other key will be logged, but not trained on.
         """
         return self.compute_loss(pred, target)
-
-
-@dataclass
-class DomainDescription:
-    module: DomainModule
-    latent_dim: int
-    encoder_hidden_dim: int
-    encoder_n_layers: int
-    decoder_hidden_dim: int
-    decoder_n_layers: int

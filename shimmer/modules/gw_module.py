@@ -1,10 +1,11 @@
 from abc import ABC, abstractmethod
 from collections.abc import Iterable, Mapping
+from typing import cast
 
 import torch
 from torch import nn
 
-from shimmer.modules.domain import DomainDescription
+from shimmer.modules.domain import DomainModule
 from shimmer.modules.vae import reparameterize
 
 
@@ -79,9 +80,33 @@ class VariationalGWEncoder(nn.Module):
         return self.layers(x), self.uncertainty_level.expand(x.size(0), -1)
 
 
+class BaseGWInterface(nn.Module, ABC):
+    def __init__(
+        self, domain_module: DomainModule, gw_latent_dim: int
+    ) -> None:
+        super().__init__()
+        self.domain_module = domain_module
+        self.gw_latent_dim = gw_latent_dim
+
+    @abstractmethod
+    def encode(self, x: torch.Tensor) -> torch.Tensor:
+        ...
+
+    @abstractmethod
+    def decode(self, z: torch.Tensor) -> torch.Tensor:
+        ...
+
+
 class GWModule(nn.Module, ABC):
-    domain_descr: Mapping[str, DomainDescription]
-    latent_dim: int
+    def __init__(
+        self, gw_interfaces: Mapping[str, BaseGWInterface], gw_latent_dim: int
+    ) -> None:
+        super().__init__()
+        # casting for LSP autocompletion
+        self.gw_interfaces = cast(
+            dict[str, BaseGWInterface], nn.ModuleDict(gw_interfaces)
+        )
+        self.latent_dim = gw_latent_dim
 
     def on_before_gw_encode_dcy(
         self, x: Mapping[str, torch.Tensor]
@@ -95,9 +120,9 @@ class GWModule(nn.Module, ABC):
             the same mapping with updated representations
         """
         return {
-            domain: self.domain_descr[domain].module.on_before_gw_encode_dcy(
-                x[domain]
-            )
+            domain: self.gw_interfaces[
+                domain
+            ].domain_module.on_before_gw_encode_dcy(x[domain])
             for domain in x.keys()
         }
 
@@ -113,9 +138,9 @@ class GWModule(nn.Module, ABC):
             the same mapping with updated representations
         """
         return {
-            domain: self.domain_descr[domain].module.on_before_gw_encode_cy(
-                x[domain]
-            )
+            domain: self.gw_interfaces[
+                domain
+            ].domain_module.on_before_gw_encode_cy(x[domain])
             for domain in x.keys()
         }
 
@@ -131,9 +156,9 @@ class GWModule(nn.Module, ABC):
             the same mapping with updated representations
         """
         return {
-            domain: self.domain_descr[domain].module.on_before_gw_encode_tr(
-                x[domain]
-            )
+            domain: self.gw_interfaces[
+                domain
+            ].domain_module.on_before_gw_encode_tr(x[domain])
             for domain in x.keys()
         }
 
@@ -149,9 +174,9 @@ class GWModule(nn.Module, ABC):
             the same mapping with updated representations
         """
         return {
-            domain: self.domain_descr[domain].module.on_before_gw_encode_cont(
-                x[domain]
-            )
+            domain: self.gw_interfaces[
+                domain
+            ].domain_module.on_before_gw_encode_cont(x[domain])
             for domain in x.keys()
         }
 
@@ -209,55 +234,39 @@ class GWModule(nn.Module, ABC):
         ...
 
 
-def default_encoders(
-    domain_descriptions: Mapping[str, DomainDescription], latent_dim: int
-) -> dict[str, GWEncoder]:
-    return {
-        name: GWEncoder(
-            domain.latent_dim,
-            domain.encoder_hidden_dim,
-            latent_dim,
-            domain.encoder_n_layers,
-        )
-        for name, domain in domain_descriptions.items()
-    }
+class GWInterface(BaseGWInterface):
+    def __init__(
+        self,
+        domain_module: DomainModule,
+        gw_latent_dim: int,
+        encoder_hidden_dim: int,
+        encoder_n_layers: int,
+        decoder_hidden_dim: int,
+        decoder_n_layers: int,
+    ) -> None:
+        super().__init__(domain_module, gw_latent_dim)
 
-
-def default_decoders(
-    domain_descriptions: Mapping[str, DomainDescription], latent_dim: int
-) -> dict[str, GWDecoder]:
-    return {
-        name: GWDecoder(
-            latent_dim,
-            domain.decoder_hidden_dim,
-            domain.latent_dim,
-            domain.decoder_n_layers,
+        self.encoder = GWEncoder(
+            domain_module.latent_dim,
+            encoder_hidden_dim,
+            gw_latent_dim,
+            encoder_n_layers,
         )
-        for name, domain in domain_descriptions.items()
-    }
+        self.decoder = GWDecoder(
+            gw_latent_dim,
+            decoder_hidden_dim,
+            domain_module.latent_dim,
+            decoder_n_layers,
+        )
+
+    def encode(self, x: torch.Tensor) -> torch.Tensor:
+        return self.encoder(x)
+
+    def decode(self, z: torch.Tensor) -> torch.Tensor:
+        return self.decoder(z)
 
 
 class DeterministicGWModule(GWModule):
-    def __init__(
-        self,
-        domain_descriptions: Mapping[str, DomainDescription],
-        latent_dim: int,
-        encoders: Mapping[str, nn.Module] | None = None,
-        decoders: Mapping[str, nn.Module] | None = None,
-    ):
-        super().__init__()
-
-        self.domains = set(domain_descriptions.keys())
-        self.domain_descr = domain_descriptions
-        self.latent_dim = latent_dim
-
-        self.encoders = nn.ModuleDict(
-            encoders or default_encoders(domain_descriptions, latent_dim)
-        )
-        self.decoders = nn.ModuleDict(
-            decoders or default_decoders(domain_descriptions, latent_dim)
-        )
-
     def fusion_mechanism(self, x: Mapping[str, torch.Tensor]) -> torch.Tensor:
         """
         Merge function used to combine domains.
@@ -270,15 +279,18 @@ class DeterministicGWModule(GWModule):
 
     def encode(self, x: Mapping[str, torch.Tensor]) -> torch.Tensor:
         return self.fusion_mechanism(
-            {domain: self.encoders[domain](x[domain]) for domain in x.keys()}
+            {
+                domain: self.gw_interfaces[domain].encode(x[domain])
+                for domain in x.keys()
+            }
         )
 
     def decode(
         self, z: torch.Tensor, domains: Iterable[str] | None = None
     ) -> dict[str, torch.Tensor]:
         return {
-            domain: self.decoders[domain](z)
-            for domain in domains or self.domains
+            domain: self.gw_interfaces[domain].decode(z)
+            for domain in domains or self.gw_interfaces.keys()
         }
 
     def translate(
@@ -297,41 +309,39 @@ class DeterministicGWModule(GWModule):
         }
 
 
-def default_var_encoders(
-    domain_descriptions: Mapping[str, DomainDescription], latent_dim: int
-) -> dict[str, VariationalGWEncoder]:
-    return {
-        name: VariationalGWEncoder(
-            domain.latent_dim,
-            domain.encoder_hidden_dim,
-            latent_dim,
-            domain.encoder_n_layers,
+class VariationalGWInterface(BaseGWInterface):
+    def __init__(
+        self,
+        domain_module: DomainModule,
+        gw_latent_dim: int,
+        encoder_hidden_dim: int,
+        encoder_n_layers: int,
+        decoder_hidden_dim: int,
+        decoder_n_layers: int,
+    ) -> None:
+        super().__init__(domain_module, gw_latent_dim)
+
+        self.encoder = VariationalGWEncoder(
+            domain_module.latent_dim,
+            encoder_hidden_dim,
+            gw_latent_dim,
+            encoder_n_layers,
         )
-        for name, domain in domain_descriptions.items()
-    }
+        self.decoder = GWDecoder(
+            gw_latent_dim,
+            decoder_hidden_dim,
+            domain_module.latent_dim,
+            decoder_n_layers,
+        )
+
+    def encode(self, x: torch.Tensor) -> torch.Tensor:
+        return self.encoder(x)
+
+    def decode(self, z: torch.Tensor) -> torch.Tensor:
+        return self.decoder(z)
 
 
 class VariationalGWModule(GWModule):
-    def __init__(
-        self,
-        domain_descriptions: Mapping[str, DomainDescription],
-        latent_dim: int,
-        encoders: Mapping[str, nn.Module] | None = None,
-        decoders: Mapping[str, nn.Module] | None = None,
-    ):
-        super().__init__()
-
-        self.domains = set(domain_descriptions.keys())
-        self.domain_descr = domain_descriptions
-        self.latent_dim = latent_dim
-
-        self.encoders = nn.ModuleDict(
-            encoders or default_var_encoders(domain_descriptions, latent_dim)
-        )
-        self.decoders = nn.ModuleDict(
-            decoders or default_decoders(domain_descriptions, latent_dim)
-        )
-
     def fusion_mechanism(self, x: Mapping[str, torch.Tensor]) -> torch.Tensor:
         return torch.mean(torch.stack(list(x.values())), dim=0)
 
@@ -341,7 +351,9 @@ class VariationalGWModule(GWModule):
     ) -> torch.Tensor:
         latents: dict[str, torch.Tensor] = {}
         for domain in x.keys():
-            mean, log_uncertainty = self.encoders[domain](x[domain])
+            mean, log_uncertainty = self.gw_interfaces[domain].encode(
+                x[domain]
+            )
             latents[domain] = reparameterize(mean, log_uncertainty)
             latents[domain] = mean
         return self.fusion_mechanism(latents)
@@ -353,7 +365,9 @@ class VariationalGWModule(GWModule):
         means: dict[str, torch.Tensor] = {}
         log_uncertainties: dict[str, torch.Tensor] = {}
         for domain in x.keys():
-            mean, log_uncertainty = self.encoders[domain](x[domain])
+            mean, log_uncertainty = self.gw_interfaces[domain].encode(
+                x[domain]
+            )
             means[domain] = mean
             log_uncertainties[domain] = log_uncertainty
         return means, log_uncertainties
@@ -368,8 +382,8 @@ class VariationalGWModule(GWModule):
         self, z: torch.Tensor, domains: Iterable[str] | None = None
     ) -> dict[str, torch.Tensor]:
         return {
-            domain: self.decoders[domain](z)
-            for domain in domains or self.domains
+            domain: self.gw_interfaces[domain].decode(z)
+            for domain in domains or self.gw_interfaces.keys()
         }
 
     def translate(

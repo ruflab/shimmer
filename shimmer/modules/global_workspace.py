@@ -8,9 +8,9 @@ from torch.nn import ModuleDict
 from torch.optim.lr_scheduler import OneCycleLR
 
 from shimmer.modules.dict_buffer import DictBuffer
-from shimmer.modules.domain import DomainDescription, DomainModule
-from shimmer.modules.gw_module import (DeterministicGWModule, GWModule,
-                                       VariationalGWModule)
+from shimmer.modules.domain import DomainModule
+from shimmer.modules.gw_module import (DeterministicGWModule, GWInterface,
+                                       GWModule, VariationalGWModule)
 from shimmer.modules.losses import (DeterministicGWLosses, GWLosses, LatentsT,
                                     VariationalGWLosses)
 
@@ -251,12 +251,9 @@ class GlobalWorkspaceBase(LightningModule):
         }
 
 
-def extract_domain_modules(
-    domain_descriptions: Mapping[str, DomainDescription],
+def freeze_domain_modules(
+    domain_mods: Mapping[str, DomainModule],
 ) -> dict[str, DomainModule]:
-    domain_mods = {
-        name: domain.module for name, domain in domain_descriptions.items()
-    }
     for mod in domain_mods.values():
         mod.freeze()
     # Cast for better auto-completion at the expense of ModuleDict
@@ -266,15 +263,16 @@ def extract_domain_modules(
 class GlobalWorkspace(GlobalWorkspaceBase):
     def __init__(
         self,
-        domain_descriptions: Mapping[str, DomainDescription],
-        latent_dim: int,
+        domain_mods: Mapping[str, DomainModule],
+        gw_interfaces: Mapping[str, GWInterface],
+        gw_latent_dim: int,
         loss_coefs: dict[str, torch.Tensor],
         optim_lr: float = 1e-3,
         optim_weight_decay: float = 0.0,
         scheduler_args: SchedulerArgs | None = None,
     ) -> None:
-        gw_mod = DeterministicGWModule(domain_descriptions, latent_dim)
-        domain_mods = extract_domain_modules(domain_descriptions)
+        gw_mod = DeterministicGWModule(gw_interfaces, gw_latent_dim)
+        domain_mods = freeze_domain_modules(domain_mods)
         coef_buffers = DictBuffer(loss_coefs)
         loss_mod = DeterministicGWLosses(gw_mod, domain_mods, coef_buffers)
 
@@ -292,16 +290,17 @@ class GlobalWorkspace(GlobalWorkspaceBase):
 class VariationalGlobalWorkspace(GlobalWorkspaceBase):
     def __init__(
         self,
-        domain_descriptions: Mapping[str, DomainDescription],
-        latent_dim: int,
+        domain_mods: Mapping[str, DomainModule],
+        gw_interfaces: Mapping[str, GWInterface],
+        gw_latent_dim: int,
         loss_coefs: dict[str, torch.Tensor],
         var_contrastive_loss: bool = False,
         optim_lr: float = 1e-3,
         optim_weight_decay: float = 0.0,
         scheduler_args: SchedulerArgs | None = None,
     ) -> None:
-        gw_mod = VariationalGWModule(domain_descriptions, latent_dim)
-        domain_mods = extract_domain_modules(domain_descriptions)
+        gw_mod = VariationalGWModule(gw_interfaces, gw_latent_dim)
+        domain_mods = freeze_domain_modules(domain_mods)
         coef_buffers = DictBuffer(loss_coefs)
         loss_mod = VariationalGWLosses(
             gw_mod, domain_mods, coef_buffers, var_contrastive_loss

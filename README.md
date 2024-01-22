@@ -27,11 +27,13 @@ shimmer = {git = "git@github.com:bdvllrs/shimmer.git", rev = "0.3.2"}
 ```python
 import torch
 
-from shimmer.modules.domain import DomainModule
+from shimmer import DomainModule
 
 
-# DomainModule is a LightningModule, so you can 
 class MyDomain(DomainModule):
+    def __init__(self, latent_dim: int):
+        super().__init__(latent_dim)
+
     def encode(self, x: Any) -> torch.Tensor:
         # encode the input x into a latent representation
         # provided to the GW
@@ -54,40 +56,43 @@ class MyDomain(DomainModule):
 
 ## Use a GW
 
-### DomainDescription
-The GlobalWorkspace expects a DomainDescription dataclass.
-It contains the DomainModule, and additional information, such as the latent dim of the
-module, and how to configure the encoders and decoders.
+### GWInterface
+To link each domain module with the global workspace, we need a GWInterface.
+It encodes the unimodal representations into a GW representation, or decodes a
+GW representation into a unimodal representation.
 
 ```python
-from shimmer.modules.domain import DomainDescription
+from shimmer import GWInterface
 
 
 my_domain = MyDomain()
-my_domain_descr = DomainDescription(
-    module=my_domain,
-    latent_dim=12,  # latent dim of the domain module
+my_domain_gw_interface = GWInterface(
+    my_domain,
+    gw_latent_dim=12,  # latent dim of the global workspace
     encoder_hidden_dim=32,  # hidden dimension for the GW encoder
     encoder_n_layers=3,  # n layers to use for the GW encoder
     decoder_hidden_dim=32,  # hidden dimension for the GW decoder
     decoder_n_layers=3,  # n layers to use for the GW decoder
 )
-
-
-domain_descriptions = {
-    "domain1": my_domain_descr,
-    "domain2": ...
-}
 ```
 
 
 ### GW
 To load a global workspace, use: 
 ```python
-from shimmer.modules.global_workspace import GlobalWorkspace
+from shimmer import GlobalWorkspace
 
+
+domain_modules = {
+    "my_domain": my_domain
+}
+
+gw_interfaces = {
+    "my_domain": my_domain_gw_interface
+}
 
 workspace_dim = 32
+
 loss_coefs = {
     "translations": 1.0,
     "demi_cycles": 0.0,
@@ -95,5 +100,10 @@ loss_coefs = {
     "contrastives": 0.1,
 }
 
-model = GlobalWorkspace(domain_descriptions, workspace_dim, loss_coefs)
+model = GlobalWorkspace(
+    domain_modules,
+    gw_interfaces,
+    workspace_dim,
+    loss_coefs,
+)
 ```
