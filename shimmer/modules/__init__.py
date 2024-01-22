@@ -19,6 +19,7 @@ __all__ = [
     "GWEncoder",
     "GWInterface",
     "GWModuleBase",
+    "GWModule",
     "VariationalGWEncoder",
     "VariationalGWInterface",
     "VariationalGWModule",
