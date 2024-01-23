@@ -405,6 +405,8 @@ class VariationalGWLosses(GWLossesBase):
         self.domain_mods = domain_mods
         self.loss_coefs = coef_buffers
         self.var_contrastive_loss = var_contrastive_loss
+
+        self.contrastive_fn: ContrastiveLoss | ContrastiveLossWithUncertainty
         if self.var_contrastive_loss:
             self.contrastive_fn = ContrastiveLossWithUncertainty(
                 torch.tensor([1]).log(), "mean"
