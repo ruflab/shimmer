@@ -65,7 +65,7 @@ GW representation into a unimodal representation.
 from shimmer import GWInterface
 
 
-my_domain = MyDomain()
+my_domain = MyDomain(latent_dim=32)
 my_domain_gw_interface = GWInterface(
     my_domain,
     workspace_dim=12,  # latent dim of the global workspace
