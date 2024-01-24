@@ -8,6 +8,9 @@ from lightning.pytorch.utilities.types import OptimizerLRSchedulerConfig
 from torch.nn import ModuleDict
 from torch.optim.lr_scheduler import OneCycleLR
 
+from shimmer.modules.contrastive_loss import (ContrastiveLoss,
+                                              ContrastiveLossBase,
+                                              ContrastiveLossWithUncertainty)
 from shimmer.modules.dict_buffer import DictBuffer
 from shimmer.modules.domain import DomainModule
 from shimmer.modules.gw_module import (GWInterfaceBase, GWModule, GWModuleBase,
@@ -279,7 +282,12 @@ class GlobalWorkspace(GlobalWorkspaceBase):
         gw_mod = GWModule(gw_interfaces, workspace_dim)
         domain_mods = freeze_domain_modules(domain_mods)
         coef_buffers = DictBuffer(loss_coefs)
-        loss_mod = GWLosses(gw_mod, domain_mods, coef_buffers)
+        loss_mod = GWLosses(
+            gw_mod,
+            domain_mods,
+            coef_buffers,
+            ContrastiveLoss(torch.tensor([1 / 0.07]).log(), "mean"),
+        )
 
         super().__init__(
             gw_mod,
@@ -307,8 +315,18 @@ class VariationalGlobalWorkspace(GlobalWorkspaceBase):
         gw_mod = VariationalGWModule(gw_interfaces, workspace_dim)
         domain_mods = freeze_domain_modules(domain_mods)
         coef_buffers = DictBuffer(loss_coefs)
+
+        contrastive_fn_class = (
+            ContrastiveLossWithUncertainty
+            if var_contrastive_loss
+            else ContrastiveLoss
+        )
+
         loss_mod = VariationalGWLosses(
-            gw_mod, domain_mods, coef_buffers, var_contrastive_loss
+            gw_mod,
+            domain_mods,
+            coef_buffers,
+            contrastive_fn_class(torch.tensor([1]).log(), "mean"),
         )
 
         super().__init__(

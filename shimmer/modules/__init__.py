@@ -1,4 +1,7 @@
-from shimmer.modules.domain import DomainModule
+from shimmer.modules.contrastive_loss import (
+    ContrastiveLoss, ContrastiveLossBase, ContrastiveLossWithUncertainty,
+    contrastive_loss, contrastive_loss_with_uncertainty)
+from shimmer.modules.domain import DomainModule, LossOutput
 from shimmer.modules.global_workspace import (GlobalWorkspace,
                                               GlobalWorkspaceBase,
                                               SchedulerArgs,
@@ -9,10 +12,13 @@ from shimmer.modules.gw_module import (GWDecoder, GWEncoder, GWInterface,
                                        VariationalGWEncoder,
                                        VariationalGWInterface,
                                        VariationalGWModule)
-from shimmer.modules.losses import GWLosses, GWLossesBase, VariationalGWLosses
+from shimmer.modules.losses import (GWLosses, GWLossesBase,
+                                    LatentsDomainGroupT, LatentsT,
+                                    VariationalGWLosses)
 
 __all__ = [
     "DomainModule",
+    "LossOutput",
     "GWInterfaceBase",
     "GWModule",
     "GWDecoder",
@@ -23,6 +29,13 @@ __all__ = [
     "VariationalGWEncoder",
     "VariationalGWInterface",
     "VariationalGWModule",
+    "ContrastiveLoss",
+    "ContrastiveLossBase",
+    "ContrastiveLossWithUncertainty",
+    "contrastive_loss",
+    "contrastive_loss_with_uncertainty",
+    "LatentT",
+    "LatentsDomainGroupT",
     "GWLosses",
     "GWLossesBase",
     "VariationalGWLosses",

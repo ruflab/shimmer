@@ -1,7 +1,14 @@
+from dataclasses import dataclass, field
 from typing import Any
 
 import lightning.pytorch as pl
 import torch
+
+
+@dataclass
+class LossOutput:
+    loss: torch.Tensor
+    metrics: dict[str, torch.Tensor] = field(default_factory=dict)
 
 
 class DomainModule(pl.LightningModule):
@@ -57,7 +64,7 @@ class DomainModule(pl.LightningModule):
 
     def compute_loss(
         self, pred: torch.Tensor, target: torch.Tensor
-    ) -> dict[str, torch.Tensor]:
+    ) -> LossOutput:
         """
         Computes the loss of the modality. If you implement compute_dcy_loss,
         compute_cy_loss and compute_tr_loss independently, no need to define this
@@ -73,7 +80,7 @@ class DomainModule(pl.LightningModule):
 
     def compute_dcy_loss(
         self, pred: torch.Tensor, target: torch.Tensor
-    ) -> dict[str, torch.Tensor]:
+    ) -> LossOutput:
         """
         Computes the loss for a demi-cycle. Override if the demi-cycle loss is
         different that the generic loss.
@@ -88,7 +95,7 @@ class DomainModule(pl.LightningModule):
 
     def compute_cy_loss(
         self, pred: torch.Tensor, target: torch.Tensor
-    ) -> dict[str, torch.Tensor]:
+    ) -> LossOutput:
         """
         Computes the loss for a cycle. Override if the cycle loss is
         different that the generic loss.
@@ -103,7 +110,7 @@ class DomainModule(pl.LightningModule):
 
     def compute_tr_loss(
         self, pred: torch.Tensor, target: torch.Tensor
-    ) -> dict[str, torch.Tensor]:
+    ) -> LossOutput:
         """
         Computes the loss for a translation. Override if the translation loss is
         different that the generic loss.

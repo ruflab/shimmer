@@ -27,7 +27,7 @@ shimmer = {git = "git@github.com:bdvllrs/shimmer.git", rev = "0.3.2"}
 ```python
 import torch
 
-from shimmer import DomainModule
+from shimmer import DomainModule, LossOutput
 
 
 class MyDomain(DomainModule):
@@ -45,12 +45,11 @@ class MyDomain(DomainModule):
 
     def compute_loss(
         self, pred: torch.Tensor, target: torch.Tensor
-    ) -> dict[str, torch.Tensor]:
-        # must at least contain a key "loss" with the domain loss.
-        losses = super().compute_loss(pred, target)
-        # super computes an MSE.
-        ...
-        return losses
+    ) -> LossOutput:
+        return LossOutput(
+            loss=F.mse_loss(pred, target)  # loss used for training
+            metrics={}  # additional metrics to log (not required)
+        )
 
 ```
 
