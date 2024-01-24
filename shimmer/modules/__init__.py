@@ -1,6 +1,7 @@
 from shimmer.modules.contrastive_loss import (
-    ContrastiveLoss, ContrastiveLossBase, ContrastiveLossWithUncertainty,
-    contrastive_loss, contrastive_loss_with_uncertainty)
+    ContrastiveLoss, ContrastiveLossType, ContrastiveLossWithUncertainty,
+    VarContrastiveLossType, contrastive_loss,
+    contrastive_loss_with_uncertainty)
 from shimmer.modules.domain import DomainModule, LossOutput
 from shimmer.modules.global_workspace import (GlobalWorkspace,
                                               GlobalWorkspaceBase,
@@ -30,11 +31,12 @@ __all__ = [
     "VariationalGWInterface",
     "VariationalGWModule",
     "ContrastiveLoss",
-    "ContrastiveLossBase",
+    "ContrastiveLossType",
+    "VarContrastiveLossType",
     "ContrastiveLossWithUncertainty",
     "contrastive_loss",
     "contrastive_loss_with_uncertainty",
-    "LatentT",
+    "LatentsT",
     "LatentsDomainGroupT",
     "GWLosses",
     "GWLossesBase",

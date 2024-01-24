@@ -3,7 +3,8 @@ from collections.abc import Mapping
 
 import torch
 
-from shimmer.modules.contrastive_loss import ContrastiveLossBase
+from shimmer.modules.contrastive_loss import (ContrastiveLossType,
+                                              VarContrastiveLossType)
 from shimmer.modules.dict_buffer import DictBuffer
 from shimmer.modules.domain import DomainModule
 from shimmer.modules.gw_module import (GWModule, GWModuleBase,
@@ -156,7 +157,7 @@ def _translation_loss(
 def _contrastive_loss(
     gw_mod: GWModuleBase,
     latent_domains: LatentsT,
-    contrastive_fn: ContrastiveLossBase,
+    contrastive_fn: ContrastiveLossType,
 ) -> dict[str, torch.Tensor]:
     losses: dict[str, torch.Tensor] = {}
     metrics: dict[str, torch.Tensor] = {}
@@ -197,7 +198,7 @@ def _contrastive_loss(
 def _contrastive_loss_with_uncertainty(
     gw_mod: VariationalGWModule,
     latent_domains: LatentsT,
-    contrastive_fn: ContrastiveLossBase,
+    contrastive_fn: VarContrastiveLossType,
 ) -> dict[str, torch.Tensor]:
     losses: dict[str, torch.Tensor] = {}
     metrics: dict[str, torch.Tensor] = {}
@@ -246,7 +247,7 @@ class GWLosses(GWLossesBase):
         gw_mod: GWModule,
         domain_mods: dict[str, DomainModule],
         coef_buffers: DictBuffer,
-        contrastive_fn: ContrastiveLossBase,
+        contrastive_fn: ContrastiveLossType,
     ):
         super().__init__()
         self.gw_mod = gw_mod
@@ -303,14 +304,19 @@ class VariationalGWLosses(GWLossesBase):
         gw_mod: VariationalGWModule,
         domain_mods: dict[str, DomainModule],
         coef_buffers: DictBuffer,
-        contrastive_fn: ContrastiveLossBase,
+        contrastive_fn: ContrastiveLossType | None = None,
+        var_contrastive_fn: VarContrastiveLossType | None = None,
     ):
         super().__init__()
 
         self.gw_mod = gw_mod
         self.domain_mods = domain_mods
         self.loss_coefs = coef_buffers
+        assert (contrastive_fn is not None) != (
+            var_contrastive_fn is not None
+        ), "Should either have contrastive_fn or var_contrastive_fn"
         self.contrastive_fn = contrastive_fn
+        self.var_contrastive_fn = var_contrastive_fn
 
     def demi_cycle_loss(
         self, latent_domains: LatentsT
@@ -328,10 +334,12 @@ class VariationalGWLosses(GWLossesBase):
     def contrastive_loss(
         self, latent_domains: LatentsT
     ) -> dict[str, torch.Tensor]:
-        if self.var_contrastive_loss:
+        if self.var_contrastive_fn is not None:
             return _contrastive_loss_with_uncertainty(
-                self.gw_mod, latent_domains, self.contrastive_fn
+                self.gw_mod, latent_domains, self.var_contrastive_fn
             )
+
+        assert self.contrastive_fn is not None
         return _contrastive_loss(
             self.gw_mod, latent_domains, self.contrastive_fn
         )

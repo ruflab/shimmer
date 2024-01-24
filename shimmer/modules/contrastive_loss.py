@@ -1,11 +1,15 @@
-from abc import ABC, abstractmethod
-from collections.abc import Mapping
-from typing import Literal, TypedDict
+from collections.abc import Callable
+from typing import Literal
 
 import torch
 from torch.nn.functional import cross_entropy, normalize
 
 from shimmer.modules.domain import LossOutput
+
+ContrastiveLossType = Callable[[torch.Tensor, torch.Tensor], LossOutput]
+VarContrastiveLossType = Callable[
+    [torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor], LossOutput
+]
 
 
 def info_nce(
@@ -58,13 +62,7 @@ def contrastive_loss_with_uncertainty(
     return 0.5 * (ce + ce_t)
 
 
-class ContrastiveLossBase(torch.nn.Module, ABC):
-    @abstractmethod
-    def forward(self, x: torch.Tensor, y: torch.Tensor) -> LossOutput:
-        ...
-
-
-class ContrastiveLoss(ContrastiveLossBase):
+class ContrastiveLoss(torch.nn.Module):
     logit_scale: torch.Tensor
 
     def __init__(
@@ -77,9 +75,6 @@ class ContrastiveLoss(ContrastiveLossBase):
         self.register_buffer("logit_scale", logit_scale)
         self.reduction: Literal["mean", "sum", "none"] = reduction
 
-    def __call__(self, *args, **kwargs) -> LossOutput:
-        return super().__call__(*args, **kwargs)
-
     def forward(self, x: torch.Tensor, y: torch.Tensor) -> LossOutput:
         return LossOutput(
             contrastive_loss(x, y, self.logit_scale, self.reduction),
@@ -87,7 +82,7 @@ class ContrastiveLoss(ContrastiveLossBase):
         )
 
 
-class ContrastiveLossWithUncertainty(ContrastiveLossBase):
+class ContrastiveLossWithUncertainty(torch.nn.Module):
     logit_scale: torch.Tensor
 
     def __init__(
