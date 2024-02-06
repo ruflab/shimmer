@@ -31,8 +31,7 @@ class GWLossesBase(torch.nn.Module, ABC):
         Computes the losses
         Args:
             domain_latents: All latent groups
-        Returns:
-            a dict with loss name as keys and loss value as values.
+        Returns: LossOutput object
         """
         ...
 

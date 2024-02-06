@@ -7,7 +7,9 @@ import torch
 
 @dataclass
 class LossOutput:
+    # Loss used during training
     loss: torch.Tensor
+    # Some additional metrics to log (not used during training)
     metrics: dict[str, torch.Tensor] = field(default_factory=dict)
 
 
