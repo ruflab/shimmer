@@ -196,17 +196,17 @@ class GlobalWorkspaceBase(LightningModule):
         domain_latents = self.encode_domains(batch)
         batch_size = self._get_batch_size(domain_latents)
 
-        losses = self.loss_mod.step(domain_latents)
+        loss_output = self.loss_mod.step(domain_latents)
 
-        for name, loss in losses.items():
+        for name, metric in loss_output.metrics.items():
             self.log(
                 f"{mode}/{name}",
-                loss,
+                metric,
                 batch_size=batch_size,
                 add_dataloader_idx=False,
             )
 
-        return losses["loss"]
+        return loss_output.loss
 
     def validation_step(
         self, data: Mapping[str, Any], _, dataloader_idx: int = 0

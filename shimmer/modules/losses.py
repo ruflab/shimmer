@@ -6,7 +6,7 @@ import torch
 from shimmer.modules.contrastive_loss import (ContrastiveLossType,
                                               VarContrastiveLossType)
 from shimmer.modules.dict_buffer import DictBuffer
-from shimmer.modules.domain import DomainModule
+from shimmer.modules.domain import DomainModule, LossOutput
 from shimmer.modules.gw_module import (GWModule, GWModuleBase,
                                        VariationalGWModule)
 from shimmer.modules.vae import kl_divergence_loss
@@ -26,7 +26,7 @@ class GWLossesBase(torch.nn.Module, ABC):
     def step(
         self,
         domain_latents: LatentsT,
-    ) -> dict[str, torch.Tensor]:
+    ) -> LossOutput:
         """
         Computes the losses
         Args:
@@ -278,24 +278,24 @@ class GWLosses(GWLossesBase):
     def step(
         self,
         domain_latents: Mapping[frozenset[str], Mapping[str, torch.Tensor]],
-    ) -> dict[str, torch.Tensor]:
-        losses: dict[str, torch.Tensor] = {}
+    ) -> LossOutput:
+        metrics: dict[str, torch.Tensor] = {}
 
-        losses.update(self.demi_cycle_loss(domain_latents))
-        losses.update(self.cycle_loss(domain_latents))
-        losses.update(self.translation_loss(domain_latents))
-        losses.update(self.contrastive_loss(domain_latents))
+        metrics.update(self.demi_cycle_loss(domain_latents))
+        metrics.update(self.cycle_loss(domain_latents))
+        metrics.update(self.translation_loss(domain_latents))
+        metrics.update(self.contrastive_loss(domain_latents))
 
-        losses["loss"] = torch.stack(
+        loss = torch.stack(
             [
-                losses[name] * coef
+                metrics[name] * coef
                 for name, coef in self.loss_coefs.items()
                 if coef.item() > 0
             ],
             dim=0,
         ).mean()
 
-        return losses
+        return LossOutput(loss, metrics)
 
 
 class VariationalGWLosses(GWLossesBase):
@@ -366,27 +366,27 @@ class VariationalGWLosses(GWLossesBase):
     def step(
         self,
         domain_latents: Mapping[frozenset[str], Mapping[str, torch.Tensor]],
-    ) -> dict[str, torch.Tensor]:
-        losses: dict[str, torch.Tensor] = {}
+    ) -> LossOutput:
+        metrics: dict[str, torch.Tensor] = {}
 
         dcy_losses = self.demi_cycle_loss(domain_latents)
-        losses.update(dcy_losses)
+        metrics.update(dcy_losses)
         cy_losses = self.cycle_loss(domain_latents)
-        losses.update(cy_losses)
+        metrics.update(cy_losses)
         tr_losses = self.translation_loss(domain_latents)
-        losses.update(tr_losses)
+        metrics.update(tr_losses)
         cont_losses = self.contrastive_loss(domain_latents)
-        losses.update(cont_losses)
+        metrics.update(cont_losses)
         kl_losses = self.kl_loss(domain_latents)
-        losses.update(kl_losses)
+        metrics.update(kl_losses)
 
-        losses["loss"] = torch.stack(
+        loss = torch.stack(
             [
-                losses[name] * coef
+                metrics[name] * coef
                 for name, coef in self.loss_coefs.items()
                 if (coef > 0).item()
             ],
             dim=0,
         ).mean()
 
-        return losses
+        return LossOutput(loss, metrics)
