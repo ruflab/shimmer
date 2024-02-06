@@ -347,6 +347,7 @@ class VariationalGlobalWorkspace(GlobalWorkspaceBase):
 
 
 def pretrained_global_workspace(
+    workspace_cls: type[GlobalWorkspaceBase],
     checkpoint_path: str | Path,
     domain_mods: Mapping[str, DomainModule],
     gw_interfaces: Mapping[str, GWInterfaceBase],
@@ -363,8 +364,8 @@ def pretrained_global_workspace(
     )
 
     return cast(
-        GlobalWorkspaceBase,
-        GlobalWorkspaceBase.load_from_checkpoint(
+        workspace_cls,
+        workspace_cls.load_from_checkpoint(
             checkpoint_path,
             domain_mods=domain_mods,
             gw_mod=gw_mod,
