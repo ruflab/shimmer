@@ -198,7 +198,7 @@ class GlobalWorkspaceBase(LightningModule):
 
         loss_output = self.loss_mod.step(domain_latents)
 
-        for name, metric in loss_output.metrics.items():
+        for name, metric in loss_output.all.items():
             self.log(
                 f"{mode}/{name}",
                 metric,

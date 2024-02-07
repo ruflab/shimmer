@@ -12,6 +12,17 @@ class LossOutput:
     # Some additional metrics to log (not used during training)
     metrics: dict[str, torch.Tensor] = field(default_factory=dict)
 
+    def __post_init__(self):
+        if "loss" in self.metrics.keys():
+            raise ValueError("'loss' cannot be a key of metrics.")
+
+    @property
+    def all(self) -> dict[str, torch.Tensor]:
+        """
+        Returns a dict with all metrics and loss with "loss" key
+        """
+        return {**self.metrics, "loss": self.loss}
+
 
 class DomainModule(pl.LightningModule):
     """
