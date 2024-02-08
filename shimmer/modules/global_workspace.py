@@ -8,15 +8,25 @@ from lightning.pytorch.utilities.types import OptimizerLRSchedulerConfig
 from torch.nn import ModuleDict
 from torch.optim.lr_scheduler import OneCycleLR
 
-from shimmer.modules.contrastive_loss import (ContrastiveLoss,
-                                              ContrastiveLossType,
-                                              ContrastiveLossWithUncertainty)
+from shimmer.modules.contrastive_loss import (
+    ContrastiveLoss,
+    ContrastiveLossType,
+    ContrastiveLossWithUncertainty,
+)
 from shimmer.modules.dict_buffer import DictBuffer
 from shimmer.modules.domain import DomainModule
-from shimmer.modules.gw_module import (GWInterfaceBase, GWModule, GWModuleBase,
-                                       VariationalGWModule)
-from shimmer.modules.losses import (GWLosses, GWLossesBase, LatentsT,
-                                    VariationalGWLosses)
+from shimmer.modules.gw_module import (
+    GWInterfaceBase,
+    GWModule,
+    GWModuleBase,
+    VariationalGWModule,
+)
+from shimmer.modules.losses import (
+    GWLosses,
+    GWLossesBase,
+    LatentsT,
+    VariationalGWLosses,
+)
 
 
 class SchedulerArgs(TypedDict, total=False):
@@ -144,9 +154,9 @@ class GlobalWorkspaceBase(LightningModule):
                         {domain_name_source: latents[domain_name_source]},
                         to=domain_name_target,
                     )
-                    predictions[
-                        (domain_name_source, domain_name_target)
-                    ] = prediction
+                    predictions[(domain_name_source, domain_name_target)] = (
+                        prediction
+                    )
         return predictions
 
     def encode_domain(self, domain: Any, name: str) -> torch.Tensor:

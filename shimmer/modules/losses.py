@@ -3,12 +3,17 @@ from collections.abc import Mapping
 
 import torch
 
-from shimmer.modules.contrastive_loss import (ContrastiveLossType,
-                                              VarContrastiveLossType)
+from shimmer.modules.contrastive_loss import (
+    ContrastiveLossType,
+    VarContrastiveLossType,
+)
 from shimmer.modules.dict_buffer import DictBuffer
 from shimmer.modules.domain import DomainModule, LossOutput
-from shimmer.modules.gw_module import (GWModule, GWModuleBase,
-                                       VariationalGWModule)
+from shimmer.modules.gw_module import (
+    GWModule,
+    GWModuleBase,
+    VariationalGWModule,
+)
 from shimmer.modules.vae import kl_divergence_loss
 
 LatentsDomainGroupT = Mapping[str, torch.Tensor]

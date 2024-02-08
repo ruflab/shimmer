@@ -88,9 +88,10 @@ class VAE(nn.Module):
     def decode(self, z: torch.Tensor) -> Sequence[torch.Tensor]:
         return self.decoder(z)
 
-    def forward(
-        self, x: Sequence[torch.Tensor]
-    ) -> tuple[tuple[torch.Tensor, torch.Tensor], Sequence[torch.Tensor],]:
+    def forward(self, x: Sequence[torch.Tensor]) -> tuple[
+        tuple[torch.Tensor, torch.Tensor],
+        Sequence[torch.Tensor],
+    ]:
         mean, logvar = self.encoder(x)
         z = reparameterize(mean, logvar)
 

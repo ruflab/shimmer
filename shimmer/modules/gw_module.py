@@ -89,12 +89,10 @@ class GWInterfaceBase(nn.Module, ABC):
         self.workspace_dim = workspace_dim
 
     @abstractmethod
-    def encode(self, x: torch.Tensor) -> torch.Tensor:
-        ...
+    def encode(self, x: torch.Tensor) -> torch.Tensor: ...
 
     @abstractmethod
-    def decode(self, z: torch.Tensor) -> torch.Tensor:
-        ...
+    def decode(self, z: torch.Tensor) -> torch.Tensor: ...
 
 
 class GWModuleBase(nn.Module, ABC):
