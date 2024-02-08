@@ -35,4 +35,4 @@ refers to `DeterministicGlobalWorkspace`.
     It can then be customized.
 * Rename every abstract class with ClassNameBase. Rename every "Deterministic" classes 
     to remove "Deterministic".
-
+* Remove all config related functions. This is not the role of this repo.
