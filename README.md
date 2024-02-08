@@ -105,3 +105,8 @@ model = GlobalWorkspace(
     loss_coefs,
 )
 ```
+
+
+# Contributing
+Run [isort](https://pycqa.github.io/isort/) and [black](https://github.com/psf/black) before contributing.
+Also run flake8 and mypy and the project, and make sure that everything looks good.

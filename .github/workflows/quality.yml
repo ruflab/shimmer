@@ -19,6 +19,12 @@ jobs:
       - name: Update pip
         run: |
             poetry run pip install --upgrade pip
+      - uses: isort/isort-action@master
+        with:
+          sortPaths: "./shimmer"
+      - uses: psf/black@stable
+        with:
+          src: "./shimmer"
       - name: Analysing the code with flake8
         run: |
           poetry run flake8 .
