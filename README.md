@@ -6,7 +6,6 @@ It contains:
 - the GlobalWorkspace module (using LightningModule) in two flavors: deterministic or variational;
 - an interface for your expert domains that are connected to the GlobalWorkspace;
 - a generic and barebone VAE class;
-- a helper function to load configuration from yaml using OmegaConf.
 
 
 ## Install

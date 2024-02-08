@@ -13,8 +13,6 @@ lightning = "^2.1.0"
 numpy = "^1.25"
 pandas = "^2.0.2"
 matplotlib = "^3.7.1"
-omegaconf = "^2.3.0"
-pydantic = "^2.6.0"
 
 [tool.poetry.group.dev.dependencies]
 types-tqdm = "^4.65.0.1"
