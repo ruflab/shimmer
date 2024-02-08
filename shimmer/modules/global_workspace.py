@@ -347,7 +347,6 @@ class VariationalGlobalWorkspace(GlobalWorkspaceBase):
 
 
 def pretrained_global_workspace(
-    workspace_cls: type[GlobalWorkspaceBase],
     checkpoint_path: str | Path,
     domain_mods: Mapping[str, DomainModule],
     gw_interfaces: Mapping[str, GWInterfaceBase],
@@ -355,22 +354,25 @@ def pretrained_global_workspace(
     loss_coefs: Mapping[str, torch.Tensor],
     contrastive_fn: ContrastiveLossType,
     **kwargs,
-) -> GlobalWorkspaceBase:
-    gw_mod = VariationalGWModule(gw_interfaces, workspace_dim)
+) -> GlobalWorkspace:
+    gw_mod = GWModule(gw_interfaces, workspace_dim)
     domain_mods = freeze_domain_modules(domain_mods)
     coef_buffers = DictBuffer(loss_coefs)
-    loss_mod = VariationalGWLosses(
-        gw_mod, domain_mods, coef_buffers, contrastive_fn
+    loss_mod = GWLosses(
+        gw_mod,
+        domain_mods,
+        coef_buffers,
+        contrastive_fn,
     )
 
-    return cast(
-        workspace_cls,
-        workspace_cls.load_from_checkpoint(
-            checkpoint_path,
-            domain_mods=domain_mods,
-            gw_mod=gw_mod,
-            coef_buffers=coef_buffers,
-            loss_mod=loss_mod,
-            **kwargs,
-        ),
+    gw = GlobalWorkspace.load_from_checkpoint(
+        checkpoint_path,
+        domain_mods=domain_mods,
+        gw_mod=gw_mod,
+        coef_buffers=coef_buffers,
+        loss_mod=loss_mod,
+        **kwargs,
     )
+    if not isinstance(gw, GlobalWorkspace):
+        raise TypeError("model should be of type GlobalWorkspace")
+    return gw
