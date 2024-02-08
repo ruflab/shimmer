@@ -21,12 +21,7 @@ from shimmer.modules.gw_module import (
     GWModuleBase,
     VariationalGWModule,
 )
-from shimmer.modules.losses import (
-    GWLosses,
-    GWLossesBase,
-    LatentsT,
-    VariationalGWLosses,
-)
+from shimmer.modules.losses import GWLosses, GWLossesBase, LatentsT, VariationalGWLosses
 
 
 class SchedulerArgs(TypedDict, total=False):
@@ -97,9 +92,7 @@ class GlobalWorkspaceBase(LightningModule):
         )
         return outputs
 
-    def batch_gw_states(
-        self, latent_domains: LatentsT
-    ) -> dict[str, torch.Tensor]:
+    def batch_gw_states(self, latent_domains: LatentsT) -> dict[str, torch.Tensor]:
         predictions: dict[str, torch.Tensor] = {}
         for domains, latents in latent_domains.items():
             if len(domains) > 1:
@@ -109,9 +102,7 @@ class GlobalWorkspaceBase(LightningModule):
             predictions[domain_name] = z
         return predictions
 
-    def batch_demi_cycles(
-        self, latent_domains: LatentsT
-    ) -> dict[str, torch.Tensor]:
+    def batch_demi_cycles(self, latent_domains: LatentsT) -> dict[str, torch.Tensor]:
         predictions: dict[str, torch.Tensor] = {}
         for domains, latents in latent_domains.items():
             if len(domains) > 1:
@@ -132,9 +123,7 @@ class GlobalWorkspaceBase(LightningModule):
             for domain_name_target in self.domain_mods.keys():
                 if domain_name_source == domain_name_target:
                     continue
-                z = self.gw_mod.cycle(
-                    latents_source, through=domain_name_target
-                )
+                z = self.gw_mod.cycle(latents_source, through=domain_name_target)
                 domains = (domain_name_source, domain_name_target)
                 predictions[domains] = z[domain_name_source]
         return predictions
@@ -154,9 +143,7 @@ class GlobalWorkspaceBase(LightningModule):
                         {domain_name_source: latents[domain_name_source]},
                         to=domain_name_target,
                     )
-                    predictions[(domain_name_source, domain_name_target)] = (
-                        prediction
-                    )
+                    predictions[(domain_name_source, domain_name_target)] = prediction
         return predictions
 
     def encode_domain(self, domain: Any, name: str) -> torch.Tensor:
@@ -340,9 +327,7 @@ class VariationalGlobalWorkspace(GlobalWorkspaceBase):
                 gw_mod,
                 domain_mods,
                 coef_buffers,
-                contrastive_fn=ContrastiveLoss(
-                    torch.tensor([1]).log(), "mean"
-                ),
+                contrastive_fn=ContrastiveLoss(torch.tensor([1]).log(), "mean"),
             )
 
         super().__init__(

@@ -3,17 +3,10 @@ from collections.abc import Mapping
 
 import torch
 
-from shimmer.modules.contrastive_loss import (
-    ContrastiveLossType,
-    VarContrastiveLossType,
-)
+from shimmer.modules.contrastive_loss import ContrastiveLossType, VarContrastiveLossType
 from shimmer.modules.dict_buffer import DictBuffer
 from shimmer.modules.domain import DomainModule, LossOutput
-from shimmer.modules.gw_module import (
-    GWModule,
-    GWModuleBase,
-    VariationalGWModule,
-)
+from shimmer.modules.gw_module import GWModule, GWModuleBase, VariationalGWModule
 from shimmer.modules.vae import kl_divergence_loss
 
 LatentsDomainGroupT = Mapping[str, torch.Tensor]
@@ -57,15 +50,10 @@ def _demi_cycle_loss(
             gw_mod.encode(gw_mod.on_before_gw_encode_dcy(latents)),
             domains={domain_name},
         )[domain_name]
-        loss_output = domain_mod.compute_dcy_loss(
-            x_recons, latents[domain_name]
-        )
+        loss_output = domain_mod.compute_dcy_loss(x_recons, latents[domain_name])
         losses[f"demi_cycle_{domain_name}"] = loss_output.loss
         metrics.update(
-            {
-                f"demi_cycle_{domain_name}_{k}": v
-                for k, v in loss_output.metrics.items()
-            }
+            {f"demi_cycle_{domain_name}_{k}": v for k, v in loss_output.metrics.items()}
         )
     losses["demi_cycles"] = torch.stack(list(losses.values()), dim=0).mean()
     losses.update(metrics)
@@ -101,10 +89,7 @@ def _cycle_loss(
                 latents_source[domain_name_source],
             )
             metrics.update(
-                {
-                    f"cycle_{loss_name}_{k}": v
-                    for k, v in loss_output.metrics.items()
-                }
+                {f"cycle_{loss_name}_{k}": v for k, v in loss_output.metrics.items()}
             )
             losses[f"cycle_{loss_name}"] = loss_output.loss
     losses["cycles"] = torch.stack(list(losses.values()), dim=0).mean()
@@ -171,9 +156,7 @@ def _contrastive_loss(
         if len(latents) < 2:
             continue
         for domain1_name, domain1 in latents.items():
-            z1 = gw_mod.encode(
-                gw_mod.on_before_gw_encode_cont({domain1_name: domain1})
-            )
+            z1 = gw_mod.encode(gw_mod.on_before_gw_encode_cont({domain1_name: domain1}))
             for domain2_name, domain2 in latents.items():
                 selected_domains = {domain1_name, domain2_name}
                 if domain1_name == domain2_name or selected_domains in keys:
@@ -188,10 +171,7 @@ def _contrastive_loss(
                 loss_output = contrastive_fn(z1, z2)
                 losses[loss_name] = loss_output.loss
                 metrics.update(
-                    {
-                        f"{loss_name}_{k}": v
-                        for k, v in loss_output.metrics.items()
-                    }
+                    {f"{loss_name}_{k}": v for k, v in loss_output.metrics.items()}
                 )
 
     losses["contrastives"] = torch.stack(list(losses.values()), dim=0).mean()
@@ -234,10 +214,7 @@ def _contrastive_loss_with_uncertainty(
                 )
                 losses[loss_name] = loss_output.loss
                 metrics.update(
-                    {
-                        f"{loss_name}_{k}": v
-                        for k, v in loss_output.metrics.items()
-                    }
+                    {f"{loss_name}_{k}": v for k, v in loss_output.metrics.items()}
                 )
 
     losses["contrastives"] = torch.stack(list(losses.values()), dim=0).mean()
@@ -259,25 +236,17 @@ class GWLosses(GWLossesBase):
         self.loss_coefs = coef_buffers
         self.contrastive_fn = contrastive_fn
 
-    def demi_cycle_loss(
-        self, latent_domains: LatentsT
-    ) -> dict[str, torch.Tensor]:
+    def demi_cycle_loss(self, latent_domains: LatentsT) -> dict[str, torch.Tensor]:
         return _demi_cycle_loss(self.gw_mod, self.domain_mods, latent_domains)
 
     def cycle_loss(self, latent_domains: LatentsT) -> dict[str, torch.Tensor]:
         return _cycle_loss(self.gw_mod, self.domain_mods, latent_domains)
 
-    def translation_loss(
-        self, latent_domains: LatentsT
-    ) -> dict[str, torch.Tensor]:
+    def translation_loss(self, latent_domains: LatentsT) -> dict[str, torch.Tensor]:
         return _translation_loss(self.gw_mod, self.domain_mods, latent_domains)
 
-    def contrastive_loss(
-        self, latent_domains: LatentsT
-    ) -> dict[str, torch.Tensor]:
-        return _contrastive_loss(
-            self.gw_mod, latent_domains, self.contrastive_fn
-        )
+    def contrastive_loss(self, latent_domains: LatentsT) -> dict[str, torch.Tensor]:
+        return _contrastive_loss(self.gw_mod, latent_domains, self.contrastive_fn)
 
     def step(
         self,
@@ -322,31 +291,23 @@ class VariationalGWLosses(GWLossesBase):
         self.contrastive_fn = contrastive_fn
         self.var_contrastive_fn = var_contrastive_fn
 
-    def demi_cycle_loss(
-        self, latent_domains: LatentsT
-    ) -> dict[str, torch.Tensor]:
+    def demi_cycle_loss(self, latent_domains: LatentsT) -> dict[str, torch.Tensor]:
         return _demi_cycle_loss(self.gw_mod, self.domain_mods, latent_domains)
 
     def cycle_loss(self, latent_domains: LatentsT) -> dict[str, torch.Tensor]:
         return _cycle_loss(self.gw_mod, self.domain_mods, latent_domains)
 
-    def translation_loss(
-        self, latent_domains: LatentsT
-    ) -> dict[str, torch.Tensor]:
+    def translation_loss(self, latent_domains: LatentsT) -> dict[str, torch.Tensor]:
         return _translation_loss(self.gw_mod, self.domain_mods, latent_domains)
 
-    def contrastive_loss(
-        self, latent_domains: LatentsT
-    ) -> dict[str, torch.Tensor]:
+    def contrastive_loss(self, latent_domains: LatentsT) -> dict[str, torch.Tensor]:
         if self.var_contrastive_fn is not None:
             return _contrastive_loss_with_uncertainty(
                 self.gw_mod, latent_domains, self.var_contrastive_fn
             )
 
         assert self.contrastive_fn is not None
-        return _contrastive_loss(
-            self.gw_mod, latent_domains, self.contrastive_fn
-        )
+        return _contrastive_loss(self.gw_mod, latent_domains, self.contrastive_fn)
 
     def kl_loss(self, latent_domains: LatentsT) -> dict[str, torch.Tensor]:
         losses: dict[str, torch.Tensor] = {}
@@ -361,8 +322,7 @@ class VariationalGWLosses(GWLossesBase):
                 loss_name = f"kl_{domain_name}"
                 norm = mean[domain_name].size(0) + mean[domain_name].size(1)
                 losses[loss_name] = (
-                    kl_divergence_loss(mean[domain_name], logvar[domain_name])
-                    / norm
+                    kl_divergence_loss(mean[domain_name], logvar[domain_name]) / norm
                 )
         losses["kl"] = torch.stack(list(losses.values()), dim=0).mean()
         return losses

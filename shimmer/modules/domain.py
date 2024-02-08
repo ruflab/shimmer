@@ -75,9 +75,7 @@ class DomainModule(pl.LightningModule):
     def on_before_gw_encode_cy(self, x: torch.Tensor) -> torch.Tensor:
         return x
 
-    def compute_loss(
-        self, pred: torch.Tensor, target: torch.Tensor
-    ) -> LossOutput:
+    def compute_loss(self, pred: torch.Tensor, target: torch.Tensor) -> LossOutput:
         """
         Computes the loss of the modality. If you implement compute_dcy_loss,
         compute_cy_loss and compute_tr_loss independently, no need to define this
@@ -91,9 +89,7 @@ class DomainModule(pl.LightningModule):
         """
         raise NotImplementedError
 
-    def compute_dcy_loss(
-        self, pred: torch.Tensor, target: torch.Tensor
-    ) -> LossOutput:
+    def compute_dcy_loss(self, pred: torch.Tensor, target: torch.Tensor) -> LossOutput:
         """
         Computes the loss for a demi-cycle. Override if the demi-cycle loss is
         different that the generic loss.
@@ -106,9 +102,7 @@ class DomainModule(pl.LightningModule):
         """
         return self.compute_loss(pred, target)
 
-    def compute_cy_loss(
-        self, pred: torch.Tensor, target: torch.Tensor
-    ) -> LossOutput:
+    def compute_cy_loss(self, pred: torch.Tensor, target: torch.Tensor) -> LossOutput:
         """
         Computes the loss for a cycle. Override if the cycle loss is
         different that the generic loss.
@@ -121,9 +115,7 @@ class DomainModule(pl.LightningModule):
         """
         return self.compute_loss(pred, target)
 
-    def compute_tr_loss(
-        self, pred: torch.Tensor, target: torch.Tensor
-    ) -> LossOutput:
+    def compute_tr_loss(self, pred: torch.Tensor, target: torch.Tensor) -> LossOutput:
         """
         Computes the loss for a translation. Override if the translation loss is
         different that the generic loss.

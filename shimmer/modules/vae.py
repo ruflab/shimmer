@@ -12,9 +12,7 @@ def reparameterize(mean: torch.Tensor, logvar: torch.Tensor) -> torch.Tensor:
     return std * eps + mean
 
 
-def kl_divergence_loss(
-    mean: torch.Tensor, logvar: torch.Tensor
-) -> torch.Tensor:
+def kl_divergence_loss(mean: torch.Tensor, logvar: torch.Tensor) -> torch.Tensor:
     kl = -0.5 * torch.sum(1 + logvar - mean.pow(2) - logvar.exp())
     return kl
 
@@ -35,9 +33,7 @@ class VAEEncoder(nn.Module, ABC):
     """
 
     @abstractmethod
-    def forward(
-        self, x: Sequence[torch.Tensor]
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, x: Sequence[torch.Tensor]) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Encode representation with VAE
         Args:

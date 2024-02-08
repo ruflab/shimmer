@@ -81,9 +81,7 @@ class VariationalGWEncoder(nn.Module):
 
 
 class GWInterfaceBase(nn.Module, ABC):
-    def __init__(
-        self, domain_module: DomainModule, workspace_dim: int
-    ) -> None:
+    def __init__(self, domain_module: DomainModule, workspace_dim: int) -> None:
         super().__init__()
         self.domain_module = domain_module
         self.workspace_dim = workspace_dim
@@ -118,9 +116,9 @@ class GWModuleBase(nn.Module, ABC):
             the same mapping with updated representations
         """
         return {
-            domain: self.gw_interfaces[
-                domain
-            ].domain_module.on_before_gw_encode_dcy(x[domain])
+            domain: self.gw_interfaces[domain].domain_module.on_before_gw_encode_dcy(
+                x[domain]
+            )
             for domain in x.keys()
         }
 
@@ -136,9 +134,9 @@ class GWModuleBase(nn.Module, ABC):
             the same mapping with updated representations
         """
         return {
-            domain: self.gw_interfaces[
-                domain
-            ].domain_module.on_before_gw_encode_cy(x[domain])
+            domain: self.gw_interfaces[domain].domain_module.on_before_gw_encode_cy(
+                x[domain]
+            )
             for domain in x.keys()
         }
 
@@ -154,9 +152,9 @@ class GWModuleBase(nn.Module, ABC):
             the same mapping with updated representations
         """
         return {
-            domain: self.gw_interfaces[
-                domain
-            ].domain_module.on_before_gw_encode_tr(x[domain])
+            domain: self.gw_interfaces[domain].domain_module.on_before_gw_encode_tr(
+                x[domain]
+            )
             for domain in x.keys()
         }
 
@@ -172,9 +170,9 @@ class GWModuleBase(nn.Module, ABC):
             the same mapping with updated representations
         """
         return {
-            domain: self.gw_interfaces[
-                domain
-            ].domain_module.on_before_gw_encode_cont(x[domain])
+            domain: self.gw_interfaces[domain].domain_module.on_before_gw_encode_cont(
+                x[domain]
+            )
             for domain in x.keys()
         }
 
@@ -204,9 +202,7 @@ class GWModuleBase(nn.Module, ABC):
         ...
 
     @abstractmethod
-    def translate(
-        self, x: Mapping[str, torch.Tensor], to: str
-    ) -> torch.Tensor:
+    def translate(self, x: Mapping[str, torch.Tensor], to: str) -> torch.Tensor:
         """
         Translate from one domain to another.
         Args:
@@ -291,18 +287,14 @@ class GWModule(GWModuleBase):
             for domain in domains or self.gw_interfaces.keys()
         }
 
-    def translate(
-        self, x: Mapping[str, torch.Tensor], to: str
-    ) -> torch.Tensor:
+    def translate(self, x: Mapping[str, torch.Tensor], to: str) -> torch.Tensor:
         return self.decode(self.encode(x), domains={to})[to]
 
     def cycle(
         self, x: Mapping[str, torch.Tensor], through: str
     ) -> dict[str, torch.Tensor]:
         return {
-            domain: self.translate(
-                {through: self.translate(x, through)}, domain
-            )
+            domain: self.translate({through: self.translate(x, through)}, domain)
             for domain in x.keys()
         }
 
@@ -349,9 +341,7 @@ class VariationalGWModule(GWModuleBase):
     ) -> torch.Tensor:
         latents: dict[str, torch.Tensor] = {}
         for domain in x.keys():
-            mean, log_uncertainty = self.gw_interfaces[domain].encode(
-                x[domain]
-            )
+            mean, log_uncertainty = self.gw_interfaces[domain].encode(x[domain])
             latents[domain] = reparameterize(mean, log_uncertainty)
             latents[domain] = mean
         return self.fusion_mechanism(latents)
@@ -363,9 +353,7 @@ class VariationalGWModule(GWModuleBase):
         means: dict[str, torch.Tensor] = {}
         log_uncertainties: dict[str, torch.Tensor] = {}
         for domain in x.keys():
-            mean, log_uncertainty = self.gw_interfaces[domain].encode(
-                x[domain]
-            )
+            mean, log_uncertainty = self.gw_interfaces[domain].encode(x[domain])
             means[domain] = mean
             log_uncertainties[domain] = log_uncertainty
         return means, log_uncertainties
@@ -384,17 +372,13 @@ class VariationalGWModule(GWModuleBase):
             for domain in domains or self.gw_interfaces.keys()
         }
 
-    def translate(
-        self, x: Mapping[str, torch.Tensor], to: str
-    ) -> torch.Tensor:
+    def translate(self, x: Mapping[str, torch.Tensor], to: str) -> torch.Tensor:
         return self.decode(self.encode_mean(x), domains={to})[to]
 
     def cycle(
         self, x: Mapping[str, torch.Tensor], through: str
     ) -> dict[str, torch.Tensor]:
         return {
-            domain: self.translate(
-                {through: self.translate(x, through)}, domain
-            )
+            domain: self.translate({through: self.translate(x, through)}, domain)
             for domain in x.keys()
         }

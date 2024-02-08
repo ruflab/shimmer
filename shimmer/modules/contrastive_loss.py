@@ -49,9 +49,7 @@ def contrastive_loss_with_uncertainty(
     reduction: Literal["mean", "sum", "none"] = "mean",
 ) -> torch.Tensor:
     uncertainty_norm = (
-        1
-        + torch.exp(0.5 * x_log_uncertainty)
-        + torch.exp(0.5 * y_log_uncertainty)
+        1 + torch.exp(0.5 * x_log_uncertainty) + torch.exp(0.5 * y_log_uncertainty)
     )
     xn = normalize(x) / uncertainty_norm
     yn = normalize(y) / uncertainty_norm
