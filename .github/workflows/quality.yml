@@ -21,7 +21,7 @@ jobs:
             poetry run pip install --upgrade pip
       - uses: isort/isort-action@master
         with:
-          sortPaths: "./shimmer"
+          sort-paths: "./shimmer"
       - uses: psf/black@stable
         with:
           src: "./shimmer"
