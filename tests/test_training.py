@@ -69,9 +69,7 @@ def test_training():
 
     assert workspace_latent.size() == (32, 16)
 
-    reconstructed_unimodal_latents = gw.decode(
-        workspace_latent, domains={"v", "a"}
-    )
+    reconstructed_unimodal_latents = gw.decode(workspace_latent, domains={"v", "a"})
 
     assert reconstructed_unimodal_latents.keys() == {"v", "a"}
     assert reconstructed_unimodal_latents["v"].size() == (32, 128)
