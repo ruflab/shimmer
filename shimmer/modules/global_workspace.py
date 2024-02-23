@@ -56,6 +56,7 @@ class GlobalWorkspaceBase(LightningModule):
                 "loss_mod",
                 "domain_descriptions",
                 "coef_buffers",
+                "contrastive_loss",
             ]
         )
 
