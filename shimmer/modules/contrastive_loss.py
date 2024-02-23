@@ -61,16 +61,19 @@ def contrastive_loss_with_uncertainty(
 
 
 class ContrastiveLoss(torch.nn.Module):
-    logit_scale: torch.Tensor
-
     def __init__(
         self,
         logit_scale: torch.Tensor,
         reduction: Literal["mean", "sum", "none"] = "mean",
+        learn_logit_scale: bool = False,
     ) -> None:
         super().__init__()
 
-        self.register_buffer("logit_scale", logit_scale)
+        if learn_logit_scale:
+            self.logit_scale = torch.nn.Parameter(self.logit_scale)
+        else:
+            self.register_buffer("logit_scale", logit_scale)
+        self.learn_logit_scale = learn_logit_scale
         self.reduction: Literal["mean", "sum", "none"] = reduction
 
     def forward(self, x: torch.Tensor, y: torch.Tensor) -> LossOutput:
@@ -81,16 +84,19 @@ class ContrastiveLoss(torch.nn.Module):
 
 
 class ContrastiveLossWithUncertainty(torch.nn.Module):
-    logit_scale: torch.Tensor
-
     def __init__(
         self,
         logit_scale: torch.Tensor,
         reduction: Literal["mean", "sum", "none"] = "mean",
+        learn_logit_scale: bool = False,
     ) -> None:
         super().__init__()
 
-        self.register_buffer("logit_scale", logit_scale)
+        if learn_logit_scale:
+            self.logit_scale = torch.nn.Parameter(self.logit_scale)
+        else:
+            self.register_buffer("logit_scale", logit_scale)
+        self.learn_logit_scale = learn_logit_scale
         self.reduction: Literal["mean", "sum", "none"] = reduction
 
     def forward(

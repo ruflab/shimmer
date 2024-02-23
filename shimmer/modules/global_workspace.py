@@ -275,6 +275,7 @@ class GlobalWorkspace(GlobalWorkspaceBase):
         optim_lr: float = 1e-3,
         optim_weight_decay: float = 0.0,
         scheduler_args: SchedulerArgs | None = None,
+        learn_logit_scale: bool = False,
     ) -> None:
         gw_mod = GWModule(gw_interfaces, workspace_dim)
         domain_mods = freeze_domain_modules(domain_mods)
@@ -283,7 +284,7 @@ class GlobalWorkspace(GlobalWorkspaceBase):
             gw_mod,
             domain_mods,
             coef_buffers,
-            ContrastiveLoss(torch.tensor([1 / 0.07]).log(), "mean"),
+            ContrastiveLoss(torch.tensor([1 / 0.07]).log(), "mean", learn_logit_scale),
         )
 
         super().__init__(
@@ -308,6 +309,7 @@ class VariationalGlobalWorkspace(GlobalWorkspaceBase):
         optim_lr: float = 1e-3,
         optim_weight_decay: float = 0.0,
         scheduler_args: SchedulerArgs | None = None,
+        learn_logit_scale: bool = False,
     ) -> None:
         gw_mod = VariationalGWModule(gw_interfaces, workspace_dim)
         domain_mods = freeze_domain_modules(domain_mods)
@@ -319,7 +321,7 @@ class VariationalGlobalWorkspace(GlobalWorkspaceBase):
                 domain_mods,
                 coef_buffers,
                 var_contrastive_fn=ContrastiveLossWithUncertainty(
-                    torch.tensor([1]).log(), "mean"
+                    torch.tensor([1]).log(), "mean", learn_logit_scale
                 ),
             )
         else:
@@ -327,7 +329,9 @@ class VariationalGlobalWorkspace(GlobalWorkspaceBase):
                 gw_mod,
                 domain_mods,
                 coef_buffers,
-                contrastive_fn=ContrastiveLoss(torch.tensor([1]).log(), "mean"),
+                contrastive_fn=ContrastiveLoss(
+                    torch.tensor([1]).log(), "mean", learn_logit_scale
+                ),
             )
 
         super().__init__(
