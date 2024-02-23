@@ -70,7 +70,7 @@ class ContrastiveLoss(torch.nn.Module):
         super().__init__()
 
         if learn_logit_scale:
-            self.logit_scale = torch.nn.Parameter(self.logit_scale)
+            self.logit_scale = torch.nn.Parameter(logit_scale)
         else:
             self.register_buffer("logit_scale", logit_scale)
         self.learn_logit_scale = learn_logit_scale
@@ -93,7 +93,7 @@ class ContrastiveLossWithUncertainty(torch.nn.Module):
         super().__init__()
 
         if learn_logit_scale:
-            self.logit_scale = torch.nn.Parameter(self.logit_scale)
+            self.logit_scale = torch.nn.Parameter(logit_scale)
         else:
             self.register_buffer("logit_scale", logit_scale)
         self.learn_logit_scale = learn_logit_scale
