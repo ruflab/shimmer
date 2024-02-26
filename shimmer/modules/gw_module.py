@@ -384,7 +384,7 @@ class VariationalGWModule(GWModuleBase):
         }
 
 
-class GWModuleFusion(GWModuleBase):
+class GWModuleFusion(GWModule):
     def fusion_mechanism(self, x: Mapping[str, torch.Tensor]) -> torch.Tensor:
         """
         Merge function used to combine domains.
@@ -393,7 +393,7 @@ class GWModuleFusion(GWModuleBase):
         Returns:
             The merged representation
         """
-        return torch.mean(torch.stack(list(x.values())), dim=0)
+        return torch.sum(torch.stack(list(x.values())), dim=0)
 
     def get_batch_size(self, x: Mapping[str, torch.Tensor]) -> int:
         for val in x.values():
@@ -422,22 +422,3 @@ class GWModuleFusion(GWModuleBase):
                 for domain in x.keys()
             }
         )
-
-    def decode(
-        self, z: torch.Tensor, domains: Iterable[str] | None = None
-    ) -> dict[str, torch.Tensor]:
-        return {
-            domain: self.gw_interfaces[domain].decode(z)
-            for domain in domains or self.gw_interfaces.keys()
-        }
-
-    def translate(self, x: Mapping[str, torch.Tensor], to: str) -> torch.Tensor:
-        return self.decode(self.encode(x), domains={to})[to]
-
-    def cycle(
-        self, x: Mapping[str, torch.Tensor], through: str
-    ) -> dict[str, torch.Tensor]:
-        return {
-            domain: self.translate({through: self.translate(x, through)}, domain)
-            for domain in x.keys()
-        }
