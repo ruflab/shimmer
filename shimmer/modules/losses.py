@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Mapping
 
 import torch
+import torch.nn.functional as F
 
 from shimmer.modules.contrastive_loss import ContrastiveLossType, VarContrastiveLossType
 from shimmer.modules.dict_buffer import DictBuffer
@@ -152,7 +153,7 @@ def _contrastive_loss(
     keys: list[set[str]] = []
 
     for latents in latent_domains.values():
-        if len(latents) < 2:
+        if len(latents) != 2:
             continue
         for domain1_name, domain1 in latents.items():
             z1 = gw_mod.encode(gw_mod.on_before_gw_encode_cont({domain1_name: domain1}))
@@ -351,5 +352,130 @@ class VariationalGWLosses(GWLossesBase):
             ],
             dim=0,
         ).mean()
+
+        return LossOutput(loss, metrics)
+
+
+def sample_scaling_factors(
+    binary_scaling_prob: float,
+    batch_size: int,
+    temperature: float,
+    device: torch.device,
+):
+    """
+    Args:
+        binary_scaling_prob: float
+        batch_size: int
+        temperature: float greater than 0
+    """
+    assert 0 <= binary_scaling_prob <= 1
+
+    # TODO: make selection deterministic
+    binary_mask = torch.rand(batch_size) < binary_scaling_prob
+
+    binary_factors = torch.randint(0, 2, (batch_size,)).float()
+    binary_softmax = torch.stack([binary_factors, 1 - binary_factors], dim=1)
+
+    uniform_samples = torch.rand(batch_size)
+    uniform_for_softmax = torch.stack([uniform_samples, 1 - uniform_samples], dim=1)
+
+    uniform_softmax = F.softmax(uniform_for_softmax * temperature, dim=1)
+
+    scaling_factors = torch.where(
+        binary_mask.unsqueeze(-1), binary_softmax, uniform_softmax
+    ).to(device)
+
+    binary_indices = torch.where(binary_mask)[0]
+    softmax_indices = torch.where(~binary_mask)[0]
+
+    binary_scaling_factors = scaling_factors[binary_indices]
+    softmax_scaling_factors = scaling_factors[softmax_indices]
+
+    return {
+        "binary": (
+            binary_scaling_factors[:, 0],
+            binary_scaling_factors[:, 1],
+            binary_indices,
+        ),
+        "softmax": (
+            softmax_scaling_factors[:, 0],
+            softmax_scaling_factors[:, 1],
+            softmax_indices,
+        ),
+    }
+
+
+class GWFusionLosses(GWLossesBase):
+    def __init__(
+        self,
+        gw_mod: GWModule,
+        domain_mods: dict[str, DomainModule],
+        coef_buffers: DictBuffer,
+        contrastive_fn: ContrastiveLossType,
+    ):
+        super().__init__()
+        self.gw_mod = gw_mod
+        self.domain_mods = domain_mods
+        self.loss_coefs = coef_buffers
+        self.contrastive_fn = contrastive_fn
+
+    def demi_cycle_loss(self, latent_domains: LatentsT) -> dict[str, torch.Tensor]:
+        return _demi_cycle_loss(self.gw_mod, self.domain_mods, latent_domains)
+
+    def cycle_loss(self, latent_domains: LatentsT) -> dict[str, torch.Tensor]:
+        return _cycle_loss(self.gw_mod, self.domain_mods, latent_domains)
+
+    def translation_loss(self, latent_domains: LatentsT) -> dict[str, torch.Tensor]:
+        return _translation_loss(self.gw_mod, self.domain_mods, latent_domains)
+
+    def contrastive_loss(self, latent_domains: LatentsT) -> dict[str, torch.Tensor]:
+        return _contrastive_loss(self.gw_mod, latent_domains, self.contrastive_fn)
+
+    def broadcast_loss(self, latent_domains: LatentsT) -> dict[str, torch.Tensor]:
+        losses: dict[str, torch.Tensor] = {}
+        metrics: dict[str, torch.Tensor] = {}
+        keys: list[set[str]] = []
+
+        for latents in latent_domains.values():
+            if len(latents) < 2:
+                continue
+            for domain1_name, domain1 in latents.items():
+                z1 = gw_mod.encode(
+                    gw_mod.on_before_gw_encode_cont({domain1_name: domain1})
+                )
+                for domain2_name, domain2 in latents.items():
+                    selected_domains = {domain1_name, domain2_name}
+                    if domain1_name == domain2_name or selected_domains in keys:
+                        continue
+
+                    keys.append(selected_domains)
+
+                    loss_name = f"contrastive_{domain1_name}_and_{domain2_name}"
+                    z2 = gw_mod.encode(
+                        gw_mod.on_before_gw_encode_cont({domain2_name: domain2})
+                    )
+                    loss_output = contrastive_fn(z1, z2)
+                    losses[loss_name] = loss_output.loss
+                    metrics.update(
+                        {f"{loss_name}_{k}": v for k, v in loss_output.metrics.items()}
+                    )
+
+        losses["contrastives"] = torch.stack(list(losses.values()), dim=0).mean()
+        losses.update(metrics)
+        return losses
+
+    def step(
+        self,
+        domain_latents: Mapping[frozenset[str], Mapping[str, torch.Tensor]],
+    ) -> LossOutput:
+        metrics: dict[str, torch.Tensor] = {}
+
+        metrics.update(self.demi_cycle_loss(domain_latents))
+        metrics.update(self.cycle_loss(domain_latents))
+        metrics.update(self.translation_loss(domain_latents))
+        metrics.update(self.contrastive_loss(domain_latents))
+        metrics.update(self.broadcast_loss(domain_latents))
+
+        loss = metrics["broadcast"]
 
         return LossOutput(loss, metrics)

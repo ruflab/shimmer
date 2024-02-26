@@ -382,3 +382,62 @@ class VariationalGWModule(GWModuleBase):
             domain: self.translate({through: self.translate(x, through)}, domain)
             for domain in x.keys()
         }
+
+
+class GWModuleFusion(GWModuleBase):
+    def fusion_mechanism(self, x: Mapping[str, torch.Tensor]) -> torch.Tensor:
+        """
+        Merge function used to combine domains.
+        Args:
+            x: mapping of domain name to latent representation.
+        Returns:
+            The merged representation
+        """
+        return torch.mean(torch.stack(list(x.values())), dim=0)
+
+    def get_batch_size(self, x: Mapping[str, torch.Tensor]) -> int:
+        for val in x.values():
+            return val.size(0)
+        raise ValueError("Got empty dict.")
+
+    def get_device(self, x: Mapping[str, torch.Tensor]) -> torch.device:
+        for val in x.values():
+            return val.device
+        raise ValueError("Got empty dict.")
+
+    def encode(self, x: Mapping[str, torch.Tensor]) -> torch.Tensor:
+        domains = {}
+        bs = self.get_batch_size(x)
+        device = self.get_device(x)
+        for domain in self.gw_interfaces.keys():
+            if domain in x:
+                domains[domain] = x[domain]
+            else:
+                domains[domain] = torch.zeros(
+                    bs, self.gw_interfaces[domain].domain_module.latent_dim
+                ).to(device)
+        return self.fusion_mechanism(
+            {
+                domain: self.gw_interfaces[domain].encode(x[domain])
+                for domain in x.keys()
+            }
+        )
+
+    def decode(
+        self, z: torch.Tensor, domains: Iterable[str] | None = None
+    ) -> dict[str, torch.Tensor]:
+        return {
+            domain: self.gw_interfaces[domain].decode(z)
+            for domain in domains or self.gw_interfaces.keys()
+        }
+
+    def translate(self, x: Mapping[str, torch.Tensor], to: str) -> torch.Tensor:
+        return self.decode(self.encode(x), domains={to})[to]
+
+    def cycle(
+        self, x: Mapping[str, torch.Tensor], through: str
+    ) -> dict[str, torch.Tensor]:
+        return {
+            domain: self.translate({through: self.translate(x, through)}, domain)
+            for domain in x.keys()
+        }
