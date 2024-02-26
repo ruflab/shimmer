@@ -22,14 +22,12 @@ class GWLossesBase(torch.nn.Module, ABC):
     """
 
     @abstractmethod
-    def step(
-        self,
-        domain_latents: LatentsT,
-    ) -> LossOutput:
+    def step(self, domain_latents: LatentsT, mode: str) -> LossOutput:
         """
         Computes the losses
         Args:
             domain_latents: All latent groups
+            mode: train/val/test
         Returns: LossOutput object
         """
         ...
@@ -249,8 +247,7 @@ class GWLosses(GWLossesBase):
         return _contrastive_loss(self.gw_mod, latent_domains, self.contrastive_fn)
 
     def step(
-        self,
-        domain_latents: Mapping[frozenset[str], Mapping[str, torch.Tensor]],
+        self, domain_latents: Mapping[frozenset[str], Mapping[str, torch.Tensor]], _
     ) -> LossOutput:
         metrics: dict[str, torch.Tensor] = {}
 
@@ -328,8 +325,7 @@ class VariationalGWLosses(GWLossesBase):
         return losses
 
     def step(
-        self,
-        domain_latents: Mapping[frozenset[str], Mapping[str, torch.Tensor]],
+        self, domain_latents: Mapping[frozenset[str], Mapping[str, torch.Tensor]], _
     ) -> LossOutput:
         metrics: dict[str, torch.Tensor] = {}
 
@@ -431,42 +427,90 @@ class GWFusionLosses(GWLossesBase):
     def contrastive_loss(self, latent_domains: LatentsT) -> dict[str, torch.Tensor]:
         return _contrastive_loss(self.gw_mod, latent_domains, self.contrastive_fn)
 
-    def broadcast_loss(self, latent_domains: LatentsT) -> dict[str, torch.Tensor]:
+    def broadcast_loss(
+        self, latent_domains: LatentsT, mode: str
+    ) -> dict[str, torch.Tensor]:
         losses: dict[str, torch.Tensor] = {}
         metrics: dict[str, torch.Tensor] = {}
-        keys: list[set[str]] = []
 
         for latents in latent_domains.values():
             if len(latents) < 2:
                 continue
-            for domain1_name, domain1 in latents.items():
-                z1 = gw_mod.encode(
-                    gw_mod.on_before_gw_encode_cont({domain1_name: domain1})
+            batch_size = latents[next(iter(latents))].size(0)
+            device = latents[next(iter(latents))].device
+
+            if mode == "val":
+                scaling_factors = sample_scaling_factors(0.5, batch_size, 5.0, device)
+            else:
+                scaling_factors = sample_scaling_factors(0.0, batch_size, 5.0, device)
+
+            for scale_type, (
+                scaling_factor_1,
+                scaling_factor_2,
+                indices,
+            ) in scaling_factors.items():
+                scaled_latents = {}
+
+                for i, (domain_name, latent) in enumerate(latents.items()):
+                    scaling_factor = scaling_factor_1 if i == 0 else scaling_factor_2
+                    scaled_latents_subset = latent[indices] * scaling_factor.unsqueeze(
+                        -1
+                    )
+                    scaled_latents_subset = scaled_latents_subset.to(latent)
+
+                    scaled_latents[domain_name] = scaled_latents_subset
+
+                encoded_latents_for_subset = self.gw_mod.encode(scaled_latents)
+                encoded_latents_for_subset = torch.tanh(encoded_latents_for_subset)
+                decoded_latents_for_subset = self.gw_mod.decode(
+                    encoded_latents_for_subset
                 )
-                for domain2_name, domain2 in latents.items():
-                    selected_domains = {domain1_name, domain2_name}
-                    if domain1_name == domain2_name or selected_domains in keys:
-                        continue
 
-                    keys.append(selected_domains)
-
-                    loss_name = f"contrastive_{domain1_name}_and_{domain2_name}"
-                    z2 = gw_mod.encode(
-                        gw_mod.on_before_gw_encode_cont({domain2_name: domain2})
+                for domain_name, latent in latents.items():
+                    domain_mod = self.domain_mods[domain_name]
+                    decoded_latent_for_domain_subset = decoded_latents_for_subset[
+                        domain_name
+                    ]
+                    original_latent_for_domain_subset = latents[domain_name][indices]
+                    loss_output = domain_mod.compute_broadcast_loss(
+                        decoded_latent_for_domain_subset,
+                        original_latent_for_domain_subset,
                     )
-                    loss_output = contrastive_fn(z1, z2)
-                    losses[loss_name] = loss_output.loss
+                    loss_key = f"{domain_name}_loss_{scale_type}"
+
                     metrics.update(
-                        {f"{loss_name}_{k}": v for k, v in loss_output.metrics.items()}
+                        {
+                            f"broadcast_{loss_key}_{k}": v
+                            for k, v in loss_output.metrics.items()
+                        }
                     )
+                    losses[loss_key] = loss_output.loss.mean()
 
-        losses["contrastives"] = torch.stack(list(losses.values()), dim=0).mean()
+            binary_count = scaling_factors["binary"][2].size(0)
+            softmax_count = scaling_factors["softmax"][2].size(0)
+            total_count = binary_count + softmax_count
+
+            for domain_name, latent in latents.items():
+                full_loss_key = f"{domain_name}_full_loss"
+
+                binary_loss_key = f"{domain_name}_loss_binary"
+                softmax_loss_key = f"{domain_name}_loss_softmax"
+
+                binary_loss = losses[binary_loss_key] * (binary_count / total_count)
+                softmax_loss = losses[softmax_loss_key] * (softmax_count / total_count)
+
+                losses[full_loss_key] = binary_loss + softmax_loss
+
+        losses["broadcast"] = torch.stack(
+            [loss for name, loss in losses.items() if "full_loss" in name], dim=0
+        ).mean()
         losses.update(metrics)
         return losses
 
     def step(
         self,
         domain_latents: Mapping[frozenset[str], Mapping[str, torch.Tensor]],
+        mode: str,
     ) -> LossOutput:
         metrics: dict[str, torch.Tensor] = {}
 
@@ -474,7 +518,7 @@ class GWFusionLosses(GWLossesBase):
         metrics.update(self.cycle_loss(domain_latents))
         metrics.update(self.translation_loss(domain_latents))
         metrics.update(self.contrastive_loss(domain_latents))
-        metrics.update(self.broadcast_loss(domain_latents))
+        metrics.update(self.broadcast_loss(domain_latents, mode))
 
         loss = metrics["broadcast"]
 

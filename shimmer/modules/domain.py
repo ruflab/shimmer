@@ -75,6 +75,9 @@ class DomainModule(pl.LightningModule):
     def on_before_gw_encode_cy(self, x: torch.Tensor) -> torch.Tensor:
         return x
 
+    def on_before_gw_encode_broadcast(self, x: torch.Tensor) -> torch.Tensor:
+        return x
+
     def compute_loss(self, pred: torch.Tensor, target: torch.Tensor) -> LossOutput:
         """
         Computes the loss of the modality. If you implement compute_dcy_loss,
@@ -118,6 +121,21 @@ class DomainModule(pl.LightningModule):
     def compute_tr_loss(self, pred: torch.Tensor, target: torch.Tensor) -> LossOutput:
         """
         Computes the loss for a translation. Override if the translation loss is
+        different that the generic loss.
+        Args:
+            pred: tensor with a predicted latent unimodal representation
+            target: target tensor
+        Results:
+            Dict of losses. Must contain the "loss" key with the total loss
+            used for training. Any other key will be logged, but not trained on.
+        """
+        return self.compute_loss(pred, target)
+
+    def compute_broadcast_loss(
+        self, pred: torch.Tensor, target: torch.Tensor
+    ) -> LossOutput:
+        """
+        Computes the loss for a broadcast (fusion). Override if the translation loss is
         different that the generic loss.
         Args:
             pred: tensor with a predicted latent unimodal representation

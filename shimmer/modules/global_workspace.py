@@ -195,7 +195,7 @@ class GlobalWorkspaceBase(LightningModule):
         domain_latents = self.encode_domains(batch)
         batch_size = self._get_batch_size(domain_latents)
 
-        loss_output = self.loss_mod.step(domain_latents)
+        loss_output = self.loss_mod.step(domain_latents, mode)
 
         for name, metric in loss_output.all.items():
             self.log(
