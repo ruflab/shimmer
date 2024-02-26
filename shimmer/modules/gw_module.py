@@ -418,7 +418,7 @@ class GWModuleFusion(GWModule):
                 ).to(device)
         return self.fusion_mechanism(
             {
-                domain: self.gw_interfaces[domain].encode(x[domain])
-                for domain in x.keys()
+                domain_name: self.gw_interfaces[domain_name].encode(domain)
+                for domain_name, domain in domains.items()
             }
         )
