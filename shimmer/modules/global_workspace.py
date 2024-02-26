@@ -20,9 +20,16 @@ from shimmer.modules.gw_module import (
     GWInterfaceBase,
     GWModule,
     GWModuleBase,
+    GWModuleFusion,
     VariationalGWModule,
 )
-from shimmer.modules.losses import GWLosses, GWLossesBase, LatentsT, VariationalGWLosses
+from shimmer.modules.losses import (
+    GWLosses,
+    GWLossesBase,
+    GWLossesFusion,
+    LatentsT,
+    VariationalGWLosses,
+)
 
 
 class SchedulerArgs(TypedDict, total=False):
@@ -346,6 +353,44 @@ class VariationalGlobalWorkspace(GlobalWorkspaceBase):
                 coef_buffers,
                 contrastive_fn=contrastive_loss,
             )
+
+        super().__init__(
+            gw_mod,
+            domain_mods,
+            coef_buffers,
+            loss_mod,
+            optim_lr,
+            optim_weight_decay,
+            scheduler_args,
+        )
+
+
+class GlobalWorkspaceFusion(GlobalWorkspaceBase):
+    def __init__(
+        self,
+        domain_mods: Mapping[str, DomainModule],
+        gw_interfaces: Mapping[str, GWInterfaceBase],
+        workspace_dim: int,
+        loss_coefs: Mapping[str, torch.Tensor],
+        optim_lr: float = 1e-3,
+        optim_weight_decay: float = 0.0,
+        scheduler_args: SchedulerArgs | None = None,
+        learn_logit_scale: bool = False,
+        contrastive_loss: ContrastiveLossType | None = None,
+    ) -> None:
+        gw_mod = GWModuleFusion(gw_interfaces, workspace_dim)
+        domain_mods = freeze_domain_modules(domain_mods)
+        coef_buffers = DictBuffer(loss_coefs)
+        if contrastive_loss is None:
+            contrastive_loss = ContrastiveLoss(
+                torch.tensor([1 / 0.07]).log(), "mean", learn_logit_scale
+            )
+        loss_mod = GWLossesFusion(
+            gw_mod,
+            domain_mods,
+            coef_buffers,
+            contrastive_loss,
+        )
 
         super().__init__(
             gw_mod,

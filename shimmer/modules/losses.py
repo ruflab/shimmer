@@ -401,7 +401,7 @@ def sample_scaling_factors(
     }
 
 
-class GWFusionLosses(GWLossesBase):
+class GWLossesFusion(GWLossesBase):
     def __init__(
         self,
         gw_mod: GWModule,
