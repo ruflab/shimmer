@@ -221,6 +221,13 @@ def _contrastive_loss_with_uncertainty(
 
 
 class LossCoefs(TypedDict, total=False):
+    """
+    Dict of loss coefficients used in the GlobalWorkspace
+    If one is not provided, the coefficient is assumed to be 0 and will not be logged.
+    If the loss is excplicitely set to 0, it will be logged, but not take part in
+    the total loss.
+    """
+
     demi_cycles: float
     cycles: float
     translations: float
@@ -235,6 +242,17 @@ class GWLosses(GWLossesBase):
         loss_coefs: LossCoefs,
         contrastive_fn: ContrastiveLossType,
     ):
+        """
+        Main loss module to use with the GlobalWorkspace
+        Args:
+            gw_mod: the GWModule
+            domain_mods: a dict where the key is the domain name and
+                value is the DomainModule
+            loss_coefs: loss coefficients. LossCoefs object, or a mapping to float with
+                correct keys.
+            contrastive_fn: the contrastive function to use in contrastive loss
+        """
+
         super().__init__()
         self.gw_mod = gw_mod
         self.domain_mods = domain_mods
@@ -288,6 +306,18 @@ class VariationalGWLosses(GWLossesBase):
         contrastive_fn: ContrastiveLossType | None = None,
         var_contrastive_fn: VarContrastiveLossType | None = None,
     ):
+        """
+        Variational loss module to use with the VariationalGlobalWorkspace
+        Args:
+            gw_mod: the GWModule
+            domain_mods: a dict where the key is the domain name and
+                value is the DomainModule
+            loss_coefs: loss coefficients. LossCoefs object, or a mapping to float with
+                correct keys.
+            contrastive_fn: the contrastive function to use in contrastive loss
+            var_contrastive_fn: a contrastive function that uses uncertainty
+        """
+
         super().__init__()
 
         self.gw_mod = gw_mod

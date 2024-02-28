@@ -90,6 +90,9 @@ class ContrastiveLossWithUncertainty(torch.nn.Module):
         reduction: Literal["mean", "sum", "none"] = "mean",
         learn_logit_scale: bool = False,
     ) -> None:
+        """
+        ContrastiveLoss used for VariationalGlobalWorkspace
+        """
         super().__init__()
 
         if learn_logit_scale:
