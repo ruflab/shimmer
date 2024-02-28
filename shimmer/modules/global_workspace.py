@@ -27,6 +27,7 @@ from shimmer.modules.losses import (
     GWLossesBase,
     GWLossesFusion,
     LatentsT,
+    LossCoefs,
     VariationalGWLosses,
 )
 
@@ -277,7 +278,7 @@ class GlobalWorkspace(GlobalWorkspaceBase):
         domain_mods: Mapping[str, DomainModule],
         gw_interfaces: Mapping[str, GWInterfaceBase],
         workspace_dim: int,
-        loss_coefs: Mapping[str, float],
+        loss_coefs: LossCoefs,
         optim_lr: float = 1e-3,
         optim_weight_decay: float = 0.0,
         scheduler_args: SchedulerArgs | None = None,
@@ -313,7 +314,7 @@ class VariationalGlobalWorkspace(GlobalWorkspaceBase):
         domain_mods: Mapping[str, DomainModule],
         gw_interfaces: Mapping[str, GWInterfaceBase],
         workspace_dim: int,
-        loss_coefs: Mapping[str, float],
+        loss_coefs: LossCoefs,
         use_var_contrastive_loss: bool = False,
         optim_lr: float = 1e-3,
         optim_weight_decay: float = 0.0,
@@ -398,7 +399,7 @@ def pretrained_global_workspace(
     domain_mods: Mapping[str, DomainModule],
     gw_interfaces: Mapping[str, GWInterfaceBase],
     workspace_dim: int,
-    loss_coefs: Mapping[str, float],
+    loss_coefs: LossCoefs,
     contrastive_fn: ContrastiveLossType,
     **kwargs,
 ) -> GlobalWorkspace:

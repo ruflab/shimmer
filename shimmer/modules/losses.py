@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
+from typing import TypedDict
 
 import torch
 import torch.nn.functional as F
@@ -219,12 +220,19 @@ def _contrastive_loss_with_uncertainty(
     return losses
 
 
+class LossCoefs(TypedDict, total=False):
+    demi_cycles: float
+    cycles: float
+    translations: float
+    contrastives: float
+
+
 class GWLosses(GWLossesBase):
     def __init__(
         self,
         gw_mod: GWModule,
         domain_mods: dict[str, DomainModule],
-        loss_coefs: Mapping[str, float],
+        loss_coefs: LossCoefs,
         contrastive_fn: ContrastiveLossType,
     ):
         super().__init__()
@@ -259,7 +267,7 @@ class GWLosses(GWLossesBase):
             [
                 metrics[name] * coef
                 for name, coef in self.loss_coefs.items()
-                if coef > 0
+                if isinstance(coef, float) and coef > 0
             ],
             dim=0,
         ).mean()
@@ -272,7 +280,7 @@ class VariationalGWLosses(GWLossesBase):
         self,
         gw_mod: VariationalGWModule,
         domain_mods: dict[str, DomainModule],
-        loss_coefs: Mapping[str, float],
+        loss_coefs: LossCoefs,
         contrastive_fn: ContrastiveLossType | None = None,
         var_contrastive_fn: VarContrastiveLossType | None = None,
     ):
@@ -343,7 +351,7 @@ class VariationalGWLosses(GWLossesBase):
             [
                 metrics[name] * coef
                 for name, coef in self.loss_coefs.items()
-                if coef > 0
+                if isinstance(coef, float) and coef > 0
             ],
             dim=0,
         ).mean()
