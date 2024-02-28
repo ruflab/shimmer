@@ -220,7 +220,7 @@ def _contrastive_loss_with_uncertainty(
     return losses
 
 
-class LossCoefs(TypedDict, total=False):
+class LossCoefs(TypedDict):
     demi_cycles: float
     cycles: float
     translations: float
@@ -275,12 +275,16 @@ class GWLosses(GWLossesBase):
         return LossOutput(loss, metrics)
 
 
+class VariationalLossCoefs(LossCoefs):
+    kl: float
+
+
 class VariationalGWLosses(GWLossesBase):
     def __init__(
         self,
         gw_mod: VariationalGWModule,
         domain_mods: dict[str, DomainModule],
-        loss_coefs: LossCoefs,
+        loss_coefs: VariationalLossCoefs,
         contrastive_fn: ContrastiveLossType | None = None,
         var_contrastive_fn: VarContrastiveLossType | None = None,
     ):
