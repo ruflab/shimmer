@@ -220,7 +220,7 @@ def _contrastive_loss_with_uncertainty(
     return losses
 
 
-class LossCoefs(TypedDict):
+class LossCoefs(TypedDict, total=False):
     demi_cycles: float
     cycles: float
     translations: float
@@ -275,7 +275,7 @@ class GWLosses(GWLossesBase):
         return LossOutput(loss, metrics)
 
 
-class VariationalLossCoefs(LossCoefs):
+class VariationalLossCoefs(LossCoefs, total=False):
     kl: float
 
 
