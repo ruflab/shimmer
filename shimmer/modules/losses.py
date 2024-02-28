@@ -5,7 +5,6 @@ import torch
 import torch.nn.functional as F
 
 from shimmer.modules.contrastive_loss import ContrastiveLossType, VarContrastiveLossType
-from shimmer.modules.dict_buffer import DictBuffer
 from shimmer.modules.domain import DomainModule, LossOutput
 from shimmer.modules.gw_module import GWModule, GWModuleBase, VariationalGWModule
 from shimmer.modules.vae import kl_divergence_loss
@@ -225,13 +224,13 @@ class GWLosses(GWLossesBase):
         self,
         gw_mod: GWModule,
         domain_mods: dict[str, DomainModule],
-        coef_buffers: DictBuffer,
+        loss_coefs: Mapping[str, float],
         contrastive_fn: ContrastiveLossType,
     ):
         super().__init__()
         self.gw_mod = gw_mod
         self.domain_mods = domain_mods
-        self.loss_coefs = coef_buffers
+        self.loss_coefs = loss_coefs
         self.contrastive_fn = contrastive_fn
 
     def demi_cycle_loss(self, latent_domains: LatentsT) -> dict[str, torch.Tensor]:
@@ -260,7 +259,7 @@ class GWLosses(GWLossesBase):
             [
                 metrics[name] * coef
                 for name, coef in self.loss_coefs.items()
-                if coef.item() > 0
+                if coef > 0
             ],
             dim=0,
         ).mean()
@@ -273,7 +272,7 @@ class VariationalGWLosses(GWLossesBase):
         self,
         gw_mod: VariationalGWModule,
         domain_mods: dict[str, DomainModule],
-        coef_buffers: DictBuffer,
+        loss_coefs: Mapping[str, float],
         contrastive_fn: ContrastiveLossType | None = None,
         var_contrastive_fn: VarContrastiveLossType | None = None,
     ):
@@ -281,7 +280,7 @@ class VariationalGWLosses(GWLossesBase):
 
         self.gw_mod = gw_mod
         self.domain_mods = domain_mods
-        self.loss_coefs = coef_buffers
+        self.loss_coefs = loss_coefs
         assert (contrastive_fn is not None) != (
             var_contrastive_fn is not None
         ), "Should either have contrastive_fn or var_contrastive_fn"
@@ -344,7 +343,7 @@ class VariationalGWLosses(GWLossesBase):
             [
                 metrics[name] * coef
                 for name, coef in self.loss_coefs.items()
-                if (coef > 0).item()
+                if coef > 0
             ],
             dim=0,
         ).mean()
@@ -406,13 +405,11 @@ class GWLossesFusion(GWLossesBase):
         self,
         gw_mod: GWModule,
         domain_mods: dict[str, DomainModule],
-        coef_buffers: DictBuffer,
         contrastive_fn: ContrastiveLossType,
     ):
         super().__init__()
         self.gw_mod = gw_mod
         self.domain_mods = domain_mods
-        self.loss_coefs = coef_buffers
         self.contrastive_fn = contrastive_fn
 
     def demi_cycle_loss(self, latent_domains: LatentsT) -> dict[str, torch.Tensor]:

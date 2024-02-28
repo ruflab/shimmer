@@ -14,7 +14,6 @@ from shimmer.modules.contrastive_loss import (
     ContrastiveLossWithUncertainty,
     VarContrastiveLossType,
 )
-from shimmer.modules.dict_buffer import DictBuffer
 from shimmer.modules.domain import DomainModule
 from shimmer.modules.gw_module import (
     GWInterfaceBase,
@@ -49,7 +48,6 @@ class GlobalWorkspaceBase(LightningModule):
         self,
         gw_mod: GWModuleBase,
         domain_mods: Mapping[str, DomainModule],
-        coef_buffers: DictBuffer,
         loss_mod: GWLossesBase,
         optim_lr: float = 1e-3,
         optim_weight_decay: float = 0.0,
@@ -62,7 +60,6 @@ class GlobalWorkspaceBase(LightningModule):
                 "domain_mods",
                 "loss_mod",
                 "domain_descriptions",
-                "coef_buffers",
                 "contrastive_loss",
                 "gw_interfaces",
             ]
@@ -71,7 +68,6 @@ class GlobalWorkspaceBase(LightningModule):
         self.gw_mod = gw_mod
         self.domain_mods = domain_mods
         self.loss_mod = loss_mod
-        self.coef_buffers = coef_buffers
 
         self.optim_lr = optim_lr
         self.optim_weight_decay = optim_weight_decay
@@ -281,7 +277,7 @@ class GlobalWorkspace(GlobalWorkspaceBase):
         domain_mods: Mapping[str, DomainModule],
         gw_interfaces: Mapping[str, GWInterfaceBase],
         workspace_dim: int,
-        loss_coefs: Mapping[str, torch.Tensor],
+        loss_coefs: Mapping[str, float],
         optim_lr: float = 1e-3,
         optim_weight_decay: float = 0.0,
         scheduler_args: SchedulerArgs | None = None,
@@ -290,7 +286,6 @@ class GlobalWorkspace(GlobalWorkspaceBase):
     ) -> None:
         gw_mod = GWModule(gw_interfaces, workspace_dim)
         domain_mods = freeze_domain_modules(domain_mods)
-        coef_buffers = DictBuffer(loss_coefs)
         if contrastive_loss is None:
             contrastive_loss = ContrastiveLoss(
                 torch.tensor([1 / 0.07]).log(), "mean", learn_logit_scale
@@ -298,14 +293,13 @@ class GlobalWorkspace(GlobalWorkspaceBase):
         loss_mod = GWLosses(
             gw_mod,
             domain_mods,
-            coef_buffers,
+            loss_coefs,
             contrastive_loss,
         )
 
         super().__init__(
             gw_mod,
             domain_mods,
-            coef_buffers,
             loss_mod,
             optim_lr,
             optim_weight_decay,
@@ -319,7 +313,7 @@ class VariationalGlobalWorkspace(GlobalWorkspaceBase):
         domain_mods: Mapping[str, DomainModule],
         gw_interfaces: Mapping[str, GWInterfaceBase],
         workspace_dim: int,
-        loss_coefs: Mapping[str, torch.Tensor],
+        loss_coefs: Mapping[str, float],
         use_var_contrastive_loss: bool = False,
         optim_lr: float = 1e-3,
         optim_weight_decay: float = 0.0,
@@ -330,7 +324,6 @@ class VariationalGlobalWorkspace(GlobalWorkspaceBase):
     ) -> None:
         gw_mod = VariationalGWModule(gw_interfaces, workspace_dim)
         domain_mods = freeze_domain_modules(domain_mods)
-        coef_buffers = DictBuffer(loss_coefs)
 
         if use_var_contrastive_loss:
             if var_contrastive_loss is None:
@@ -340,7 +333,7 @@ class VariationalGlobalWorkspace(GlobalWorkspaceBase):
             loss_mod = VariationalGWLosses(
                 gw_mod,
                 domain_mods,
-                coef_buffers,
+                loss_coefs,
                 var_contrastive_fn=var_contrastive_loss,
             )
         else:
@@ -351,14 +344,13 @@ class VariationalGlobalWorkspace(GlobalWorkspaceBase):
             loss_mod = VariationalGWLosses(
                 gw_mod,
                 domain_mods,
-                coef_buffers,
+                loss_coefs,
                 contrastive_fn=contrastive_loss,
             )
 
         super().__init__(
             gw_mod,
             domain_mods,
-            coef_buffers,
             loss_mod,
             optim_lr,
             optim_weight_decay,
@@ -372,7 +364,6 @@ class GlobalWorkspaceFusion(GlobalWorkspaceBase):
         domain_mods: Mapping[str, DomainModule],
         gw_interfaces: Mapping[str, GWInterfaceBase],
         workspace_dim: int,
-        loss_coefs: Mapping[str, torch.Tensor],
         optim_lr: float = 1e-3,
         optim_weight_decay: float = 0.0,
         scheduler_args: SchedulerArgs | None = None,
@@ -381,7 +372,7 @@ class GlobalWorkspaceFusion(GlobalWorkspaceBase):
     ) -> None:
         gw_mod = GWModuleFusion(gw_interfaces, workspace_dim)
         domain_mods = freeze_domain_modules(domain_mods)
-        coef_buffers = DictBuffer(loss_coefs)
+
         if contrastive_loss is None:
             contrastive_loss = ContrastiveLoss(
                 torch.tensor([1 / 0.07]).log(), "mean", learn_logit_scale
@@ -389,14 +380,12 @@ class GlobalWorkspaceFusion(GlobalWorkspaceBase):
         loss_mod = GWLossesFusion(
             gw_mod,
             domain_mods,
-            coef_buffers,
             contrastive_loss,
         )
 
         super().__init__(
             gw_mod,
             domain_mods,
-            coef_buffers,
             loss_mod,
             optim_lr,
             optim_weight_decay,
@@ -409,17 +398,16 @@ def pretrained_global_workspace(
     domain_mods: Mapping[str, DomainModule],
     gw_interfaces: Mapping[str, GWInterfaceBase],
     workspace_dim: int,
-    loss_coefs: Mapping[str, torch.Tensor],
+    loss_coefs: Mapping[str, float],
     contrastive_fn: ContrastiveLossType,
     **kwargs,
 ) -> GlobalWorkspace:
     gw_mod = GWModule(gw_interfaces, workspace_dim)
     domain_mods = freeze_domain_modules(domain_mods)
-    coef_buffers = DictBuffer(loss_coefs)
     loss_mod = GWLosses(
         gw_mod,
         domain_mods,
-        coef_buffers,
+        loss_coefs,
         contrastive_fn,
     )
 
@@ -427,7 +415,7 @@ def pretrained_global_workspace(
         checkpoint_path,
         domain_mods=domain_mods,
         gw_mod=gw_mod,
-        coef_buffers=coef_buffers,
+        loss_coefs=loss_coefs,
         loss_mod=loss_mod,
         **kwargs,
     )
