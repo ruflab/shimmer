@@ -17,6 +17,8 @@ This workflow makes sure that the provided code follows correct code formatting
 (using [isort](https://github.com/PyCQA/isort) and [black](https://github.com/psf/black)),
 [flake8](https://github.com/PyCQA/flake8), and type issues with [mypy](https://github.com/python/mypy).
 
+This project is fully typed, so any contribution should provide typing annotations.
+
 To run the tools locally, make sure that you have installed dependencies with dev group:
 ```sh
 poetry install --with=dev
