@@ -76,20 +76,15 @@ my_domain_gw_interface = GWInterface(
 ### GW
 To load a global workspace, use: 
 ```python
-from shimmer import GlobalWorkspace
+from shimmer import GlobalWorkspace, LossCoefs
 
+domain_modules = {"my_domain": my_domain}
 
-domain_modules = {
-    "my_domain": my_domain
-}
-
-gw_interfaces = {
-    "my_domain": my_domain_gw_interface
-}
+gw_interfaces = {"my_domain": my_domain_gw_interface}
 
 workspace_dim = 32
 
-loss_coefs = {
+loss_coefs: LossCoefs = {
     "translations": 1.0,
     "demi_cycles": 0.0,
     "cycles": 1.0,
@@ -106,5 +101,4 @@ model = GlobalWorkspace(
 
 
 # Contributing
-Run [isort](https://pycqa.github.io/isort/) and [black](https://github.com/psf/black) before contributing.
-Also run flake8 and mypy and the project, and make sure that everything looks good.
+See [CONTRIBUTING.md](CONTRIBUTING.md).
