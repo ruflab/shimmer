@@ -1,7 +1,6 @@
 from dataclasses import dataclass, field
 from typing import Any
 
-import lightning.pytorch as pl
 import torch
 
 
@@ -24,7 +23,7 @@ class LossOutput:
         return {**self.metrics, "loss": self.loss}
 
 
-class DomainModule(pl.LightningModule):
+class DomainModule:
     """
     Base class for a DomainModule.
     We do not use ABC here because some modules could be without encore or decoder.
@@ -39,7 +38,6 @@ class DomainModule(pl.LightningModule):
             latent_dim: latent dimension of the unimodal module
             encoder_hidden_dim: number of hidden
         """
-        super().__init__()
 
         self.latent_dim = latent_dim
 
