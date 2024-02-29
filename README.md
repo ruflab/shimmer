@@ -9,17 +9,13 @@ It contains:
 
 
 ## Install
-Use it as a requirement in your own project.
+See [Installation instructions](docs/installation.md)
 
-For now, there is no PyPI entry, so in your requirements.txt:
-```
-shimmer@git+github.com:bdvllrs/shimmer.git@main#egg=shimmer
-```
+## Examples
+You can find code examples in the `examples` folder. Each subfolder is a different
+example.
 
-or in your pyproject.toml (with poetry for example):
-```
-shimmer = {git = "git@github.com:bdvllrs/shimmer.git", rev = "main"}
-```
+You can also follow a tutorial on the basics of shimmer [here](docs/shimmer_basics.md)
 
 ## Make a domain
 
