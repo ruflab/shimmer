@@ -63,20 +63,20 @@ class DomainModule(pl.LightningModule):
         """
         raise NotImplementedError
 
-    def on_before_gw_encode_dcy(self, x: torch.Tensor) -> torch.Tensor:
-        return x
+    def on_before_gw_encode_dcy(self, z: torch.Tensor) -> torch.Tensor:
+        return z
 
-    def on_before_gw_encode_cont(self, x: torch.Tensor) -> torch.Tensor:
-        return x
+    def on_before_gw_encode_cont(self, z: torch.Tensor) -> torch.Tensor:
+        return z
 
-    def on_before_gw_encode_tr(self, x: torch.Tensor) -> torch.Tensor:
-        return x
+    def on_before_gw_encode_tr(self, z: torch.Tensor) -> torch.Tensor:
+        return z
 
-    def on_before_gw_encode_cy(self, x: torch.Tensor) -> torch.Tensor:
-        return x
+    def on_before_gw_encode_cy(self, z: torch.Tensor) -> torch.Tensor:
+        return z
 
-    def on_before_gw_encode_broadcast(self, x: torch.Tensor) -> torch.Tensor:
-        return x
+    def on_before_gw_encode_broadcast(self, z: torch.Tensor) -> torch.Tensor:
+        return z
 
     def compute_loss(self, pred: torch.Tensor, target: torch.Tensor) -> LossOutput:
         """
