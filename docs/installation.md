@@ -31,6 +31,6 @@ shimmer = {git = "git@github.com:bdvllrs/shimmer.git", rev = "main"}
 in the `tool.poetry.dependencies` section.
 
 # For contributing
-If you want to contribute for bug correction or new features, follow instructions in [CONTRIBUTING.md](CONTRIBUTING.md).
+If you want to contribute for bug correction or new features, follow instructions in [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 Otherwise, submit an issue.
