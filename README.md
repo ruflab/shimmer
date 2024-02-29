@@ -24,8 +24,10 @@ shimmer = {git = "git@github.com:bdvllrs/shimmer.git", rev = "main"}
 ## Make a domain
 
 ```python
-import torch
+from typing import Any
 
+import torch
+import torch.nn.functional as F
 from shimmer import DomainModule, LossOutput
 
 
@@ -42,14 +44,11 @@ class MyDomain(DomainModule):
         # decode the latent representation back into the input form
         ...
 
-    def compute_loss(
-        self, pred: torch.Tensor, target: torch.Tensor
-    ) -> LossOutput:
+    def compute_loss(self, pred: torch.Tensor, target: torch.Tensor) -> LossOutput:
         return LossOutput(
-            loss=F.mse_loss(pred, target)  # loss used for training
-            metrics={}  # additional metrics to log (not required)
+            loss=F.mse_loss(pred, target),  # loss used for training
+            metrics={},  # additional metrics to log (not required)
         )
-
 ```
 
 ## Use a GW
@@ -61,7 +60,6 @@ GW representation into a unimodal representation.
 
 ```python
 from shimmer import GWInterface
-
 
 my_domain = MyDomain(latent_dim=32)
 my_domain_gw_interface = GWInterface(
