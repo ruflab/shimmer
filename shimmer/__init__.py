@@ -1,3 +1,4 @@
+from shimmer.dataset import RepeatedDataset
 from shimmer.modules.contrastive_loss import (
     ContrastiveLoss,
     ContrastiveLossType,
@@ -70,4 +71,5 @@ __all__ = [
     "VariationalGlobalWorkspace",
     "SchedulerArgs",
     "pretrained_global_workspace",
+    "RepeatedDataset",
 ]
