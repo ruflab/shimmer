@@ -13,7 +13,8 @@ to make a GW in shimmer:
 ![architecture](assets/shimmer_architecture.png)
 
 Let's detail:
-- [`DomainModule`](api/domain_modules.md)s are the individual domain modules which encode domain data into a latent vector;
+- [`DomainModule`](https://bdvllrs.github.io/shimmer/shimmer.html#DomainModule)s
+    are the individual domain modules which encode domain data into a latent vector;
 - `GWInterface`s are links to encode one domain in a GW representation;
 - the `GWModule` has access to all `GWInterface`s and defines how to encode, decode and 
 merge representations of the domains into a unique GW representation.
@@ -90,7 +91,7 @@ class DomainDataModule(LightningDataModule):
 Now that our data module is defined, let's create `DomainModule`s.
 
 ## `DomainModule`
-For more details about DomainModules, see the [DomainModule API docs](api/domain_modules.md).
+For more details about DomainModules, see the [DomainModule API docs](https://bdvllrs.github.io/shimmer/shimmer.html#DomainModule).
 The `DomainModule` class extends from a LightningModule and requires you to define some
 methods:
 
@@ -405,7 +406,7 @@ class GenericDomain(DomainModule):
         return LossOutput(loss=F.mse_loss(pred, target))
 ```
 
-To learn more about LossOutput, see [API docs](./api/loss_output.md).
+To learn more about LossOutput, see [API docs](https://bdvllrs.github.io/shimmer/shimmer.html#LossOutput).
 
 ## Let's make a GW!
 
