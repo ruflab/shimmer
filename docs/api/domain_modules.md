@@ -14,6 +14,12 @@ Initialize a DomainModule
 
 **Return type**: `None`
 
+## latent\_dim
+```python
+DomainModule.latent_dim: int
+```
+The latent dimension of the module.
+
 # encode
 ```python
 encode(x: Any) -> torch.Tensor
