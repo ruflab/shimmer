@@ -24,7 +24,7 @@ jobs:
           poetry run python -m pip install --upgrade pip
           poetry run pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
           poetry run pip install lightning
-      - run: poetry run pdoc ./shimmer -o docs/
+      - run: poetry run pdoc ./shimmer -o docs/ --docformat=google
       - uses: actions/upload-pages-artifact@v3
         with:
           path: docs/
