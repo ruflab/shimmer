@@ -21,7 +21,7 @@ jobs:
       - name: Install dependencies
         run: |
           poetry install --with docs
-      - run: pdoc ./shimmer -o docs/
+      - run: poetry run pdoc ./shimmer -o docs/
       - uses: actions/upload-pages-artifact@v3
         with:
           path: docs/
