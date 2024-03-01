@@ -51,7 +51,7 @@ Generic loss used for translation, demi-cycle, cycle or broadcast losses for thi
 - **pred** (`torch.Tensor`) prediction of the model
 - **target** (`torch.Tensor`) target tensor
 
-**Return type**: `shimmer.modules.domain.LossOutput`
+**Return type**: [`shimmer.modules.domain.LossOutput`](./loss_output.md)
 
 # compute\_dcy\_loss
 ```python
@@ -64,7 +64,7 @@ Demi-cycle loss for this domain. By default, uses `compute_loss`.
 - **pred** (`torch.Tensor`) prediction of the model
 - **target** (`torch.Tensor`) target tensor
 
-**Return type**: `shimmer.modules.domain.LossOutput`
+**Return type**: [`shimmer.modules.domain.LossOutput`](./loss_output.md)
 
 # compute\_cy\_loss
 ```python
@@ -77,7 +77,7 @@ Cycle loss for this domain. By default, uses `compute_loss`.
 - **pred** (`torch.Tensor`) prediction of the model
 - **target** (`torch.Tensor`) target tensor
 
-**Return type**: `shimmer.modules.domain.LossOutput`
+**Return type**: [`shimmer.modules.domain.LossOutput`](./loss_output.md)
 
 # compute\_tr\_loss
 ```python
@@ -90,7 +90,7 @@ Translation loss for this domain. By default, uses `compute_loss`.
 - **pred** (`torch.Tensor`) prediction of the model
 - **target** (`torch.Tensor`) target tensor
 
-**Return type**: `shimmer.modules.domain.LossOutput`
+**Return type**: [`shimmer.modules.domain.LossOutput`](./loss_output.md)
 
 # compute\_broadcast\_loss
 ```python
@@ -105,7 +105,7 @@ losses.
 - **pred** (`torch.Tensor`) prediction of the model
 - **target** (`torch.Tensor`) target tensor
 
-**Return type**: `shimmer.modules.domain.LossOutput`
+**Return type**: [`shimmer.modules.domain.LossOutput`](./loss_output.md)
 
 # on\_before\_gw\_encode\_dcy
 ```python
