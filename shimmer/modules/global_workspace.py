@@ -34,13 +34,25 @@ from shimmer.modules.losses import (
 
 
 class SchedulerArgs(TypedDict, total=False):
+    """TypedDict of arguments passed to the OneCycle scheduler"""
+
     max_lr: float
+    """Maximum learning rate"""
+
     total_steps: int
+    """Total number of steps"""
 
 
 class GWPredictions(TypedDict):
+    """TypedDict of the output given when calling GlobalWorkspaceBase.predict"""
+
     demi_cycles: dict[str, torch.Tensor]
+    """demi_cycle predictions of the model for each domain. Only computed on domain
+    groups with only one domain."""
+
     cycles: dict[tuple[str, str], torch.Tensor]
+    """cycle predictions of the model from one domain through another one. Only computed
+    on domain groups"""
     translations: dict[tuple[str, str], torch.Tensor]
     states: dict[str, torch.Tensor]
 

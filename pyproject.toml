@@ -32,6 +32,9 @@ black = "^24.2.0"
 torchvision = "^0.15.2"
 pytest = "^7.3.2"
 
+[tool.poetry.group.docs.dependencies]
+pdoc = "^14.4.0"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
