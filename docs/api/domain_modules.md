@@ -3,7 +3,7 @@
 ## `class shimmer.modules.domain.DomainModule`
 DomainModules define the domain specific module of a Global Workspace (GW).
 
-## \_\_init\_\_
+### \_\_init\_\_
 ```python
 __init__(latent_dim: int) -> None
 ```
@@ -14,13 +14,13 @@ Initialize a DomainModule
 
 **Return type**: `None`
 
-## latent\_dim
+### latent\_dim
 ```python
 DomainModule.latent_dim: int
 ```
 The latent dimension of the module.
 
-# encode
+### encode
 ```python
 encode(x: Any) -> torch.Tensor
 ```
@@ -32,7 +32,7 @@ Encode the domain data into a unimodal latent representation.
 
 **Return type**: `torch.Tensor`
 
-# decode
+### decode
 ```python
 decode(z: torch.Tensor) -> Any
 ```
@@ -46,7 +46,7 @@ DomainModule.decode(DomainModule.encode(x)) == x
 
 **Return type**: `Any`
 
-# compute\_loss
+### compute\_loss
 ```python
 compute_loss(pred: torch.Tensor, target: torch.Tensor) -> LossOutput
 ```
@@ -59,7 +59,7 @@ Generic loss used for translation, demi-cycle, cycle or broadcast losses for thi
 
 **Return type**: [`shimmer.modules.domain.LossOutput`](./loss_output.md)
 
-# compute\_dcy\_loss
+### compute\_dcy\_loss
 ```python
 compute_dcy_loss(pred: torch.Tensor, target: torch.Tensor) -> LossOutput
 ```
@@ -72,7 +72,7 @@ Demi-cycle loss for this domain. By default, uses `compute_loss`.
 
 **Return type**: [`shimmer.modules.domain.LossOutput`](./loss_output.md)
 
-# compute\_cy\_loss
+### compute\_cy\_loss
 ```python
 compute_cy_loss(pred: torch.Tensor, target: torch.Tensor) -> LossOutput
 ```
@@ -85,7 +85,7 @@ Cycle loss for this domain. By default, uses `compute_loss`.
 
 **Return type**: [`shimmer.modules.domain.LossOutput`](./loss_output.md)
 
-# compute\_tr\_loss
+### compute\_tr\_loss
 ```python
 compute_tr_loss(pred: torch.Tensor, target: torch.Tensor) -> LossOutput
 ```
@@ -98,7 +98,7 @@ Translation loss for this domain. By default, uses `compute_loss`.
 
 **Return type**: [`shimmer.modules.domain.LossOutput`](./loss_output.md)
 
-# compute\_broadcast\_loss
+### compute\_broadcast\_loss
 ```python
 compute_broadcast_loss(pred: torch.Tensor, target: torch.Tensor) -> LossOutput
 ```
@@ -113,7 +113,7 @@ losses.
 
 **Return type**: [`shimmer.modules.domain.LossOutput`](./loss_output.md)
 
-# on\_before\_gw\_encode\_dcy
+### on\_before\_gw\_encode\_dcy
 ```python
 on_before_gw_encode_dcy(z: torch.Tensor) -> torch.Tensor
 ```
@@ -129,7 +129,7 @@ If not defined, will return the input (identity function).
 **Return type**: `torch.Tensor`
 **Returns**: updated latent representation
 
-# on\_before\_gw\_encode\_cont
+### on\_before\_gw\_encode\_cont
 ```python
 on_before_gw_encode_cont(z: torch.Tensor) -> torch.Tensor
 ```
@@ -145,7 +145,7 @@ If not defined, will return the input (identity function).
 **Return type**: `torch.Tensor`
 **Returns**: updated latent representation
 
-# on\_before\_gw\_encode\_tr
+### on\_before\_gw\_encode\_tr
 ```python
 on_before_gw_encode_tr(z: torch.Tensor) -> torch.Tensor
 ```
@@ -161,7 +161,7 @@ If not defined, will return the input (identity function).
 **Return type**: `torch.Tensor`
 **Returns**: updated latent representation
 
-# on\_before\_gw\_encode\_cy
+### on\_before\_gw\_encode\_cy
 ```python
 on_before_gw_encode_cy(z: torch.Tensor) -> torch.Tensor
 ```
@@ -177,7 +177,7 @@ If not defined, will return the input (identity function).
 **Return type**: `torch.Tensor`
 **Returns**: updated latent representation
 
-# on\_before\_gw\_encode\_broadcast
+### on\_before\_gw\_encode\_broadcast
 ```python
 on_before_gw_encode_broadcast(z: torch.Tensor) -> torch.Tensor
 ```
