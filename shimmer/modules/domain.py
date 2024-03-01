@@ -55,11 +55,11 @@ class DomainModule(pl.LightningModule):
 
     def decode(self, z: torch.Tensor) -> Any:
         """
-        Decode data back to the unimodal representation.
+        Decode data back to the domain data.
         Args:
-            x: data of the domain.
+            z: unimodal representation of the domain.
         Returns:
-            a unimodal representation.
+            the original domain data.
         """
         raise NotImplementedError
 
