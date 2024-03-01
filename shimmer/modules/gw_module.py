@@ -411,9 +411,29 @@ class GWInterface(GWInterfaceBase):
         """The interface decoder"""
 
     def encode(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Encode the unimodal latent representation to the domain's pre-fusion GW
+        representation.
+
+        Args:
+            x (`torch.Tensor`): the unimodal latent representation.
+
+        Returns:
+            `torch.Tensor`: the domain's pre-fusion GW representation.
+        """
         return self.encoder(x)
 
     def decode(self, z: torch.Tensor) -> torch.Tensor:
+        """
+        Decode from the domain's pre-fusion GW
+        representation to the unimodal latent representation.
+
+        Args:
+            z (`torch.Tensor`): the domain's pre-fusion GW representation.
+
+        Returns:
+            `torch.Tensor`: the unimodal latent representation.
+        """
         return self.decoder(z)
 
 
