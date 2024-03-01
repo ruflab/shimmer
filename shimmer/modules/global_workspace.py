@@ -26,15 +26,17 @@ from shimmer.modules.losses import (
     GWLosses,
     GWLossesBase,
     GWLossesFusion,
+    LossCoefs,
+    VariationalGWLosses,
+    VariationalLossCoefs,
+)
+from shimmer.types import (
     LatentsDomainGroupsDT,
     LatentsDomainGroupsT,
     LatentsDomainGroupT,
-    LossCoefs,
     RawDomainGroupsDT,
     RawDomainGroupsT,
     RawDomainGroupT,
-    VariationalGWLosses,
-    VariationalLossCoefs,
 )
 
 

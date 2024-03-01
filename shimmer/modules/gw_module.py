@@ -6,8 +6,8 @@ import torch
 from torch import nn
 
 from shimmer.modules.domain import DomainModule
-from shimmer.modules.losses import LatentsDomainGroupT
 from shimmer.modules.vae import reparameterize
+from shimmer.types import LatentsDomainGroupT
 
 
 def get_n_layers(n_layers: int, hidden_dim: int) -> list[nn.Module]:
@@ -381,6 +381,17 @@ class GWInterface(GWInterfaceBase):
         decoder_hidden_dim: int,
         decoder_n_layers: int,
     ) -> None:
+        """
+        Initialized the interface.
+
+        Args:
+            domain_module (`DomainModule`): Domain module to link.
+            workspace_dim (`int`): dimension of the GW.
+            encoder_hidden_dim (`int`): `hidden_dim` used for `GWEncoder`.
+            encoder_n_layers (`int`): `n_layers` used for `GWEncoder`.
+            decoder_hidden_dim (`int`): `hidden_dim` used for `GWDecoder`.
+            decoder_n_layers (`int`): `n_layers` used for `GWDecoder`.
+        """
         super().__init__(domain_module, workspace_dim)
 
         self.encoder = GWEncoder(
@@ -389,12 +400,15 @@ class GWInterface(GWInterfaceBase):
             workspace_dim,
             encoder_n_layers,
         )
+        """The interface encoder"""
+
         self.decoder = GWDecoder(
             workspace_dim,
             decoder_hidden_dim,
             domain_module.latent_dim,
             decoder_n_layers,
         )
+        """The interface decoder"""
 
     def encode(self, x: torch.Tensor) -> torch.Tensor:
         return self.encoder(x)

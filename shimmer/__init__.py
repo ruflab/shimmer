@@ -30,11 +30,19 @@ from shimmer.modules.gw_module import (
 from shimmer.modules.losses import (
     GWLosses,
     GWLossesBase,
-    LatentsDomainGroupT,
-    LatentsT,
     LossCoefs,
     VariationalGWLosses,
     VariationalLossCoefs,
+)
+from shimmer.types import (
+    LatentsDomainGroupDT,
+    LatentsDomainGroupsDT,
+    LatentsDomainGroupsT,
+    LatentsDomainGroupT,
+    RawDomainGroupDT,
+    RawDomainGroupsDT,
+    RawDomainGroupsT,
+    RawDomainGroupT,
 )
 from shimmer.version import __version__
 
@@ -60,10 +68,8 @@ __all__ = [
     "ContrastiveLossWithUncertainty",
     "contrastive_loss",
     "contrastive_loss_with_uncertainty",
-    "LatentsT",
     "LossCoefs",
     "VariationalLossCoefs",
-    "LatentsDomainGroupT",
     "GWLosses",
     "GWLossesBase",
     "VariationalGWLosses",
@@ -74,4 +80,12 @@ __all__ = [
     "GWPredictions",
     "pretrained_global_workspace",
     "RepeatedDataset",
+    "LatentsDomainGroupDT",
+    "LatentsDomainGroupsDT",
+    "LatentsDomainGroupsT",
+    "LatentsDomainGroupT",
+    "RawDomainGroupDT",
+    "RawDomainGroupsDT",
+    "RawDomainGroupsT",
+    "RawDomainGroupT",
 ]

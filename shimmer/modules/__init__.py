@@ -29,8 +29,8 @@ from shimmer.modules.gw_module import (
 from shimmer.modules.losses import (
     GWLosses,
     GWLossesBase,
+    LatentsDomainGroupsT,
     LatentsDomainGroupT,
-    LatentsT,
     LossCoefs,
     VariationalGWLosses,
     VariationalLossCoefs,
@@ -55,7 +55,7 @@ __all__ = [
     "ContrastiveLossWithUncertainty",
     "contrastive_loss",
     "contrastive_loss_with_uncertainty",
-    "LatentsT",
+    "LatentsDomainGroupsT",
     "LossCoefs",
     "VariationalLossCoefs",
     "LatentsDomainGroupT",
