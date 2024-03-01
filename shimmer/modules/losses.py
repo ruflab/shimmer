@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
-from typing import TypedDict
+from typing import Any, TypedDict
 
 import torch
 import torch.nn.functional as F
@@ -10,8 +10,46 @@ from shimmer.modules.domain import DomainModule, LossOutput
 from shimmer.modules.gw_module import GWModule, GWModuleBase, VariationalGWModule
 from shimmer.modules.vae import kl_divergence_loss
 
+RawDomainGroupT = Mapping[str, Any]
+"""Matched raw unimodal data from multiple domains.
+Keys of the mapping are domains names."""
+
+RawDomainGroupDT = dict[str, Any]
+"""Matched raw unimodal data from multiple domains.
+Keys of the dict are domains names.
+
+This is a more specific version of `RawDomainGroupT` used in method's outputs."""
+
 LatentsDomainGroupT = Mapping[str, torch.Tensor]
-LatentsT = Mapping[frozenset[str], LatentsDomainGroupT]
+"""Matched unimodal latent representations from multiple domains.
+Keys of the mapping are domains names."""
+
+LatentsDomainGroupDT = dict[str, torch.Tensor]
+"""Matched unimodal latent representations from multiple domains.
+Keys of the dict are domains names.
+
+This is a more specific version of `LatentsDomainGroupT` used in method's outputs."""
+
+LatentsDomainGroupsT = Mapping[frozenset[str], LatentsDomainGroupT]
+"""Mapping of `LatentsDomainGroupT`. Keys are frozenset of domains matched in the group.
+Each group is independent and contains different data (unpaired)."""
+
+LatentsDomainGroupsDT = dict[frozenset[str], LatentsDomainGroupDT]
+"""Mapping of `LatentsDomainGroupDT`.
+Keys are frozenset of domains matched in the group.
+Each group is independent and contains different data (unpaired).
+
+This is a more specific version of `LatentsDomainGroupsT` used in method's outputs."""
+
+RawDomainGroupsT = Mapping[frozenset[str], RawDomainGroupT]
+"""Mapping of `RawDomainGroupT`. Keys are frozenset of domains matched in the group.
+Each group is independent and contains different data (unpaired)."""
+
+RawDomainGroupsDT = dict[frozenset[str], RawDomainGroupDT]
+"""Mapping of `RawDomainGroupT`. Keys are frozenset of domains matched in the group.
+Each group is independent and contains different data (unpaired).
+
+This is a more specific version of `RawDomainGroupsT` used in method's outputs."""
 
 
 class GWLossesBase(torch.nn.Module, ABC):
@@ -22,7 +60,7 @@ class GWLossesBase(torch.nn.Module, ABC):
     """
 
     @abstractmethod
-    def step(self, domain_latents: LatentsT, mode: str) -> LossOutput:
+    def step(self, domain_latents: LatentsDomainGroupsT, mode: str) -> LossOutput:
         """
         Computes the losses
         Args:
@@ -36,7 +74,7 @@ class GWLossesBase(torch.nn.Module, ABC):
 def _demi_cycle_loss(
     gw_mod: GWModuleBase,
     domain_mods: dict[str, DomainModule],
-    latent_domains: LatentsT,
+    latent_domains: LatentsDomainGroupsT,
 ) -> dict[str, torch.Tensor]:
     losses: dict[str, torch.Tensor] = {}
     metrics: dict[str, torch.Tensor] = {}
@@ -62,7 +100,7 @@ def _demi_cycle_loss(
 def _cycle_loss(
     gw_mod: GWModuleBase,
     domain_mods: dict[str, DomainModule],
-    latent_domains: LatentsT,
+    latent_domains: LatentsDomainGroupsT,
 ) -> dict[str, torch.Tensor]:
     losses: dict[str, torch.Tensor] = {}
     metrics: dict[str, torch.Tensor] = {}
@@ -99,7 +137,7 @@ def _cycle_loss(
 def _translation_loss(
     gw_mod: GWModuleBase,
     domain_mods: dict[str, DomainModule],
-    latent_domains: LatentsT,
+    latent_domains: LatentsDomainGroupsT,
 ) -> dict[str, torch.Tensor]:
     losses: dict[str, torch.Tensor] = {}
     metrics: dict[str, torch.Tensor] = {}
@@ -143,7 +181,7 @@ def _translation_loss(
 
 def _contrastive_loss(
     gw_mod: GWModuleBase,
-    latent_domains: LatentsT,
+    latent_domains: LatentsDomainGroupsT,
     contrastive_fn: ContrastiveLossType,
 ) -> dict[str, torch.Tensor]:
     losses: dict[str, torch.Tensor] = {}
@@ -179,7 +217,7 @@ def _contrastive_loss(
 
 def _contrastive_loss_with_uncertainty(
     gw_mod: VariationalGWModule,
-    latent_domains: LatentsT,
+    latent_domains: LatentsDomainGroupsT,
     contrastive_fn: VarContrastiveLossType,
 ) -> dict[str, torch.Tensor]:
     losses: dict[str, torch.Tensor] = {}
@@ -259,21 +297,27 @@ class GWLosses(GWLossesBase):
         self.loss_coefs = loss_coefs
         self.contrastive_fn = contrastive_fn
 
-    def demi_cycle_loss(self, latent_domains: LatentsT) -> dict[str, torch.Tensor]:
+    def demi_cycle_loss(
+        self, latent_domains: LatentsDomainGroupsT
+    ) -> dict[str, torch.Tensor]:
         return _demi_cycle_loss(self.gw_mod, self.domain_mods, latent_domains)
 
-    def cycle_loss(self, latent_domains: LatentsT) -> dict[str, torch.Tensor]:
+    def cycle_loss(
+        self, latent_domains: LatentsDomainGroupsT
+    ) -> dict[str, torch.Tensor]:
         return _cycle_loss(self.gw_mod, self.domain_mods, latent_domains)
 
-    def translation_loss(self, latent_domains: LatentsT) -> dict[str, torch.Tensor]:
+    def translation_loss(
+        self, latent_domains: LatentsDomainGroupsT
+    ) -> dict[str, torch.Tensor]:
         return _translation_loss(self.gw_mod, self.domain_mods, latent_domains)
 
-    def contrastive_loss(self, latent_domains: LatentsT) -> dict[str, torch.Tensor]:
+    def contrastive_loss(
+        self, latent_domains: LatentsDomainGroupsT
+    ) -> dict[str, torch.Tensor]:
         return _contrastive_loss(self.gw_mod, latent_domains, self.contrastive_fn)
 
-    def step(
-        self, domain_latents: Mapping[frozenset[str], Mapping[str, torch.Tensor]], _
-    ) -> LossOutput:
+    def step(self, domain_latents: LatentsDomainGroupsT, _) -> LossOutput:
         metrics: dict[str, torch.Tensor] = {}
 
         metrics.update(self.demi_cycle_loss(domain_latents))
@@ -329,16 +373,24 @@ class VariationalGWLosses(GWLossesBase):
         self.contrastive_fn = contrastive_fn
         self.var_contrastive_fn = var_contrastive_fn
 
-    def demi_cycle_loss(self, latent_domains: LatentsT) -> dict[str, torch.Tensor]:
+    def demi_cycle_loss(
+        self, latent_domains: LatentsDomainGroupsT
+    ) -> dict[str, torch.Tensor]:
         return _demi_cycle_loss(self.gw_mod, self.domain_mods, latent_domains)
 
-    def cycle_loss(self, latent_domains: LatentsT) -> dict[str, torch.Tensor]:
+    def cycle_loss(
+        self, latent_domains: LatentsDomainGroupsT
+    ) -> dict[str, torch.Tensor]:
         return _cycle_loss(self.gw_mod, self.domain_mods, latent_domains)
 
-    def translation_loss(self, latent_domains: LatentsT) -> dict[str, torch.Tensor]:
+    def translation_loss(
+        self, latent_domains: LatentsDomainGroupsT
+    ) -> dict[str, torch.Tensor]:
         return _translation_loss(self.gw_mod, self.domain_mods, latent_domains)
 
-    def contrastive_loss(self, latent_domains: LatentsT) -> dict[str, torch.Tensor]:
+    def contrastive_loss(
+        self, latent_domains: LatentsDomainGroupsT
+    ) -> dict[str, torch.Tensor]:
         if self.var_contrastive_fn is not None:
             return _contrastive_loss_with_uncertainty(
                 self.gw_mod, latent_domains, self.var_contrastive_fn
@@ -347,7 +399,7 @@ class VariationalGWLosses(GWLossesBase):
         assert self.contrastive_fn is not None
         return _contrastive_loss(self.gw_mod, latent_domains, self.contrastive_fn)
 
-    def kl_loss(self, latent_domains: LatentsT) -> dict[str, torch.Tensor]:
+    def kl_loss(self, latent_domains: LatentsDomainGroupsT) -> dict[str, torch.Tensor]:
         losses: dict[str, torch.Tensor] = {}
 
         for domains, latents in latent_domains.items():
@@ -365,9 +417,7 @@ class VariationalGWLosses(GWLossesBase):
         losses["kl"] = torch.stack(list(losses.values()), dim=0).mean()
         return losses
 
-    def step(
-        self, domain_latents: Mapping[frozenset[str], Mapping[str, torch.Tensor]], _
-    ) -> LossOutput:
+    def step(self, domain_latents: LatentsDomainGroupsT, _) -> LossOutput:
         metrics: dict[str, torch.Tensor] = {}
 
         dcy_losses = self.demi_cycle_loss(domain_latents)
@@ -454,20 +504,28 @@ class GWLossesFusion(GWLossesBase):
         self.domain_mods = domain_mods
         self.contrastive_fn = contrastive_fn
 
-    def demi_cycle_loss(self, latent_domains: LatentsT) -> dict[str, torch.Tensor]:
+    def demi_cycle_loss(
+        self, latent_domains: LatentsDomainGroupsT
+    ) -> dict[str, torch.Tensor]:
         return _demi_cycle_loss(self.gw_mod, self.domain_mods, latent_domains)
 
-    def cycle_loss(self, latent_domains: LatentsT) -> dict[str, torch.Tensor]:
+    def cycle_loss(
+        self, latent_domains: LatentsDomainGroupsT
+    ) -> dict[str, torch.Tensor]:
         return _cycle_loss(self.gw_mod, self.domain_mods, latent_domains)
 
-    def translation_loss(self, latent_domains: LatentsT) -> dict[str, torch.Tensor]:
+    def translation_loss(
+        self, latent_domains: LatentsDomainGroupsT
+    ) -> dict[str, torch.Tensor]:
         return _translation_loss(self.gw_mod, self.domain_mods, latent_domains)
 
-    def contrastive_loss(self, latent_domains: LatentsT) -> dict[str, torch.Tensor]:
+    def contrastive_loss(
+        self, latent_domains: LatentsDomainGroupsT
+    ) -> dict[str, torch.Tensor]:
         return _contrastive_loss(self.gw_mod, latent_domains, self.contrastive_fn)
 
     def broadcast_loss(
-        self, latent_domains: LatentsT, mode: str
+        self, latent_domains: LatentsDomainGroupsT, mode: str
     ) -> dict[str, torch.Tensor]:
         losses: dict[str, torch.Tensor] = {}
         metrics: dict[str, torch.Tensor] = {}
@@ -548,7 +606,7 @@ class GWLossesFusion(GWLossesBase):
 
     def step(
         self,
-        domain_latents: Mapping[frozenset[str], Mapping[str, torch.Tensor]],
+        domain_latents: LatentsDomainGroupsT,
         mode: str,
     ) -> LossOutput:
         metrics: dict[str, torch.Tensor] = {}

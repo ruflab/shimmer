@@ -1,6 +1,6 @@
 from collections.abc import Iterable, Mapping
 from pathlib import Path
-from typing import Any, TypedDict, cast
+from typing import Any, Literal, TypedDict, cast
 
 import torch
 from lightning.pytorch import LightningModule
@@ -26,8 +26,13 @@ from shimmer.modules.losses import (
     GWLosses,
     GWLossesBase,
     GWLossesFusion,
-    LatentsT,
+    LatentsDomainGroupsDT,
+    LatentsDomainGroupsT,
+    LatentsDomainGroupT,
     LossCoefs,
+    RawDomainGroupsDT,
+    RawDomainGroupsT,
+    RawDomainGroupT,
     VariationalGWLosses,
     VariationalLossCoefs,
 )
@@ -44,20 +49,38 @@ class SchedulerArgs(TypedDict, total=False):
 
 
 class GWPredictions(TypedDict):
-    """TypedDict of the output given when calling GlobalWorkspaceBase.predict"""
+    """TypedDict of the output given when calling `GlobalWorkspaceBase.predict`"""
 
     demi_cycles: dict[str, torch.Tensor]
-    """demi_cycle predictions of the model for each domain. Only computed on domain
-    groups with only one domain."""
+    """Demi-cycle predictions of the model for each domain. Only computed on domain
+    groups with only one domain.
+    """
 
     cycles: dict[tuple[str, str], torch.Tensor]
-    """cycle predictions of the model from one domain through another one. Only computed
-    on domain groups"""
+    """Cycle predictions of the model from one domain through another one.
+    Only computed on domain groups with more than one domain.
+    The keys are tuple with start domain and intermediary domain.
+    """
+
     translations: dict[tuple[str, str], torch.Tensor]
+    """Translation predictions of the model from one domain through another one.
+
+    Only computed on domain groups with more than one domain.
+    The keys are tuples with start domain and target domain.
+    """
+
     states: dict[str, torch.Tensor]
+    """GW state representation from domain groups with only one domain.
+    The key represent the domain's name.
+    """
 
 
 class GlobalWorkspaceBase(LightningModule):
+    """Global Workspace Lightning Module.
+
+    This is the base class to build the Global Workspace.
+    """
+
     def __init__(
         self,
         gw_mod: GWModuleBase,
@@ -67,6 +90,19 @@ class GlobalWorkspaceBase(LightningModule):
         optim_weight_decay: float = 0.0,
         scheduler_args: SchedulerArgs | None = None,
     ) -> None:
+        """Initializes a GW
+
+        Args:
+            gw_mod (`GWModuleBase`): the GWModule
+            domain_mods (`Mapping[str, DomainModule]`): mapping of the domains
+                connected to the GW. Keys are domain names, values are the
+                `DomainModule`.
+            loss_mod (`GWLossesBase`): module to compute the GW losses.
+            optim_lr (`float`): learning rate
+            optim_weight_decay (`float`): weight decay
+            scheduler_args (`SchedulerArgs`): `SchedulerArgs` instance to define
+                scheduler parameters.
+        """
         super().__init__()
         self.save_hyperparameters(
             ignore=[
@@ -80,8 +116,11 @@ class GlobalWorkspaceBase(LightningModule):
         )
 
         self.gw_mod = gw_mod
+        """ a `GWModuleBase` implementation."""
         self.domain_mods = domain_mods
+        """Mapping of `DomainModule`s."""
         self.loss_mod = loss_mod
+        """The module that computes losses of the GW"""
 
         self.optim_lr = optim_lr
         self.optim_weight_decay = optim_weight_decay
@@ -90,29 +129,73 @@ class GlobalWorkspaceBase(LightningModule):
             self.scheduler_args.update(scheduler_args)
 
     @property
-    def workspace_dim(self):
+    def workspace_dim(self) -> int:
+        """Dimension of the GW."""
         return self.gw_mod.workspace_dim
 
-    def encode(self, x: Mapping[str, torch.Tensor]) -> torch.Tensor:
+    def encode(self, x: LatentsDomainGroupT) -> torch.Tensor:
+        """Encode latent representations into the GW representation.
+
+        This directly calls `GWModuleBase.encode` and is a convenient proxy to
+        ```python
+        self.gw_mod.encode(x)
+        ```
+
+        Args:
+            x (`LatentsDomainGroupT`): the input domain representations.
+
+        Returns:
+            `torch.Tensor`: the GW representations.
+        """
         return self.gw_mod.encode(x)
 
     def decode(
         self, z: torch.Tensor, domains: Iterable[str] | None = None
     ) -> dict[str, torch.Tensor]:
+        """Decode the GW representation into given `domains`.
+
+        This directly calls `GWModuleBase.decode` and is a convenient proxy to
+        ```python
+        self.gw_mod.decode(x)
+        ```
+
+        Args:
+            z (`torch.Tensor`): the GW representation.
+            domains (`Iterable[str]`): iterable of domains to decode.
+
+        Returns:
+            `dict[str, torch.Tensor]`: the decoded unimodal representations.
+        """
         return self.gw_mod.decode(z, domains)
 
-    def forward(self, latent_domains: LatentsT) -> GWPredictions:
-        outputs = GWPredictions(
-            **{
-                "demi_cycles": self.batch_demi_cycles(latent_domains),
-                "cycles": self.batch_cycles(latent_domains),
-                "translations": self.batch_translations(latent_domains),
-                "states": self.batch_gw_states(latent_domains),
-            }
-        )
-        return outputs
+    def forward(self, latent_domains: LatentsDomainGroupsT) -> GWPredictions:
+        """Computes demi-cycles, cycles, and translations.
 
-    def batch_gw_states(self, latent_domains: LatentsT) -> dict[str, torch.Tensor]:
+        Args:
+            latent_domains (`LatentsT`): Groups of domains for the computation.
+
+        Returns:
+            `GWPredictions`: the predictions on the batch.
+        """
+
+        return GWPredictions(
+            demi_cycles=self.batch_demi_cycles(latent_domains),
+            cycles=self.batch_cycles(latent_domains),
+            translations=self.batch_translations(latent_domains),
+            states=self.batch_gw_states(latent_domains),
+        )
+
+    def batch_gw_states(
+        self, latent_domains: LatentsDomainGroupsT
+    ) -> dict[str, torch.Tensor]:
+        """Comptues GW states of a batch of groups of domains.
+
+        Args:
+            latent_domains (`LatentsT`): the batch of groups of domains
+
+        Returns:
+            `dict[str, torch.Tensor]`: states for each domain.
+        """
         predictions: dict[str, torch.Tensor] = {}
         for domains, latents in latent_domains.items():
             if len(domains) > 1:
@@ -122,7 +205,17 @@ class GlobalWorkspaceBase(LightningModule):
             predictions[domain_name] = z
         return predictions
 
-    def batch_demi_cycles(self, latent_domains: LatentsT) -> dict[str, torch.Tensor]:
+    def batch_demi_cycles(
+        self, latent_domains: LatentsDomainGroupsT
+    ) -> dict[str, torch.Tensor]:
+        """Computes demi-cycles of a batch of groups of domains.
+
+        Args:
+            latent_domains (`LatentsT`): the batch of groups of domains
+
+        Returns:
+            `dict[str, torch.Tensor]`: demi-cycles predictions for each domain.
+        """
         predictions: dict[str, torch.Tensor] = {}
         for domains, latents in latent_domains.items():
             if len(domains) > 1:
@@ -133,8 +226,17 @@ class GlobalWorkspaceBase(LightningModule):
         return predictions
 
     def batch_cycles(
-        self, latent_domains: LatentsT
+        self, latent_domains: LatentsDomainGroupsT
     ) -> dict[tuple[str, str], torch.Tensor]:
+        """Computes cycles of a batch of groups of domains.
+
+        Args:
+            latent_domains (`LatentsT`): the batch of groups of domains
+
+        Returns:
+            `dict[tuple[str, str], torch.Tensor]`: cycles predictions for each
+                couple of (start domain, intermediary domain).
+        """
         predictions: dict[tuple[str, str], torch.Tensor] = {}
         for domains_source, latents_source in latent_domains.items():
             if len(domains_source) > 1:
@@ -149,8 +251,17 @@ class GlobalWorkspaceBase(LightningModule):
         return predictions
 
     def batch_translations(
-        self, latent_domains: LatentsT
+        self, latent_domains: LatentsDomainGroupsT
     ) -> dict[tuple[str, str], torch.Tensor]:
+        """Computes translations of a batch of groups of domains.
+
+        Args:
+            latent_domains (`LatentsT`): the batch of groups of domains
+
+        Returns:
+            `dict[tuple[str, str], torch.Tensor]`: translation predictions for each
+                couple of (start domain, target domain).
+        """
         predictions: dict[tuple[str, str], torch.Tensor] = {}
         for domains, latents in latent_domains.items():
             if len(domains) < 2:
@@ -167,12 +278,37 @@ class GlobalWorkspaceBase(LightningModule):
         return predictions
 
     def encode_domain(self, domain: Any, name: str) -> torch.Tensor:
+        """Encodes a domain from the domain data into the unimodal representation.
+
+        This is a convenient proxy for the `DomainModule.encode` method and is
+        equivalent to:
+        ```python
+        self.domain_mods[name].encode(domain)
+        ```
+
+        Args:
+            domain (`Any`): the domain data
+            name (`str`): domain name to encode
+
+        Returns:
+            `torch.Tensor`: the domain's unimodal representation.
+        """
         return self.domain_mods[name].encode(domain)
 
     def encode_domains(
         self,
-        batch: Mapping[frozenset[str], Mapping[str, Any]],
-    ) -> dict[frozenset[str], dict[str, torch.Tensor]]:
+        batch: RawDomainGroupsT,
+    ) -> LatentsDomainGroupsDT:
+        """Encode all domains in the batch.
+
+        Args:
+            batch (`RawDomainGroupsT`): the batch of
+                domain groups with raw unimodal data to encode into groups of latent
+                representations.
+
+        Returns:
+            `LatentsDomainGroupsDT`: the domains' unimodal representations.
+        """
         return {
             domains: {
                 name: self.domain_mods[name].encode(domain)
@@ -182,12 +318,37 @@ class GlobalWorkspaceBase(LightningModule):
         }
 
     def decode_domain(self, domain: torch.Tensor, name: str) -> Any:
+        """Decodes a domain from the unimodal representation into the domain data.
+
+        This is a convenient proxy for the `DomainModule.encode` method and is
+        equivalent to:
+        ```python
+        self.domain_mods[name].decode(domain)
+        ```
+
+        Args:
+            domain (`torch.Tensor`): the domain data
+            name (`str`): domain name to encode
+
+        Returns:
+            `Any`: the domain's raw data.
+        """
         return self.domain_mods[name].decode(domain)
 
     def decode_domains(
         self,
-        latents_domain: LatentsT,
-    ) -> dict[frozenset[str], dict[str, Any]]:
+        latents_domain: LatentsDomainGroupsT,
+    ) -> RawDomainGroupsDT:
+        """Decodes all domains in the batch.
+
+        Args:
+            batch (`LatentsDomainGroupsT`): the batch of
+                domain groups with unimodal latent representation to decode into
+                groups of raw data.
+
+        Returns:
+            `LatentsDomainGroupsDT`: the domains' raw data.
+        """
         return {
             domains: {
                 name: self.domain_mods[name].decode(domain)
@@ -198,8 +359,16 @@ class GlobalWorkspaceBase(LightningModule):
 
     def _get_batch_size(
         self,
-        domain_latents: LatentsT,
+        domain_latents: LatentsDomainGroupsT,
     ) -> int:
+        """Get the batch size of the batch.
+
+        Args:
+            domain_latents (`LatentsDomainGroupsT`): the batch of groups.
+
+        Returns:
+            int: the batch size.
+        """
         for data in domain_latents.values():
             for tensor in data.values():
                 return tensor.size(0)
@@ -207,9 +376,19 @@ class GlobalWorkspaceBase(LightningModule):
 
     def generic_step(
         self,
-        batch: Mapping[frozenset[str], Mapping[str, Any]],
-        mode: str,
+        batch: RawDomainGroupsT,
+        mode: Literal["train", "val", "test", "val/ood", "test/ood"],
     ) -> torch.Tensor:
+        """The generic step used in `training_step`, `validation_step` and
+        `test_step`.
+
+        Args:
+            batch (`RawDomainGroupsT`): the batch of groups of raw unimodal data.
+            mode (`Literal["train", "val", "test", "val/ood", "test/ood"]`):
+
+        Returns:
+            `torch.Tensor`: the loss to train on.
+        """
         domain_latents = self.encode_domains(batch)
         batch_size = self._get_batch_size(domain_latents)
 
@@ -226,8 +405,10 @@ class GlobalWorkspaceBase(LightningModule):
         return loss_output.loss
 
     def validation_step(
-        self, data: Mapping[str, Any], _, dataloader_idx: int = 0
+        self, data: RawDomainGroupT, _, dataloader_idx: int = 0
     ) -> torch.Tensor:
+        """Validation step used by lightning"""
+
         batch = {frozenset(data.keys()): data}
         for domain in data.keys():
             batch[frozenset([domain])] = {domain: data[domain]}
@@ -238,6 +419,8 @@ class GlobalWorkspaceBase(LightningModule):
     def test_step(
         self, data: Mapping[str, Any], _, dataloader_idx: int = 0
     ) -> torch.Tensor:
+        """Test step used by lightning"""
+
         batch = {frozenset(data.keys()): data}
         for domain in data.keys():
             batch[frozenset([domain])] = {domain: data[domain]}
@@ -248,9 +431,13 @@ class GlobalWorkspaceBase(LightningModule):
     def training_step(
         self, batch: Mapping[frozenset[str], Mapping[str, Any]], _
     ) -> torch.Tensor:
+        """Training step used by lightning"""
+
         return self.generic_step(batch, mode="train")
 
     def predict_step(self, data: Mapping[str, Any], _) -> GWPredictions:  # type: ignore
+        """Predict step used by lightning"""
+
         batch = {frozenset(data.keys()): data}
         for domain in data.keys():
             batch[frozenset([domain])] = {domain: data[domain]}
@@ -259,6 +446,12 @@ class GlobalWorkspaceBase(LightningModule):
         return self.forward(domain_latents)
 
     def configure_optimizers(self) -> OptimizerLRSchedulerConfig:
+        """Configure models optimizers.
+
+        Here we use `AdamW` for the optimizer and `OneCycleLR` for the learning-rate
+        scheduler.
+        """
+
         optimizer = torch.optim.AdamW(
             self.parameters(),
             lr=self.optim_lr,
@@ -279,6 +472,19 @@ class GlobalWorkspaceBase(LightningModule):
 def freeze_domain_modules(
     domain_mods: Mapping[str, DomainModule],
 ) -> dict[str, DomainModule]:
+    """Freezes weights and set to eval mode the domain modules.
+
+    > [!NOTE]
+    > The output is casted as `dict[str, DomainModule]` type for better auto-completion,
+    > but is actually a torch `ModuleDict`.
+
+    Args:
+        domain_mods (`Mapping[str, DomainModule]`): mapping of domain modules to freeze
+
+    Returns:
+        `ModuleDict`: frozen modules.
+    """
+
     for mod in domain_mods.values():
         mod.freeze()
     # Cast for better auto-completion at the expense of ModuleDict
@@ -286,6 +492,12 @@ def freeze_domain_modules(
 
 
 class GlobalWorkspace(GlobalWorkspaceBase):
+    """A simple 2-domains max flavor of GlobalWorkspaceBase.
+
+    This is used to simplify a Global Workspace instanciation and only overrides the
+    `__init__` method.
+    """
+
     def __init__(
         self,
         domain_mods: Mapping[str, DomainModule],
@@ -298,6 +510,26 @@ class GlobalWorkspace(GlobalWorkspaceBase):
         learn_logit_scale: bool = False,
         contrastive_loss: ContrastiveLossType | None = None,
     ) -> None:
+        """Initializes a Global Workspace
+
+        Args:
+            domain_mods (`Mapping[str, DomainModule]`): mapping of the domains
+                connected to the GW. Keys are domain names, values are the
+                `DomainModule`.
+            gw_interfaces (`Mapping[str, GWInterfaceBase]`): mapping for each domain
+                name to a `GWInterfaceBase` class which role is to encode/decode
+                unimodal latent representations into a GW representation (pre fusion).
+            workspace_dim (`int`): dimension of the GW.
+            loss_coefs (`LossCoefs`): loss coefficients
+            optim_lr (`float`): learning rate
+            optim_weight_decay (`float`): weight decay
+            scheduler_args (`SchedulerArgs | None`): optimization scheduler's arguments
+            learn_logit_scale (`bool`): whether to learn the contrastive learning
+                contrastive loss when using the default contrastive loss.
+            contrastive_loss (`ContrastiveLossType | None`): a contrastive loss
+                function used for alignment. `learn_logit_scale` will not affect custom
+                contrastive losses.
+        """
         gw_mod = GWModule(gw_interfaces, workspace_dim)
         domain_mods = freeze_domain_modules(domain_mods)
         if contrastive_loss is None:
@@ -322,6 +554,12 @@ class GlobalWorkspace(GlobalWorkspaceBase):
 
 
 class VariationalGlobalWorkspace(GlobalWorkspaceBase):
+    """A simple 2-domains max variational flavor of GlobalWorkspaceBase.
+
+    This is used to simplify a Global Workspace instanciation and only overrides the
+    `__init__` method.
+    """
+
     def __init__(
         self,
         domain_mods: Mapping[str, DomainModule],
@@ -336,6 +574,31 @@ class VariationalGlobalWorkspace(GlobalWorkspaceBase):
         contrastive_loss: ContrastiveLossType | None = None,
         var_contrastive_loss: VarContrastiveLossType | None = None,
     ) -> None:
+        """Initializes a Global Workspace
+
+        Args:
+            domain_mods (`Mapping[str, DomainModule]`): mapping of the domains
+                connected to the GW. Keys are domain names, values are the
+                `DomainModule`.
+            gw_interfaces (`Mapping[str, GWInterfaceBase]`): mapping for each domain
+                name to a `GWInterfaceBase` class which role is to encode/decode
+                unimodal latent representations into a GW representation (pre fusion).
+            workspace_dim (`int`): dimension of the GW.
+            loss_coefs (`LossCoefs`): loss coefficients
+            use_var_contrastive_loss (`bool`): whether to use the variational
+                contrastive loss which uses means and log variance for computations.
+            optim_lr (`float`): learning rate
+            optim_weight_decay (`float`): weight decay
+            scheduler_args (`SchedulerArgs | None`): optimization scheduler's arguments
+            learn_logit_scale (`bool`): whether to learn the contrastive learning
+                contrastive loss when using the default contrastive loss.
+            contrastive_loss (`ContrastiveLossType | None`): a contrastive loss
+                function used for alignment. `learn_logit_scale` will not affect custom
+                contrastive losses.
+            var_contrastive_loss (`VarContrastiveLossType | None`): a variational
+                contrastive loss. Only used if `use_var_contrastive_loss` is set to
+                `True`.
+        """
         gw_mod = VariationalGWModule(gw_interfaces, workspace_dim)
         domain_mods = freeze_domain_modules(domain_mods)
 
@@ -373,6 +636,12 @@ class VariationalGlobalWorkspace(GlobalWorkspaceBase):
 
 
 class GlobalWorkspaceFusion(GlobalWorkspaceBase):
+    """The 2-domain fusion (with broadcast loss) flavor of GlobalWorkspaceBase.
+
+    This is used to simplify a Global Workspace instanciation and only overrides the
+    `__init__` method.
+    """
+
     def __init__(
         self,
         domain_mods: Mapping[str, DomainModule],
@@ -384,6 +653,25 @@ class GlobalWorkspaceFusion(GlobalWorkspaceBase):
         learn_logit_scale: bool = False,
         contrastive_loss: ContrastiveLossType | None = None,
     ) -> None:
+        """Initializes a Global Workspace
+
+        Args:
+            domain_mods (`Mapping[str, DomainModule]`): mapping of the domains
+                connected to the GW. Keys are domain names, values are the
+                `DomainModule`.
+            gw_interfaces (`Mapping[str, GWInterfaceBase]`): mapping for each domain
+                name to a `GWInterfaceBase` class which role is to encode/decode
+                unimodal latent representations into a GW representation (pre fusion).
+            workspace_dim (`int`): dimension of the GW.
+            optim_lr (`float`): learning rate
+            optim_weight_decay (`float`): weight decay
+            scheduler_args (`SchedulerArgs | None`): optimization scheduler's arguments
+            learn_logit_scale (`bool`): whether to learn the contrastive learning
+                contrastive loss when using the default contrastive loss.
+            contrastive_loss (`ContrastiveLossType | None`): a contrastive loss
+                function used for alignment. `learn_logit_scale` will not affect custom
+                contrastive losses.
+        """
         gw_mod = GWModuleFusion(gw_interfaces, workspace_dim)
         domain_mods = freeze_domain_modules(domain_mods)
 
@@ -416,6 +704,31 @@ def pretrained_global_workspace(
     contrastive_fn: ContrastiveLossType,
     **kwargs,
 ) -> GlobalWorkspace:
+    """
+    Load a `GlobalWorkspace` flavor of `GlobalWorkspaceBase` from a checkpoint.
+
+    Args:
+        checkpoint_path (`str | Path`): path to checkpoint
+        domain_mods (`Mapping[str, DomainModule]`): mapping of the domains
+            connected to the GW. Keys are domain names, values are the
+            `DomainModule`.
+        gw_interfaces (`Mapping[str, GWInterfaceBase]`): mapping for each domain
+            name to a `GWInterfaceBase` class which role is to encode/decode
+            unimodal latent representations into a GW representation (pre fusion).
+        workspace_dim (`int`): dimension of the GW.
+        loss_coefs (`LossCoefs`): loss coefficients
+        contrastive_loss (`ContrastiveLossType`): a contrastive loss
+            function used for alignment. `learn_logit_scale` will not affect custom
+            contrastive losses.
+        **kwargs: additional arguments to pass to
+            `GlobalWorkspace.load_from_checkpoint`.
+
+    Returns:
+        `GlobalWorkspace`: the pretrained `GlobalWorkspace`.
+
+    Raises:
+        `TypeError`: if loaded type is not `GlobalWorkspace`.
+    """
     gw_mod = GWModule(gw_interfaces, workspace_dim)
     domain_mods = freeze_domain_modules(domain_mods)
     loss_mod = GWLosses(

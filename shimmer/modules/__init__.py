@@ -10,6 +10,7 @@ from shimmer.modules.domain import DomainModule, LossOutput
 from shimmer.modules.global_workspace import (
     GlobalWorkspace,
     GlobalWorkspaceBase,
+    GWPredictions,
     SchedulerArgs,
     VariationalGlobalWorkspace,
     pretrained_global_workspace,
@@ -65,5 +66,6 @@ __all__ = [
     "GlobalWorkspaceBase",
     "VariationalGlobalWorkspace",
     "SchedulerArgs",
+    "GWPredictions",
     "pretrained_global_workspace",
 ]

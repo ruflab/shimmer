@@ -10,6 +10,7 @@ from shimmer.modules.domain import LossOutput
 
 ContrastiveLossType = Callable[[torch.Tensor, torch.Tensor], LossOutput]
 """Contrastive loss function type.
+
 A function taking the prediction and targets and returning a LossOutput.
 """
 
@@ -17,6 +18,7 @@ VarContrastiveLossType = Callable[
     [torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor], LossOutput
 ]
 """Contrastive loss function type for variational GlobalWorkspace.
+
 A function taking the prediction mean, prediction std, target mean and target std and
     returns a LossOutput.
 """
@@ -31,10 +33,10 @@ def info_nce(
     """InfoNCE loss
 
     Args:
-        x: prediction
-        y: target
-        logit_scale: logit scale
-        reduction: reduction to apply
+        x (`torch.Tensor`): prediction
+        y (`torch.Tensor`): target
+        logit_scale (`torch.Tensor`): logit scale
+        reduction (`Literal["mean", "sum", "none"]`): reduction to apply
 
     Returns: the InfoNCE loss
     """
@@ -54,10 +56,10 @@ def contrastive_loss(
     """CLIP-like contrastive loss
 
     Args:
-        x: prediction
-        y: target
-        logit_scale: logit scale
-        reduction: reduction to apply
+        x (`torch.Tensor`): prediction
+        y (`torch.Tensor`): target
+        logit_scale (`torch.Tensor`): logit scale
+        reduction (`Literal["mean", "sum", "none"]`): reduction to apply
 
     Returns: the contrastive loss
     """
@@ -82,12 +84,12 @@ def contrastive_loss_with_uncertainty(
     This is used in Variational Global Workspaces.
 
     Args:
-        x: prediction
-        x_log_uncertainty: logvar of the prediction
-        y: target
-        y_log_uncertainty: logvar of the target
-        logit_scale: logit scale
-        reduction: reduction to apply
+        x (`torch.Tensor`): prediction
+        x_log_uncertainty (`torch.Tensor`): logvar of the prediction
+        y (`torch.Tensor`): target
+        y_log_uncertainty (`torch.Tensor`): logvar of the target
+        logit_scale (`torch.Tensor`): logit scale
+        reduction (`Literal["mean", "sum", "none"]`): reduction to apply
 
     Returns: the contrastive loss with uncertainty.
     """
@@ -104,7 +106,7 @@ def contrastive_loss_with_uncertainty(
 
 
 class ContrastiveLoss(torch.nn.Module):
-    """CLIP-like ContrastiveLoss torch module"""
+    """CLIP-like ContrastiveLoss torch module."""
 
     def __init__(
         self,
@@ -115,10 +117,11 @@ class ContrastiveLoss(torch.nn.Module):
         """Initializes a contrastive loss.
 
         Args:
-            logit_scale: logit_scale tensor.
-            reduction: reduction to apply to the loss. Defaults to "mean"
-            learn_logit_scale: whether to learn the logit_scale parameter. Defaults to
-                False.
+            logit_scale (`torch.Tensor`): logit_scale tensor.
+            reduction (`Literal["mean", "sum", "none"]`): reduction to apply to the
+                loss. Defaults to `"mean"`.
+            learn_logit_scale (`torch.Tensor`): whether to learn the `logit_scale`
+                parameter. Defaults to `False`.
         """
         super().__init__()
 
@@ -130,10 +133,11 @@ class ContrastiveLoss(torch.nn.Module):
         self.reduction: Literal["mean", "sum", "none"] = reduction
 
     def forward(self, x: torch.Tensor, y: torch.Tensor) -> LossOutput:
-        """Computes the loss
+        """Computes the loss.
+
         Args:
-            x: prediction
-            y: target
+            x (`torch.Tensor`): prediction
+            y (`torch.Tensor`): target
 
         Returns:
             LossOutput of the loss. Contains a `logit_scale` metric.
@@ -146,6 +150,7 @@ class ContrastiveLoss(torch.nn.Module):
 
 class ContrastiveLossWithUncertainty(torch.nn.Module):
     """CLIP-like contrastive loss with uncertainty module.
+
     This is used in Variational Global Workspaces.
     """
 
@@ -159,10 +164,11 @@ class ContrastiveLossWithUncertainty(torch.nn.Module):
         ContrastiveLoss used for VariationalGlobalWorkspace
 
         Args:
-            logit_scale: logit_scale tensor.
-            reduction: reduction to apply to the loss. Defaults to "mean"
-            learn_logit_scale: whether to learn the logit_scale parameter. Defaults to
-                False.
+            logit_scale (`torch.Tensor`): logit_scale tensor.
+            reduction (`Literal["mean", "sum", "none"]`): reduction to apply to
+                the loss. Defaults to `"mean"`.
+            learn_logit_scale (`bool`): whether to learn the logit_scale parameter.
+            Defaults to `False`.
         """
         super().__init__()
 
@@ -188,8 +194,8 @@ class ContrastiveLossWithUncertainty(torch.nn.Module):
             y_log_uncertainty: target logvar
 
         Returns:
-            LossOutput of the loss. Contains a `logit_scale` metric and a
-            `no_uncertainty` metric with the classic contrastive loss computed without
+            LossOutput of the loss. Contains a `"logit_scale"` metric and a
+            `"no_uncertainty"` metric with the classic contrastive loss computed without
             the logvar information.
         """
         return LossOutput(

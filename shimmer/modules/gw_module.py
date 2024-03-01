@@ -6,17 +6,30 @@ import torch
 from torch import nn
 
 from shimmer.modules.domain import DomainModule
+from shimmer.modules.losses import LatentsDomainGroupT
 from shimmer.modules.vae import reparameterize
 
 
-def get_n_layers(n_layers: int, hidden_dim: int):
-    layers = []
+def get_n_layers(n_layers: int, hidden_dim: int) -> list[nn.Module]:
+    """Makes a list of `n_layers` `nn.Linear` layers with `nn.ReLU`.
+
+    Args:
+        n_layers (`int`): number of layers
+        hidden_dim (`int`): size of the hidden dimension
+
+    Returns:
+        `list[nn.Module]`: list of linear and relu layers.
+    """
+
+    layers: list[nn.Module] = []
     for _ in range(n_layers):
         layers.extend([nn.Linear(hidden_dim, hidden_dim), nn.ReLU()])
     return layers
 
 
 class GWDecoder(nn.Sequential):
+    """A Decoder network used in GWInterfaces."""
+
     def __init__(
         self,
         in_dim: int,
@@ -24,11 +37,28 @@ class GWDecoder(nn.Sequential):
         out_dim: int,
         n_layers: int,
     ):
+        """Initializes the decoder.
+
+        Args:
+            in_dim (`int`): input dimension
+            hidden_dim (`int`): hidden dimension
+            out_dim (`int`): output dimension
+            n_layers (`int`): number of hidden layers. The total number of layers
+                will be `n_layers` + 2 (one before, one after).
+        """
+
         self.in_dim = in_dim
+        """input dimension"""
+
         self.hidden_dim = hidden_dim
+        """hidden dimension"""
+
         self.out_dim = out_dim
+        """output dimension"""
 
         self.n_layers = n_layers
+        """number of hidden layers. The total number of layers
+                will be `n_layers` + 2 (one before, one after)."""
 
         super().__init__(
             nn.Linear(self.in_dim, self.hidden_dim),
@@ -39,6 +69,11 @@ class GWDecoder(nn.Sequential):
 
 
 class GWEncoder(GWDecoder):
+    """An Encoder network used in GWInterfaces.
+
+    This is similar to the decoder, but adds a tanh non-linearity at the end.
+    """
+
     def __init__(
         self,
         in_dim: int,
@@ -46,6 +81,15 @@ class GWEncoder(GWDecoder):
         out_dim: int,
         n_layers: int,
     ):
+        """Initializes the encoder.
+
+        Args:
+            in_dim (`int`): input dimension
+            hidden_dim (`int`): hidden dimension
+            out_dim (`int`): output dimension
+            n_layers (`int`): number of hidden layers. The total number of layers
+                will be `n_layers` + 2 (one before, one after).
+        """
         super().__init__(in_dim, hidden_dim, out_dim, n_layers)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -53,6 +97,8 @@ class GWEncoder(GWDecoder):
 
 
 class VariationalGWEncoder(nn.Module):
+    """A Variational flavor of encoder network used in GWInterfaces."""
+
     def __init__(
         self,
         in_dim: int,
@@ -60,12 +106,29 @@ class VariationalGWEncoder(nn.Module):
         out_dim: int,
         n_layers: int,
     ):
+        """Initializes the encoder.
+
+        Args:
+            in_dim (`int`): input dimension
+            hidden_dim (`int`): hidden dimension
+            out_dim (`int`): output dimension
+            n_layers (`int`): number of hidden layers. The total number of layers
+                will be `n_layers` + 2 (one before, one after).
+        """
         super().__init__()
 
         self.in_dim = in_dim
+        """input dimension"""
+
         self.hidden_dim = hidden_dim
+        """hidden dimension"""
+
         self.out_dim = out_dim
+        """output dimension"""
+
         self.n_layers = n_layers
+        """number of hidden layers. The total number of layers
+                will be `n_layers` + 2 (one before, one after)."""
 
         self.layers = nn.Sequential(
             nn.Linear(self.in_dim, self.hidden_dim),
@@ -74,6 +137,7 @@ class VariationalGWEncoder(nn.Module):
             nn.Linear(self.hidden_dim, self.out_dim),
             nn.Tanh(),
         )
+
         self.uncertainty_level = nn.Parameter(torch.full((self.out_dim,), 3.0))
 
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
@@ -81,28 +145,90 @@ class VariationalGWEncoder(nn.Module):
 
 
 class GWInterfaceBase(nn.Module, ABC):
+    """Base class for GWInterfaces.
+
+    Interfaces encode and decode unimodal representation to the domain's GW
+        representation (pre-fusion).
+
+    This is an abstract class and should be implemented.
+    For an implemented interface, see `GWInterface`.
+    """
+
     def __init__(self, domain_module: DomainModule, workspace_dim: int) -> None:
+        """
+        Initialized the interface.
+
+        Args:
+            domain_module (`DomainModule`): Domain module to link.
+            workspace_dim (`int`): dimension of the GW.
+        """
         super().__init__()
+
         self.domain_module = domain_module
+        """Domain module."""
+
         self.workspace_dim = workspace_dim
+        """Dimension of the GW."""
 
     @abstractmethod
-    def encode(self, x: torch.Tensor) -> torch.Tensor: ...
+    def encode(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Encode from the unimodal latent representation to the domain's GW
+            representation (pre-fusion).
+
+        Args:
+            x (`torch.Tensor`): the domain's unimodal latent representation.
+
+        Returns:
+            `torch.Tensor`: the domain's pre-fusion GW representation.
+        """
+        ...
 
     @abstractmethod
-    def decode(self, z: torch.Tensor) -> torch.Tensor: ...
+    def decode(self, z: torch.Tensor) -> torch.Tensor:
+        """
+        Decode from the domain's pre-fusion GW to the unimodal latent representation.
+
+        Args:
+            z (`torch.Tensor`): the domain's pre-fusion GW representation.
+
+        Returns:
+            `torch.Tensor`: the domain's unimodal latent representation.
+        """
+        ...
 
 
 class GWModuleBase(nn.Module, ABC):
+    """Base class for GWModule.
+
+    GWModule handle how to merge representations from the Interfaces and define
+    some common operations in GW like cycles and translations.
+
+    This is an abstract class and should be implemented.
+    For an implemented interface, see `GWModule`.
+    """
+
     def __init__(
         self, gw_interfaces: Mapping[str, GWInterfaceBase], workspace_dim: int
     ) -> None:
+        """Initializes the GWModule.
+
+        Args:
+            gw_interfaces (`Mapping[str, GWInterfaceBase]`): mapping for each domain
+                name to a `GWInterfaceBase` class which role is to encode/decode
+                unimodal latent representations into a GW representation (pre fusion).
+            workspace_dim (`int`): dimension of the GW.
+        """
         super().__init__()
+
         # casting for LSP autocompletion
         self.gw_interfaces = cast(
             dict[str, GWInterfaceBase], nn.ModuleDict(gw_interfaces)
         )
+        """the GWInterface"""
+
         self.workspace_dim = workspace_dim
+        """dimension of the GW"""
 
     def on_before_gw_encode_dcy(
         self, x: Mapping[str, torch.Tensor]
@@ -110,10 +236,12 @@ class GWModuleBase(nn.Module, ABC):
         """
         Callback used before projecting the unimodal representations to the GW
         representation when computing the demi-cycle loss. Defaults to identity.
+
         Args:
-            x: mapping of domain name to latent representation.
+            x (`Mapping[str, torch.Tensor]`): mapping of domain name to
+                latent representation.
         Returns:
-            the same mapping with updated representations
+            `dict[str, torch.Tensor]`: the same mapping with updated representations
         """
         return {
             domain: self.gw_interfaces[domain].domain_module.on_before_gw_encode_dcy(
@@ -128,10 +256,12 @@ class GWModuleBase(nn.Module, ABC):
         """
         Callback used before projecting the unimodal representations to the GW
         representation when computing the cycle loss. Defaults to identity.
+
         Args:
-            x: mapping of domain name to latent representation.
+            x (`Mapping[str, torch.Tensor]`): mapping of domain name to
+                latent representation.
         Returns:
-            the same mapping with updated representations
+            `dict[str, torch.Tensor]`: the same mapping with updated representations
         """
         return {
             domain: self.gw_interfaces[domain].domain_module.on_before_gw_encode_cy(
@@ -146,10 +276,12 @@ class GWModuleBase(nn.Module, ABC):
         """
         Callback used before projecting the unimodal representations to the GW
         representation when computing the translation loss. Defaults to identity.
+
         Args:
-            x: mapping of domain name to latent representation.
+            x (`Mapping[str, torch.Tensor]`): mapping of domain name to
+                latent representation.
         Returns:
-            the same mapping with updated representations
+            `dict[str, torch.Tensor]`: the same mapping with updated representations
         """
         return {
             domain: self.gw_interfaces[domain].domain_module.on_before_gw_encode_tr(
@@ -164,10 +296,12 @@ class GWModuleBase(nn.Module, ABC):
         """
         Callback used before projecting the unimodal representations to the GW
         representation when computing the contrastive loss. Defaults to identity.
+
         Args:
-            x: mapping of domain name to latent representation.
+            x (`Mapping[str, torch.Tensor]`): mapping of domain name to
+                latent representation.
         Returns:
-            the same mapping with updated representations
+            `dict[str, torch.Tensor]`: the same mapping with updated representations
         """
         return {
             domain: self.gw_interfaces[domain].domain_module.on_before_gw_encode_cont(
@@ -177,13 +311,14 @@ class GWModuleBase(nn.Module, ABC):
         }
 
     @abstractmethod
-    def encode(self, x: Mapping[str, torch.Tensor]) -> torch.Tensor:
-        """
-        Encode the unimodal representations to the GW representation.
+    def encode(self, x: LatentsDomainGroupT) -> torch.Tensor:
+        """Encode latent representations into the GW representation.
+
         Args:
-            x: mapping of domain name to unimodal representation.
+            x (`LatentsDomainGroupT`): the input domain representations.
+
         Returns:
-            GW representation
+            `torch.Tensor`: the GW representations.
         """
         ...
 
@@ -191,44 +326,52 @@ class GWModuleBase(nn.Module, ABC):
     def decode(
         self, z: torch.Tensor, domains: Iterable[str] | None = None
     ) -> dict[str, torch.Tensor]:
-        """
-        Decode the GW representation to the unimodal representations.
+        """Decode the GW representation into given `domains`.
+
         Args:
-            z: GW representation
-            domains: iterable of domains to decode to. Defaults to all domains.
+            z (`torch.Tensor`): the GW representation.
+            domains (`Iterable[str]`): iterable of domains to decode.
+
         Returns:
-            dict of domain name to decoded unimodal representation.
+            `dict[str, torch.Tensor]`: the decoded unimodal representations.
         """
         ...
 
     @abstractmethod
-    def translate(self, x: Mapping[str, torch.Tensor], to: str) -> torch.Tensor:
+    def translate(self, x: LatentsDomainGroupT, to: str) -> torch.Tensor:
         """
         Translate from one domain to another.
+
         Args:
-            x: mapping of domain name to unimodal representation.
-            to: domain to translate to.
+            x (`LatentsDomainGroupT`): mapping of domain name
+                to unimodal representation.
+            to (`str`): domain to translate to.
         Returns:
-            the unimodal representation of domain given by `to`.
+            `torch.Tensor`: the unimodal representation of domain given by `to`.
         """
         ...
 
     @abstractmethod
-    def cycle(
-        self, x: Mapping[str, torch.Tensor], through: str
-    ) -> dict[str, torch.Tensor]:
+    def cycle(self, x: LatentsDomainGroupT, through: str) -> dict[str, torch.Tensor]:
         """
         Cycle from one domain through another.
+
         Args:
-            x: mapping of domain name to unimodal representation.
-            through: domain to translate to.
+            x (`LatentsDomainGroupT`): mapping of domain name
+                to unimodal representation.
+            through (`str`): intermediate domain of the cycle
+
         Returns:
-            the unimodal representations cycles through the given domain.
+            `torch.Tensor`: the unimodal representation of domain given by `to`.
         """
         ...
 
 
 class GWInterface(GWInterfaceBase):
+    """
+    A implementation of `GWInterfaceBase` using `GWEncoder`  and `GWDecoder`.
+    """
+
     def __init__(
         self,
         domain_module: DomainModule,

@@ -33,7 +33,9 @@ class LossOutput:
 class DomainModule(pl.LightningModule):
     """
     Base class for a DomainModule that defines domain specific modules of the GW.
-    We do not use ABC here because some modules could be without encore or decoder.
+
+    Note: We do not use ABC here because some modules could
+    be without encore or decoder.
     """
 
     def __init__(
@@ -44,7 +46,7 @@ class DomainModule(pl.LightningModule):
         Initializes a DomainModule.
 
         Args:
-            latent_dim: latent dimension of the unimodal module
+            latent_dim (`int`): latent dimension of the unimodal module
         """
         super().__init__()
 
@@ -54,22 +56,89 @@ class DomainModule(pl.LightningModule):
     def encode(self, x: Any) -> torch.Tensor:
         """
         Encode the domain data into a unimodal representation.
+
         Args:
-            x: data of the domain.
+            x (`Any`): data of the domain.
         Returns:
-            a unimodal representation.
+            `torch.Tensor`: a unimodal representation.
         """
         raise NotImplementedError
 
     def decode(self, z: torch.Tensor) -> Any:
         """
         Decode data from unimodal representation back to the domain data.
+
         Args:
-            z: unimodal representation of the domain.
+            z (`torch.Tensor`): unimodal representation of the domain.
         Returns:
-            the original domain data.
+            `Any`: the original domain data.
         """
         raise NotImplementedError
+
+    def compute_loss(self, pred: torch.Tensor, target: torch.Tensor) -> LossOutput:
+        """Generic loss computation  the modality.
+
+        Args:
+            pred (`torch.Tensor`): prediction of the model
+            target (`torch.Tensor`): target tensor
+        Results:
+            `LossOutput`: LossOuput with training loss and additional metrics.
+        """
+        raise NotImplementedError
+
+    def compute_dcy_loss(self, pred: torch.Tensor, target: torch.Tensor) -> LossOutput:
+        """
+        Computes the loss for a demi-cycle. Override if the demi-cycle loss is
+        different that the generic loss.
+
+        Args:
+            pred (`torch.Tensor`): prediction of the model
+            target (`torch.Tensor`): target tensor
+        Results:
+            `LossOutput`: LossOuput with training loss and additional metrics.
+        """
+        return self.compute_loss(pred, target)
+
+    def compute_cy_loss(self, pred: torch.Tensor, target: torch.Tensor) -> LossOutput:
+        """
+        Computes the loss for a cycle. Override if the cycle loss is
+        different that the generic loss.
+
+        Args:
+            pred (`torch.Tensor`): prediction of the model
+            target (`torch.Tensor`): target tensor
+        Results:
+            `LossOutput`: LossOuput with training loss and additional metrics.
+        """
+        return self.compute_loss(pred, target)
+
+    def compute_tr_loss(self, pred: torch.Tensor, target: torch.Tensor) -> LossOutput:
+        """
+        Computes the loss for a translation. Override if the translation loss is
+        different that the generic loss.
+
+        Args:
+            pred (`torch.Tensor`): prediction of the model
+            target (`torch.Tensor`): target tensor
+        Results:
+            `LossOutput`: LossOuput with training loss and additional metrics.
+        """
+        return self.compute_loss(pred, target)
+
+    def compute_broadcast_loss(
+        self, pred: torch.Tensor, target: torch.Tensor
+    ) -> LossOutput:
+        """
+        Computes the loss for a broadcast (fusion). Override if the broadcast loss is
+        different that the generic loss.
+
+        Args:
+            pred (`torch.Tensor`): prediction of the model
+            target (`torch.Tensor`): target tensor
+        Results:
+            `LossOutput`: LossOuput with training loss and additional metrics.
+        """
+        return self.compute_loss(pred, target)
 
     def on_before_gw_encode_dcy(self, z: torch.Tensor) -> torch.Tensor:
         """Some additional computation to do before encoding the unimodal latent
@@ -78,10 +147,10 @@ class DomainModule(pl.LightningModule):
         If not defined, will return the input (identity function).
 
         Args:
-            z: latent representation
+            z (`torch.Tensor`): latent representation
 
         Returns:
-            The updated latent representation
+            `torch.Tensor`: The updated latent representation
         """
         return z
 
@@ -92,10 +161,10 @@ class DomainModule(pl.LightningModule):
         If not defined, will return the input (identity function).
 
         Args:
-            z: latent representation
+            z (`torch.Tensor`): latent representation
 
         Returns:
-            The updated latent representation
+            `torch.Tensor`: The updated latent representation
         """
         return z
 
@@ -106,10 +175,10 @@ class DomainModule(pl.LightningModule):
         If not defined, will return the input (identity function).
 
         Args:
-            z: latent representation
+            z (`torch.Tensor`): latent representation
 
         Returns:
-            The updated latent representation
+            `torch.Tensor`: the updated latent representation
         """
         return z
 
@@ -120,10 +189,10 @@ class DomainModule(pl.LightningModule):
         If not defined, will return the input (identity function).
 
         Args:
-            z: latent representation
+            z (`torch.Tensor`): latent representation
 
         Returns:
-            The updated latent representation
+            `torch.Tensor`: the updated latent representation
         """
         return z
 
@@ -134,70 +203,9 @@ class DomainModule(pl.LightningModule):
         If not defined, will return the input (identity function).
 
         Args:
-            z: latent representation
+            z (`torch.Tensor`): latent representation
 
         Returns:
-            The updated latent representation
+            `torch.Tensor`: the updated latent representation
         """
         return z
-
-    def compute_loss(self, pred: torch.Tensor, target: torch.Tensor) -> LossOutput:
-        """Generic loss computation  the modality.
-
-        Args:
-            pred: prediction of the model
-            target: target tensor
-        Results:
-            LossOuput with training loss and additional metrics.
-        """
-        raise NotImplementedError
-
-    def compute_dcy_loss(self, pred: torch.Tensor, target: torch.Tensor) -> LossOutput:
-        """
-        Computes the loss for a demi-cycle. Override if the demi-cycle loss is
-        different that the generic loss.
-        Args:
-            pred: prediction of the model
-            target: target tensor
-        Results:
-            LossOuput with training loss and additional metrics.
-        """
-        return self.compute_loss(pred, target)
-
-    def compute_cy_loss(self, pred: torch.Tensor, target: torch.Tensor) -> LossOutput:
-        """
-        Computes the loss for a cycle. Override if the cycle loss is
-        different that the generic loss.
-        Args:
-            pred: prediction of the model
-            target: target tensor
-        Results:
-            LossOuput with training loss and additional metrics.
-        """
-        return self.compute_loss(pred, target)
-
-    def compute_tr_loss(self, pred: torch.Tensor, target: torch.Tensor) -> LossOutput:
-        """
-        Computes the loss for a translation. Override if the translation loss is
-        different that the generic loss.
-        Args:
-            pred: prediction of the model
-            target: target tensor
-        Results:
-            LossOuput with training loss and additional metrics.
-        """
-        return self.compute_loss(pred, target)
-
-    def compute_broadcast_loss(
-        self, pred: torch.Tensor, target: torch.Tensor
-    ) -> LossOutput:
-        """
-        Computes the loss for a broadcast (fusion). Override if the broadcast loss is
-        different that the generic loss.
-        Args:
-            pred: prediction of the model
-            target: target tensor
-        Results:
-            LossOuput with training loss and additional metrics.
-        """
-        return self.compute_loss(pred, target)

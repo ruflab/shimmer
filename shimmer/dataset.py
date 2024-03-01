@@ -13,7 +13,7 @@ class RepeatedDataset(Dataset):
     """
     Dataset that cycles through its items to have a size of at least min size.
     If drop_last is True, the size will be exaclty min_size. If drop_last is False,
-    the min_size <= size < min_size + len(dataset).
+    the min_size ≤ size < min_size + len(dataset).
     """
 
     def __init__(
@@ -25,7 +25,7 @@ class RepeatedDataset(Dataset):
         """
         Args:
             dataset (SizedDataset): dataset to repeat. The dataset should have a size
-                (__len__ defined).
+                (where `__len__` is defined).
             min_size (int): minimum size of the final dataset
             drop_last (bool): whether to remove overflow when repeating the
                 dataset.
@@ -43,7 +43,7 @@ class RepeatedDataset(Dataset):
     def __len__(self) -> int:
         """
         Size of the dataset. Will be min_size if drop_last is True.
-        Otherwise, min_size <= size < min_size + len(dataset).
+        Otherwise, min_size ≤ size < min_size + len(dataset).
         """
         return self.total_size
 
