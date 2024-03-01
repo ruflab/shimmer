@@ -91,7 +91,6 @@ Now that our data module is defined, let's create `DomainModule`s.
 
 ## `DomainModule`
 For more details about DomainModules, see the [DomainModule API docs](api/domain_modules.md).
-
 The `DomainModule` class extends from a LightningModule and requires you to define some
 methods:
 
@@ -100,7 +99,7 @@ import torch
 import torch.nn.functional as F
 from torch.nn import Linear
 
-from shimmer import DomainModule, LossOutput
+from shimmer import DomainModule
 
 
 class GenericDomain(DomainModule):
@@ -143,7 +142,6 @@ class GenericDomain(DomainModule):
         Define which optimizer to use
         """
         return torch.optim.AdamW(self.parameters(), lr=1e-3, weight_decay=1e-6)
-
 ```
 
 With all this defined, we can make a script to train our unimodal module:
@@ -406,6 +404,8 @@ class GenericDomain(DomainModule):
         """
         return LossOutput(loss=F.mse_loss(pred, target))
 ```
+
+To learn more about LossOutput, see [API docs](./api/loss_output.md).
 
 ## Let's make a GW!
 
