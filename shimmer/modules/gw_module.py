@@ -440,7 +440,7 @@ class GWInterface(GWInterfaceBase):
 class GWModule(GWModuleBase):
     """ """
 
-    def fusion_mechanism(self, x: Mapping[str, torch.Tensor]) -> torch.Tensor:
+    def fusion_mechanism(self, x: LatentsDomainGroupT) -> torch.Tensor:
         """
         Merge function used to combine domains.
 
@@ -451,7 +451,17 @@ class GWModule(GWModuleBase):
         """
         return torch.mean(torch.stack(list(x.values())), dim=0)
 
-    def encode(self, x: Mapping[str, torch.Tensor]) -> torch.Tensor:
+    def encode(self, x: LatentsDomainGroupT) -> torch.Tensor:
+        """
+        Encode the unimodal latent representation `x` into the GW representation
+
+        Args:
+            x (`LatentsDomainGroupT`)
+
+        Returns:
+            `torch.Tensor`
+
+        """
         return self.fusion_mechanism(
             {
                 domain: self.gw_interfaces[domain].encode(x[domain])
@@ -461,13 +471,29 @@ class GWModule(GWModuleBase):
 
     def decode(
         self, z: torch.Tensor, domains: Iterable[str] | None = None
-    ) -> dict[str, torch.Tensor]:
+    ) -> LatentsDomainGroupT:
+        """Decodes a GW representation to multiple domains.
+
+        Args:
+            z: the GW representation
+            domains: the domains to decode to. If not given, will use
+                keys in `gw_interfaces` (all domains).
+        """
         return {
             domain: self.gw_interfaces[domain].decode(z)
             for domain in domains or self.gw_interfaces.keys()
         }
 
-    def translate(self, x: Mapping[str, torch.Tensor], to: str) -> torch.Tensor:
+    def translate(self, x: LatentsDomainGroupT, to: str) -> torch.Tensor:
+        """Translate from multiple domains to one domain.
+
+        Args:
+            x: the group of latent representations
+            to: the domain name to encode to
+
+        Returns:
+            the translated unimodal representation of the provided domain.
+        """
         return self.decode(self.encode(x), domains={to})[to]
 
     def cycle(

@@ -9,14 +9,14 @@ import torch
 class LossOutput:
     """This is a python dataclass use as a returned value for losses.
     It keeps track of what is used for training (`loss`) and what is used
-    only for logging (`metrics`)
+    only for logging (`metrics`).
     """
 
     loss: torch.Tensor
-    """Loss used during training"""
+    """Loss used during training."""
 
     metrics: dict[str, torch.Tensor] = field(default_factory=dict)
-    """Some additional metrics to log (not used during training)"""
+    """Some additional metrics to log (not used during training)."""
 
     def __post_init__(self):
         if "loss" in self.metrics.keys():
@@ -25,7 +25,7 @@ class LossOutput:
     @property
     def all(self) -> dict[str, torch.Tensor]:
         """
-        Returns a dict with all metrics and loss with "loss" key
+        Returns a dict with all metrics and loss with "loss" key.
         """
         return {**self.metrics, "loss": self.loss}
 
@@ -34,9 +34,9 @@ class DomainModule(pl.LightningModule):
     """
     Base class for a DomainModule that defines domain specific modules of the GW.
 
-    > [!NOTE]
-    > We do not use ABC here because some modules could
-    > be without encore or decoder.
+    .. note::
+        We do not use ABC here because some modules could
+        be without encore or decoder.
     """
 
     def __init__(

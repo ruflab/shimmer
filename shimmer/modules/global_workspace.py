@@ -476,9 +476,9 @@ def freeze_domain_modules(
 ) -> dict[str, DomainModule]:
     """Freezes weights and set to eval mode the domain modules.
 
-    > [!NOTE]
-    > The output is casted as `dict[str, DomainModule]` type for better auto-completion,
-    > but is actually a torch `ModuleDict`.
+    .. note::
+        The output is casted as `dict[str, DomainModule]` type for better
+        auto-completion, but is actually a torch `ModuleDict`.
 
     Args:
         domain_mods (`Mapping[str, DomainModule]`): mapping of domain modules to freeze
