@@ -438,9 +438,12 @@ class GWInterface(GWInterfaceBase):
 
 
 class GWModule(GWModuleBase):
+    """ """
+
     def fusion_mechanism(self, x: Mapping[str, torch.Tensor]) -> torch.Tensor:
         """
         Merge function used to combine domains.
+
         Args:
             x: mapping of domain name to latent representation.
         Returns:

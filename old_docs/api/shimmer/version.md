@@ -1,2 +1,0 @@
-Module shimmer.version
-======================
