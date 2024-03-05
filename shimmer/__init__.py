@@ -44,11 +44,13 @@ from shimmer.types import (
     RawDomainGroupsDT,
     RawDomainGroupsT,
     RawDomainGroupT,
+    test,
 )
 from shimmer.version import __version__
 
 __all__ = [
     "__version__",
+    "test",
     "LatentsDomainGroupDT",
     "LatentsDomainGroupsDT",
     "LatentsDomainGroupsT",
