@@ -3,9 +3,6 @@ from typing import Any, Literal
 
 import torch
 
-test = ""
-"""Does this show ?"""
-
 RawDomainGroupT = Mapping[str, Any]
 """
 Matched raw unimodal data from multiple domains.
