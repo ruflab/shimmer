@@ -3,8 +3,11 @@ from typing import Any, Literal
 
 import torch
 
+test = ""
+"""Does this show ?"""
+
 RawDomainGroupT = Mapping[str, Any]
-RawDomainGroupT.__doc__ = """
+"""
 Matched raw unimodal data from multiple domains.
 Keys of the mapping are domains names.
 
@@ -14,7 +17,7 @@ Keys of the mapping are domains names.
 """
 
 RawDomainGroupDT = dict[str, Any]
-RawDomainGroupDT.__doc__ = """
+"""
 Matched raw unimodal data from multiple domains.
 Keys of the dict are domains names.
 
@@ -26,7 +29,7 @@ This is a more specific version of `RawDomainGroupT` used in method's outputs.
 """
 
 LatentsDomainGroupT = Mapping[str, torch.Tensor]
-LatentsDomainGroupT.__doc__ = """
+"""
 Matched unimodal latent representations from multiple domains.
 Keys of the mapping are domains names.
 
@@ -36,7 +39,7 @@ Keys of the mapping are domains names.
 """
 
 LatentsDomainGroupDT = dict[str, torch.Tensor]
-LatentsDomainGroupDT.__doc__ = """
+"""
 Matched unimodal latent representations from multiple domains.
 Keys of the dict are domains names.
 
@@ -48,7 +51,7 @@ This is a more specific version of `LatentsDomainGroupT` used in method's output
 """
 
 LatentsDomainGroupsT = Mapping[frozenset[str], LatentsDomainGroupT]
-LatentsDomainGroupsT.__doc__ = """
+"""
 Mapping of `LatentsDomainGroupT`. Keys are frozenset of domains matched in the group.
 Each group is independent and contains different data (unpaired).
 
@@ -58,7 +61,7 @@ Each group is independent and contains different data (unpaired).
 """
 
 LatentsDomainGroupsDT = dict[frozenset[str], LatentsDomainGroupDT]
-LatentsDomainGroupsDT.__doc__ = """
+"""
 Mapping of `LatentsDomainGroupDT`.
 Keys are frozenset of domains matched in the group.
 Each group is independent and contains different data (unpaired).
@@ -71,7 +74,7 @@ This is a more specific version of `LatentsDomainGroupsT` used in method's outpu
 """
 
 RawDomainGroupsT = Mapping[frozenset[str], RawDomainGroupT]
-RawDomainGroupsT.__doc__ = """
+"""
 Mapping of `RawDomainGroupT`. Keys are frozenset of domains matched in the group.
 Each group is independent and contains different data (unpaired).
 
@@ -81,7 +84,7 @@ Each group is independent and contains different data (unpaired).
 """
 
 RawDomainGroupsDT = dict[frozenset[str], RawDomainGroupDT]
-RawDomainGroupsDT.__doc__ = """
+"""
 Mapping of `RawDomainGroupT`. Keys are frozenset of domains matched in the group.
 Each group is independent and contains different data (unpaired).
 
@@ -93,7 +96,7 @@ This is a more specific version of `RawDomainGroupsT` used in method's outputs.
 """
 
 ModelModeT = Literal["train", "val", "test", "val/ood", "test/ood"]
-ModelModeT.__doc__ = """Mode used by pytorch lightning.
+"""Mode used by pytorch lightning.
 
 ```python
     ModelModeT = Literal["train", "val", "test", "val/ood", "test/ood"]
