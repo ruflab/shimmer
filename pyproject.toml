@@ -50,3 +50,6 @@ line-length = 88
 ignore_missing_imports = true
 install_types = true
 check_untyped_defs = true
+
+[tool.pyright]
+# reportIncompatibleMethodOverride = "none"

@@ -1,6 +1,6 @@
 from collections.abc import Iterable, Mapping
 from pathlib import Path
-from typing import Any, Literal, TypedDict, cast
+from typing import Any, TypedDict, cast
 
 import torch
 from lightning.pytorch import LightningModule
@@ -34,6 +34,7 @@ from shimmer.types import (
     LatentsDomainGroupsDT,
     LatentsDomainGroupsT,
     LatentsDomainGroupT,
+    ModelModeT,
     RawDomainGroupsDT,
     RawDomainGroupsT,
     RawDomainGroupT,
@@ -170,7 +171,10 @@ class GlobalWorkspaceBase(LightningModule):
         """
         return self.gw_mod.decode(z, domains)
 
-    def forward(self, latent_domains: LatentsDomainGroupsT) -> GWPredictions:
+    def forward(  # type: ignore
+        self,
+        latent_domains: LatentsDomainGroupsT,
+    ) -> GWPredictions:
         """Computes demi-cycles, cycles, and translations.
 
         Args:
@@ -379,14 +383,14 @@ class GlobalWorkspaceBase(LightningModule):
     def generic_step(
         self,
         batch: RawDomainGroupsT,
-        mode: Literal["train", "val", "test", "val/ood", "test/ood"],
+        mode: ModelModeT,
     ) -> torch.Tensor:
         """The generic step used in `training_step`, `validation_step` and
         `test_step`.
 
         Args:
             batch (`RawDomainGroupsT`): the batch of groups of raw unimodal data.
-            mode (`Literal["train", "val", "test", "val/ood", "test/ood"]`):
+            mode (`ModelModeT`):
 
         Returns:
             `torch.Tensor`: the loss to train on.
@@ -406,8 +410,8 @@ class GlobalWorkspaceBase(LightningModule):
 
         return loss_output.loss
 
-    def validation_step(
-        self, data: RawDomainGroupT, _, dataloader_idx: int = 0
+    def validation_step(  # type: ignore
+        self, data: RawDomainGroupT, batch_idx: int, dataloader_idx: int = 0
     ) -> torch.Tensor:
         """Validation step used by lightning"""
 
@@ -418,8 +422,8 @@ class GlobalWorkspaceBase(LightningModule):
             return self.generic_step(batch, mode="val")
         return self.generic_step(batch, mode="val/ood")
 
-    def test_step(
-        self, data: Mapping[str, Any], _, dataloader_idx: int = 0
+    def test_step(  # type: ignore
+        self, data: Mapping[str, Any], batch_idx: int, dataloader_idx: int = 0
     ) -> torch.Tensor:
         """Test step used by lightning"""
 
@@ -430,14 +434,18 @@ class GlobalWorkspaceBase(LightningModule):
             return self.generic_step(batch, mode="test")
         return self.generic_step(batch, mode="test/ood")
 
-    def training_step(
-        self, batch: Mapping[frozenset[str], Mapping[str, Any]], _
+    def training_step(  # type: ignore
+        self, batch: Mapping[frozenset[str], Mapping[str, Any]], batch_idx: int
     ) -> torch.Tensor:
         """Training step used by lightning"""
 
         return self.generic_step(batch, mode="train")
 
-    def predict_step(self, data: Mapping[str, Any], _) -> GWPredictions:  # type: ignore
+    def predict_step(  # type: ignore
+        self,
+        data: Mapping[str, Any],
+        batch_idx: int,
+    ) -> GWPredictions:
         """Predict step used by lightning"""
 
         batch = {frozenset(data.keys()): data}

@@ -1,5 +1,5 @@
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, Literal
 
 import torch
 
@@ -59,3 +59,6 @@ Each group is independent and contains different data (unpaired).
 
 This is a more specific version of `RawDomainGroupsT` used in method's outputs.
 """
+
+ModelModeT = Literal["train", "val", "test", "val/ood", "test/ood"]
+""" Mode used by pytorch lightning."""

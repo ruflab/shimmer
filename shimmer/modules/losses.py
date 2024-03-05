@@ -8,7 +8,7 @@ from shimmer.modules.contrastive_loss import ContrastiveLossType, VarContrastive
 from shimmer.modules.domain import DomainModule, LossOutput
 from shimmer.modules.gw_module import GWModule, GWModuleBase, VariationalGWModule
 from shimmer.modules.vae import kl_divergence_loss
-from shimmer.types import LatentsDomainGroupsT
+from shimmer.types import LatentsDomainGroupsT, ModelModeT
 
 
 class GWLossesBase(torch.nn.Module, ABC):
@@ -19,13 +19,19 @@ class GWLossesBase(torch.nn.Module, ABC):
     """
 
     @abstractmethod
-    def step(self, domain_latents: LatentsDomainGroupsT, mode: str) -> LossOutput:
+    def step(
+        self,
+        domain_latents: LatentsDomainGroupsT,
+        mode: ModelModeT,
+    ) -> LossOutput:
         """
-        Computes the losses
+        Computes the losses.
+
         Args:
-            domain_latents: All latent groups
-            mode: train/val/test
-        Returns: LossOutput object
+            domain_latents (`LatentsDomainGroupsT`): All latent groups
+            mode (`Literal["train", "val", "test", "val/ood", "test/ood"]`): model mode
+        Returns:
+            `LossOutput`: the losses
         """
         ...
 
@@ -35,6 +41,22 @@ def _demi_cycle_loss(
     domain_mods: dict[str, DomainModule],
     latent_domains: LatentsDomainGroupsT,
 ) -> dict[str, torch.Tensor]:
+    """Computes the demi-cycle loss.
+
+    This return multiple metrics:
+        * `demi_cycle_{domain_name}` with the demi-cycle of a particular domain;
+        * `demi_cycle_{domain_name}_{metric}` with additional metrics provided by
+            the domain_mod's `compute_dcy_loss` output;
+        * `demi_cycles` with the average value of all `demi_cycle_{domain_name}` values.
+
+    Args:
+        gw_mod (`GWModuleBase`): The GWModule to use
+        domain_mods (`dict[str, DomainModule]`): the domain modules
+        latent_domains (`LatentsDomainGroupsT`): the latent unimodal groups
+
+    Returns:
+        `dict[str, torch.Tensor]`: a dict of metrics.
+    """
     losses: dict[str, torch.Tensor] = {}
     metrics: dict[str, torch.Tensor] = {}
     for domains, latents in latent_domains.items():
@@ -61,6 +83,24 @@ def _cycle_loss(
     domain_mods: dict[str, DomainModule],
     latent_domains: LatentsDomainGroupsT,
 ) -> dict[str, torch.Tensor]:
+    """Computes the cycle loss.
+
+    This return multiple metrics:
+        * `cycle_{domain_source}_through_{domain_target}` with the cycle of
+            a particular domain;
+        * `cycle_{domain_source}_through_{domain_target}_{metric}` with additional
+            metrics provided by the domain_mod's `compute_cy_loss` output;
+        * `cycles` with the average value of all
+            `cycle_{domain_source}_through_{domain_target}` values.
+
+    Args:
+        gw_mod (`GWModuleBase`): The GWModule to use
+        domain_mods (`dict[str, DomainModule]`): the domain modules
+        latent_domains (`LatentsDomainGroupsT`): the latent unimodal groups
+
+    Returns:
+        `dict[str, torch.Tensor]`: a dict of metrics.
+    """
     losses: dict[str, torch.Tensor] = {}
     metrics: dict[str, torch.Tensor] = {}
     for domains_source, latents_source in latent_domains.items():
@@ -98,6 +138,25 @@ def _translation_loss(
     domain_mods: dict[str, DomainModule],
     latent_domains: LatentsDomainGroupsT,
 ) -> dict[str, torch.Tensor]:
+    """Computes the translation loss.
+
+    This return multiple metrics:
+        * `translation_{domain_source}_to_{domain_target}` with the translation
+            from a domain source to a domain target;
+        * `translation_{domain_source}_to_{domain_target}_{metric}` with
+            additional metrics provided by the domain_mod's
+            `compute_tr_loss` output;
+        * `translations` with the average value of all
+            `translation_{domain_source}_to_{domain_target}` values.
+
+    Args:
+        gw_mod (`GWModuleBase`): The GWModule to use
+        domain_mods (`dict[str, DomainModule]`): the domain modules
+        latent_domains (`LatentsDomainGroupsT`): the latent unimodal groups
+
+    Returns:
+        `dict[str, torch.Tensor]`: a dict of metrics.
+    """
     losses: dict[str, torch.Tensor] = {}
     metrics: dict[str, torch.Tensor] = {}
     for domains, latents in latent_domains.items():
@@ -143,6 +202,25 @@ def _contrastive_loss(
     latent_domains: LatentsDomainGroupsT,
     contrastive_fn: ContrastiveLossType,
 ) -> dict[str, torch.Tensor]:
+    """Computes the contrastive loss.
+
+    This return multiple metrics:
+        * `contrastive_{domain_1}_and_{domain_2}` with the contrastive
+            between 2 domains;
+        * `contrastive_{domain_1}_and_{domain_2}_{metric}` with
+            additional metrics provided by the domain_mod's
+            `compute_cont_loss` output;
+        * `contrastives` with the average value of all
+            `contrastive_{domain_1}_and_{domain_2}` values.
+
+    Args:
+        gw_mod (`GWModuleBase`): The GWModule to use
+        latent_domains (`LatentsDomainGroupsT`): the latent unimodal groups
+        contrastive_fn (`ContrastiveLossType`): the contrastive function to apply
+
+    Returns:
+        `dict[str, torch.Tensor]`: a dict of metrics.
+    """
     losses: dict[str, torch.Tensor] = {}
     metrics: dict[str, torch.Tensor] = {}
     keys: list[set[str]] = []
@@ -179,6 +257,26 @@ def _contrastive_loss_with_uncertainty(
     latent_domains: LatentsDomainGroupsT,
     contrastive_fn: VarContrastiveLossType,
 ) -> dict[str, torch.Tensor]:
+    """Computes the variational contrastive loss with uncertainty.
+
+    This return multiple metrics:
+        * `contrastive_{domain_1}_and_{domain_2}` with the contrastive
+            between 2 domains;
+        * `contrastive_{domain_1}_and_{domain_2}_{metric}` with
+            additional metrics provided by the domain_mod's
+            `compute_cont_loss` output;
+        * `contrastives` with the average value of all
+            `contrastive_{domain_1}_and_{domain_2}` values.
+
+    Args:
+        gw_mod (`VariationalGWModule`): The GWModule to use
+        latent_domains (`LatentsDomainGroupsT`): the latent unimodal groups
+        contrastive_fn (`VarContrastiveLossType`): the variational contrastive function
+            to apply
+
+    Returns:
+        `dict[str, torch.Tensor]`: a dict of metrics.
+    """
     losses: dict[str, torch.Tensor] = {}
     metrics: dict[str, torch.Tensor] = {}
     keys: list[set[str]] = []
@@ -219,19 +317,31 @@ def _contrastive_loss_with_uncertainty(
 
 class LossCoefs(TypedDict, total=False):
     """
-    Dict of loss coefficients used in the GlobalWorkspace
+    Dict of loss coefficients used in the GWLosses.
+
     If one is not provided, the coefficient is assumed to be 0 and will not be logged.
     If the loss is excplicitely set to 0, it will be logged, but not take part in
     the total loss.
     """
 
     demi_cycles: float
+    """Demi-cycle loss coefficient."""
+
     cycles: float
+    """Cycle loss coefficient."""
+
     translations: float
+    """Translation loss coefficient."""
+
     contrastives: float
+    """Contrastive loss coefficient."""
 
 
 class GWLosses(GWLossesBase):
+    """
+    Implementation of `GWLossesBase` used for `GWModule`.
+    """
+
     def __init__(
         self,
         gw_mod: GWModule,
@@ -241,13 +351,15 @@ class GWLosses(GWLossesBase):
     ):
         """
         Main loss module to use with the GlobalWorkspace
+
         Args:
-            gw_mod: the GWModule
-            domain_mods: a dict where the key is the domain name and
-                value is the DomainModule
-            loss_coefs: loss coefficients. LossCoefs object, or a mapping to float with
-                correct keys.
-            contrastive_fn: the contrastive function to use in contrastive loss
+            gw_mod (`GWModule`): the GWModule
+            domain_mods (`dict[str, DomainModule]`): a dict where the key is the
+                domain name and value is the DomainModule
+            loss_coefs (`LossCoefs`): loss coefficients. LossCoefs object, or a
+                mapping to float with correct keys.
+            contrastive_fn (`ContrastiveLossType`): the contrastive function to use
+                in contrastive loss
         """
 
         super().__init__()
@@ -259,24 +371,106 @@ class GWLosses(GWLossesBase):
     def demi_cycle_loss(
         self, latent_domains: LatentsDomainGroupsT
     ) -> dict[str, torch.Tensor]:
+        """Computes the demi-cycle loss.
+
+        This return multiple metrics:
+            * `demi_cycle_{domain_name}` with the demi-cycle of a particular domain;
+            * `demi_cycle_{domain_name}_{metric}` with additional metrics provided by
+                the domain_mod's `compute_dcy_loss` output;
+            * `demi_cycles` with the average value of all `demi_cycle_{domain_name}`
+                values.
+
+        Args:
+            latent_domains (`LatentsDomainGroupsT`): the latent unimodal groups
+
+        Returns:
+            `dict[str, torch.Tensor]`: a dict of metrics.
+        """
         return _demi_cycle_loss(self.gw_mod, self.domain_mods, latent_domains)
 
     def cycle_loss(
         self, latent_domains: LatentsDomainGroupsT
     ) -> dict[str, torch.Tensor]:
+        """Computes the cycle loss.
+
+        This return multiple metrics:
+            * `cycle_{domain_source}_through_{domain_target}` with the cycle of
+                a particular domain;
+            * `cycle_{domain_source}_through_{domain_target}_{metric}` with additional
+                metrics provided by the domain_mod's `compute_cy_loss` output;
+            * `cycles` with the average value of all
+                `cycle_{domain_source}_through_{domain_target}` values.
+
+        Args:
+            latent_domains (`LatentsDomainGroupsT`): the latent unimodal groups
+
+        Returns:
+            `dict[str, torch.Tensor]`: a dict of metrics.
+        """
         return _cycle_loss(self.gw_mod, self.domain_mods, latent_domains)
 
     def translation_loss(
         self, latent_domains: LatentsDomainGroupsT
     ) -> dict[str, torch.Tensor]:
+        """Computes the translation loss.
+
+        This return multiple metrics:
+            * `translation_{domain_source}_to_{domain_target}` with the translation
+                from a domain source to a domain target;
+            * `translation_{domain_source}_to_{domain_target}_{metric}` with
+                additional metrics provided by the domain_mod's
+                `compute_tr_loss` output;
+            * `translations` with the average value of all
+                `translation_{domain_source}_to_{domain_target}` values.
+
+        Args:
+            latent_domains (`LatentsDomainGroupsT`): the latent unimodal groups
+
+        Returns:
+            `dict[str, torch.Tensor]`: a dict of metrics.
+        """
         return _translation_loss(self.gw_mod, self.domain_mods, latent_domains)
 
     def contrastive_loss(
         self, latent_domains: LatentsDomainGroupsT
     ) -> dict[str, torch.Tensor]:
+        """Computes the contrastive loss.
+
+        This return multiple metrics:
+            * `contrastive_{domain_1}_and_{domain_2}` with the contrastive
+                between 2 domains;
+            * `contrastive_{domain_1}_and_{domain_2}_{metric}` with
+                additional metrics provided by the domain_mod's
+                `compute_cont_loss` output;
+            * `contrastives` with the average value of all
+                `contrastive_{domain_1}_and_{domain_2}` values.
+
+        Args:
+            latent_domains (`LatentsDomainGroupsT`): the latent unimodal groups
+
+        Returns:
+            `dict[str, torch.Tensor]`: a dict of metrics.
+        """
         return _contrastive_loss(self.gw_mod, latent_domains, self.contrastive_fn)
 
-    def step(self, domain_latents: LatentsDomainGroupsT, _) -> LossOutput:
+    def step(
+        self, domain_latents: LatentsDomainGroupsT, mode: ModelModeT
+    ) -> LossOutput:
+        """
+        Computes and returns the losses
+
+        Contains:
+            - Demi-cycle metrics (see `GWLosses.demi_cycle_loss`)
+            - Cycle metrics (see `GWLosses.cycle_loss`)
+            - Translation metrics (see `GWLosses.translation_loss`)
+            - Contrastive metrics (see `GWLosses.contrastive_loss`)
+
+        Args:
+            domain_latents (`LatentsDomainGroupsT`): All latent groups
+            mode (`ModelModeT`): model mode
+        Returns:
+            `LossOutput`: the losses
+        """
         metrics: dict[str, torch.Tensor] = {}
 
         metrics.update(self.demi_cycle_loss(domain_latents))
@@ -297,10 +491,22 @@ class GWLosses(GWLossesBase):
 
 
 class VariationalLossCoefs(LossCoefs, total=False):
+    """
+    Dict of loss coefficients used in the VariationalGWLosses
+    If one is not provided, the coefficient is assumed to be 0 and will not be logged.
+    If the loss is excplicitely set to 0, it will be logged, but not take part in
+    the total loss.
+    """
+
     kl: float
+    """ Coefficient of the KL loss. Deprecated, should not be set. """
 
 
 class VariationalGWLosses(GWLossesBase):
+    """
+    Implementation of `GWLossesBase` used for `VariationalGWModule`.
+    """
+
     def __init__(
         self,
         gw_mod: VariationalGWModule,
@@ -311,45 +517,95 @@ class VariationalGWLosses(GWLossesBase):
     ):
         """
         Variational loss module to use with the VariationalGlobalWorkspace
+
         Args:
-            gw_mod: the GWModule
-            domain_mods: a dict where the key is the domain name and
-                value is the DomainModule
-            loss_coefs: loss coefficients. LossCoefs object, or a mapping to float with
-                correct keys.
-            contrastive_fn: the contrastive function to use in contrastive loss
-            var_contrastive_fn: a contrastive function that uses uncertainty
+            gw_mod (`VariationalGWModule`): the GWModule
+            domain_mods (`dict[str, DomainModule]`): a dict where the key is the
+                domain name and value is the DomainModule
+            loss_coefs (`VariationalLossCoefs`): loss coefficients
+            contrastive_fn (`ContrastiveLossType | None`): the contrastive function
+                to use in contrastive loss
+            var_contrastive_fn (`VarContrastiveLossType | None`): a contrastive
+                function that uses uncertainty
         """
 
         super().__init__()
 
         self.gw_mod = gw_mod
+        """The GWModule."""
+
         self.domain_mods = domain_mods
+        """Domain modules linked to the GW."""
+
         self.loss_coefs = loss_coefs
+        """The loss coefficients."""
+
         assert (contrastive_fn is not None) != (
             var_contrastive_fn is not None
         ), "Should either have contrastive_fn or var_contrastive_fn"
+
         self.contrastive_fn = contrastive_fn
+        """Contrastive loss to use without the use of uncertainty. This is only
+        used in `VariationalGWLosses.step` if `VariationalGWLosses.var_contrastive_fn`
+        is not set."""
+
         self.var_contrastive_fn = var_contrastive_fn
+        """Contrastive loss to use with the use of uncertainty."""
 
     def demi_cycle_loss(
         self, latent_domains: LatentsDomainGroupsT
     ) -> dict[str, torch.Tensor]:
+        """Demi-cycle loss. See `GWLosses.demi_cycle_loss`.
+
+        Args:
+            latent_domains (`LatentsDomainGroupsT`): the latent unimodal groups
+
+        Returns:
+            `dict[str, torch.Tensor]`: a dict of metrics.
+        """
         return _demi_cycle_loss(self.gw_mod, self.domain_mods, latent_domains)
 
     def cycle_loss(
         self, latent_domains: LatentsDomainGroupsT
     ) -> dict[str, torch.Tensor]:
+        """Cycle loss. See `GWLosses.cycle_loss`.
+
+        Args:
+            latent_domains (`LatentsDomainGroupsT`): the latent unimodal groups
+
+        Returns:
+            `dict[str, torch.Tensor]`: a dict of metrics.
+        """
         return _cycle_loss(self.gw_mod, self.domain_mods, latent_domains)
 
     def translation_loss(
         self, latent_domains: LatentsDomainGroupsT
     ) -> dict[str, torch.Tensor]:
+        """Translation loss. See `GWLosses.translation_loss`.
+
+        Args:
+            latent_domains (`LatentsDomainGroupsT`): the latent unimodal groups
+
+        Returns:
+            `dict[str, torch.Tensor]`: a dict of metrics.
+        """
         return _translation_loss(self.gw_mod, self.domain_mods, latent_domains)
 
     def contrastive_loss(
         self, latent_domains: LatentsDomainGroupsT
     ) -> dict[str, torch.Tensor]:
+        """Contrastive loss.
+
+        If `VariationalGWLosses.var_contrastive_fn` is set, will use the
+        contrastive loss with uncertainty. Otherwise, use the traditional
+        contrastive loss (see `GWLosses.contrastive_loss`).
+
+        Args:
+            latent_domains (`LatentsDomainGroupsT`): the latent unimodal groups
+
+        Returns:
+            `dict[str, torch.Tensor]`: a dict of metrics.
+        """
         if self.var_contrastive_fn is not None:
             return _contrastive_loss_with_uncertainty(
                 self.gw_mod, latent_domains, self.var_contrastive_fn
@@ -359,6 +615,18 @@ class VariationalGWLosses(GWLossesBase):
         return _contrastive_loss(self.gw_mod, latent_domains, self.contrastive_fn)
 
     def kl_loss(self, latent_domains: LatentsDomainGroupsT) -> dict[str, torch.Tensor]:
+        """Computes the KL loss.
+
+        This return multiple metrics:
+            * `kl_{domain_name}` with the kl loss of the domain;
+            * `kl` with the average value of all `kl_{domain_name}` values.
+
+        Args:
+            latent_domains (`LatentsDomainGroupsT`): the latent unimodal groups
+
+        Returns:
+            `dict[str, torch.Tensor]`: a dict of metrics.
+        """
         losses: dict[str, torch.Tensor] = {}
 
         for domains, latents in latent_domains.items():
@@ -376,7 +644,25 @@ class VariationalGWLosses(GWLossesBase):
         losses["kl"] = torch.stack(list(losses.values()), dim=0).mean()
         return losses
 
-    def step(self, domain_latents: LatentsDomainGroupsT, _) -> LossOutput:
+    def step(
+        self, domain_latents: LatentsDomainGroupsT, mode: ModelModeT
+    ) -> LossOutput:
+        """
+        Computes and returns the losses
+
+        Contains:
+            - Demi-cycle metrics (see `VariationalGWLosses.demi_cycle_loss`)
+            - Cycle metrics (see `VariationalGWLosses.cycle_loss`)
+            - Translation metrics (see `VariationalGWLosses.translation_loss`)
+            - Contrastive metrics (see `VariationalGWLosses.contrastive_loss`)
+            - KL metrics (see `VariationalGWLosses.kl_loss`)
+
+        Args:
+            domain_latents (`LatentsDomainGroupsT`): All latent groups
+            mode (`ModelModeT`): model mode
+        Returns:
+            `LossOutput`: the losses
+        """
         metrics: dict[str, torch.Tensor] = {}
 
         dcy_losses = self.demi_cycle_loss(domain_latents)
@@ -410,9 +696,10 @@ def sample_scaling_factors(
 ):
     """
     Args:
-        binary_scaling_prob: float
-        batch_size: int
-        temperature: float greater than 0
+        binary_scaling_prob (`float`): Should be between 0 and 1.
+        batch_size (`int`):
+        temperature (`float`): Should be greater than 0.
+        device (`torch.device`):
     """
     assert 0 <= binary_scaling_prob <= 1
 
@@ -484,7 +771,7 @@ class GWLossesFusion(GWLossesBase):
         return _contrastive_loss(self.gw_mod, latent_domains, self.contrastive_fn)
 
     def broadcast_loss(
-        self, latent_domains: LatentsDomainGroupsT, mode: str
+        self, latent_domains: LatentsDomainGroupsT, mode: ModelModeT
     ) -> dict[str, torch.Tensor]:
         losses: dict[str, torch.Tensor] = {}
         metrics: dict[str, torch.Tensor] = {}
@@ -566,7 +853,7 @@ class GWLossesFusion(GWLossesBase):
     def step(
         self,
         domain_latents: LatentsDomainGroupsT,
-        mode: str,
+        mode: ModelModeT,
     ) -> LossOutput:
         metrics: dict[str, torch.Tensor] = {}
 

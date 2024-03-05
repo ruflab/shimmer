@@ -33,10 +33,6 @@ class LossOutput:
 class DomainModule(pl.LightningModule):
     """
     Base class for a DomainModule that defines domain specific modules of the GW.
-
-    .. note::
-        We do not use ABC here because some modules could
-        be without encore or decoder.
     """
 
     def __init__(
