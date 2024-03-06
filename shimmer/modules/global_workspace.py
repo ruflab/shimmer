@@ -548,8 +548,8 @@ class GlobalWorkspace(GlobalWorkspaceBase):
         gw_mod = GWModule(
             domain_mods,
             workspace_dim,
-            gw_encoders,  # type: ignore
-            gw_decoders,  # type: ignore
+            gw_encoders,
+            gw_decoders,
         )
         if contrastive_loss is None:
             contrastive_loss = ContrastiveLoss(
@@ -626,8 +626,8 @@ class VariationalGlobalWorkspace(GlobalWorkspaceBase):
         gw_mod = VariationalGWModule(
             domain_mods,
             workspace_dim,
-            gw_encoders,  # type: ignore
-            gw_decoders,  # type: ignore
+            gw_encoders,
+            gw_decoders,
         )
 
         if use_var_contrastive_loss:
@@ -707,8 +707,8 @@ class GlobalWorkspaceFusion(GlobalWorkspaceBase):
         gw_mod = GWModuleFusion(
             domain_mods,
             workspace_dim,
-            gw_encoders,  # type: ignore
-            gw_decoders,  # type: ignore
+            gw_encoders,
+            gw_decoders,
         )
 
         if contrastive_loss is None:
@@ -772,8 +772,8 @@ def pretrained_global_workspace(
     gw_mod = GWModule(
         domain_mods,
         workspace_dim,
-        gw_encoders,  # type: ignore
-        gw_decoders,  # type: ignore
+        gw_encoders,
+        gw_decoders,
     )
     loss_mod = GWLosses(
         gw_mod,

@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterable, Mapping
 
 import torch
-from torch import Module, nn
+from torch import nn
 
 from shimmer.modules.domain import DomainModule
 from shimmer.modules.vae import reparameterize
@@ -305,14 +305,14 @@ class GWModuleBase(nn.Module, ABC):
 
 
 class GWModule(GWModuleBase):
-    """GW Module. Implements `GWModuleBase`."""
+    """GW nn.Module. Implements `GWModuleBase`."""
 
     def __init__(
         self,
         domain_modules: Mapping[str, DomainModule],
         workspace_dim: int,
-        gw_encoders: Mapping[str, Module],
-        gw_decoders: Mapping[str, Module],
+        gw_encoders: Mapping[str, nn.Module],
+        gw_decoders: Mapping[str, nn.Module],
     ) -> None:
         """Initializes the GWModule.
 
@@ -328,10 +328,10 @@ class GWModule(GWModuleBase):
         """
         super().__init__(domain_modules, workspace_dim)
 
-        self.gw_encoders = nn.ModuleDict(gw_encoders)  # type: ignore
+        self.gw_encoders = nn.ModuleDict(gw_encoders)
         """The module's encoders"""
 
-        self.gw_decoders = nn.ModuleDict(gw_decoders)  # type: ignore
+        self.gw_decoders = nn.ModuleDict(gw_decoders)
         """The module's decoders"""
 
     def fusion_mechanism(self, x: LatentsDomainGroupT) -> torch.Tensor:
@@ -414,8 +414,8 @@ class VariationalGWModule(GWModuleBase):
         self,
         domain_modules: Mapping[str, DomainModule],
         workspace_dim: int,
-        gw_encoders: Mapping[str, Module],
-        gw_decoders: Mapping[str, Module],
+        gw_encoders: Mapping[str, nn.Module],
+        gw_decoders: Mapping[str, nn.Module],
     ) -> None:
         """Initializes the VariationalGWModule.
 
@@ -431,10 +431,10 @@ class VariationalGWModule(GWModuleBase):
         """
         super().__init__(domain_modules, workspace_dim)
 
-        self.gw_encoders = nn.ModuleDict(gw_encoders)  # type: ignore
+        self.gw_encoders = nn.ModuleDict(gw_encoders)
         """The module's encoders"""
 
-        self.gw_decoders = nn.ModuleDict(gw_decoders)  # type: ignore
+        self.gw_decoders = nn.ModuleDict(gw_decoders)
         """The module's decoders"""
 
     def fusion_mechanism(self, x: LatentsDomainGroupT) -> torch.Tensor:
