@@ -5,7 +5,7 @@ from typing import Any, TypedDict, cast
 import torch
 from lightning.pytorch import LightningModule
 from lightning.pytorch.utilities.types import OptimizerLRSchedulerConfig
-from torch.nn import ModuleDict
+from torch.nn import Module, ModuleDict
 from torch.optim.lr_scheduler import OneCycleLR
 
 from shimmer.modules.contrastive_loss import (
@@ -16,7 +16,6 @@ from shimmer.modules.contrastive_loss import (
 )
 from shimmer.modules.domain import DomainModule
 from shimmer.modules.gw_module import (
-    GWInterfaceBase,
     GWModule,
     GWModuleBase,
     GWModuleFusion,
@@ -87,7 +86,6 @@ class GlobalWorkspaceBase(LightningModule):
     def __init__(
         self,
         gw_mod: GWModuleBase,
-        domain_mods: Mapping[str, DomainModule],
         loss_mod: GWLossesBase,
         optim_lr: float = 1e-3,
         optim_weight_decay: float = 0.0,
@@ -97,9 +95,6 @@ class GlobalWorkspaceBase(LightningModule):
 
         Args:
             gw_mod (`GWModuleBase`): the GWModule
-            domain_mods (`Mapping[str, DomainModule]`): mapping of the domains
-                connected to the GW. Keys are domain names, values are the
-                `DomainModule`.
             loss_mod (`GWLossesBase`): module to compute the GW losses.
             optim_lr (`float`): learning rate
             optim_weight_decay (`float`): weight decay
@@ -114,14 +109,14 @@ class GlobalWorkspaceBase(LightningModule):
                 "loss_mod",
                 "domain_descriptions",
                 "contrastive_loss",
-                "gw_interfaces",
+                "gw_encoders",
+                "gw_decoders",
             ]
         )
 
         self.gw_mod = gw_mod
         """ a `GWModuleBase` implementation."""
-        self.domain_mods = domain_mods
-        """Mapping of `DomainModule`s."""
+
         self.loss_mod = loss_mod
         """The module that computes losses of the GW"""
 
@@ -130,6 +125,10 @@ class GlobalWorkspaceBase(LightningModule):
         self.scheduler_args = SchedulerArgs(max_lr=optim_lr, total_steps=1)
         if scheduler_args is not None:
             self.scheduler_args.update(scheduler_args)
+
+    @property
+    def domain_mods(self) -> Mapping[str, DomainModule]:
+        return self.gw_mod.domain_mods
 
     @property
     def workspace_dim(self) -> int:
@@ -511,7 +510,8 @@ class GlobalWorkspace(GlobalWorkspaceBase):
     def __init__(
         self,
         domain_mods: Mapping[str, DomainModule],
-        gw_interfaces: Mapping[str, GWInterfaceBase],
+        gw_encoders: Mapping[str, Module],
+        gw_decoders: Mapping[str, Module],
         workspace_dim: int,
         loss_coefs: LossCoefs,
         optim_lr: float = 1e-3,
@@ -526,9 +526,12 @@ class GlobalWorkspace(GlobalWorkspaceBase):
             domain_mods (`Mapping[str, DomainModule]`): mapping of the domains
                 connected to the GW. Keys are domain names, values are the
                 `DomainModule`.
-            gw_interfaces (`Mapping[str, GWInterfaceBase]`): mapping for each domain
-                name to a `GWInterfaceBase` class which role is to encode/decode
+            gw_encoders (`Mapping[str, torch.nn.Module]`): mapping for each domain
+                name to a `torch.nn.Module` class which role is to encode a
                 unimodal latent representations into a GW representation (pre fusion).
+            gw_decoders (`Mapping[str, torch.nn.Module]`): mapping for each domain
+                name to a `torch.nn.Module` class which role is to decode a
+                GW representation into a unimodal latent representations.
             workspace_dim (`int`): dimension of the GW.
             loss_coefs (`LossCoefs`): loss coefficients
             optim_lr (`float`): learning rate
@@ -540,8 +543,14 @@ class GlobalWorkspace(GlobalWorkspaceBase):
                 function used for alignment. `learn_logit_scale` will not affect custom
                 contrastive losses.
         """
-        gw_mod = GWModule(gw_interfaces, workspace_dim)
         domain_mods = freeze_domain_modules(domain_mods)
+
+        gw_mod = GWModule(
+            domain_mods,
+            workspace_dim,
+            gw_encoders,
+            gw_decoders,
+        )
         if contrastive_loss is None:
             contrastive_loss = ContrastiveLoss(
                 torch.tensor([1 / 0.07]).log(), "mean", learn_logit_scale
@@ -555,7 +564,6 @@ class GlobalWorkspace(GlobalWorkspaceBase):
 
         super().__init__(
             gw_mod,
-            domain_mods,
             loss_mod,
             optim_lr,
             optim_weight_decay,
@@ -573,7 +581,8 @@ class VariationalGlobalWorkspace(GlobalWorkspaceBase):
     def __init__(
         self,
         domain_mods: Mapping[str, DomainModule],
-        gw_interfaces: Mapping[str, GWInterfaceBase],
+        gw_encoders: Mapping[str, Module],
+        gw_decoders: Mapping[str, Module],
         workspace_dim: int,
         loss_coefs: VariationalLossCoefs,
         use_var_contrastive_loss: bool = False,
@@ -590,9 +599,12 @@ class VariationalGlobalWorkspace(GlobalWorkspaceBase):
             domain_mods (`Mapping[str, DomainModule]`): mapping of the domains
                 connected to the GW. Keys are domain names, values are the
                 `DomainModule`.
-            gw_interfaces (`Mapping[str, GWInterfaceBase]`): mapping for each domain
-                name to a `GWInterfaceBase` class which role is to encode/decode
+            gw_encoders (`Mapping[str, torch.nn.Module]`): mapping for each domain
+                name to a `torch.nn.Module` class which role is to encode a
                 unimodal latent representations into a GW representation (pre fusion).
+            gw_decoders (`Mapping[str, torch.nn.Module]`): mapping for each domain
+                name to a `torch.nn.Module` class which role is to decode a
+                GW representation into a unimodal latent representations.
             workspace_dim (`int`): dimension of the GW.
             loss_coefs (`LossCoefs`): loss coefficients
             use_var_contrastive_loss (`bool`): whether to use the variational
@@ -609,8 +621,14 @@ class VariationalGlobalWorkspace(GlobalWorkspaceBase):
                 contrastive loss. Only used if `use_var_contrastive_loss` is set to
                 `True`.
         """
-        gw_mod = VariationalGWModule(gw_interfaces, workspace_dim)
         domain_mods = freeze_domain_modules(domain_mods)
+
+        gw_mod = VariationalGWModule(
+            domain_mods,
+            workspace_dim,
+            gw_encoders,
+            gw_decoders,
+        )
 
         if use_var_contrastive_loss:
             if var_contrastive_loss is None:
@@ -637,7 +655,6 @@ class VariationalGlobalWorkspace(GlobalWorkspaceBase):
 
         super().__init__(
             gw_mod,
-            domain_mods,
             loss_mod,
             optim_lr,
             optim_weight_decay,
@@ -655,7 +672,8 @@ class GlobalWorkspaceFusion(GlobalWorkspaceBase):
     def __init__(
         self,
         domain_mods: Mapping[str, DomainModule],
-        gw_interfaces: Mapping[str, GWInterfaceBase],
+        gw_encoders: Mapping[str, Module],
+        gw_decoders: Mapping[str, Module],
         workspace_dim: int,
         optim_lr: float = 1e-3,
         optim_weight_decay: float = 0.0,
@@ -669,9 +687,12 @@ class GlobalWorkspaceFusion(GlobalWorkspaceBase):
             domain_mods (`Mapping[str, DomainModule]`): mapping of the domains
                 connected to the GW. Keys are domain names, values are the
                 `DomainModule`.
-            gw_interfaces (`Mapping[str, GWInterfaceBase]`): mapping for each domain
-                name to a `GWInterfaceBase` class which role is to encode/decode
+            gw_encoders (`Mapping[str, torch.nn.Module]`): mapping for each domain
+                name to a `torch.nn.Module` class which role is to encode a
                 unimodal latent representations into a GW representation (pre fusion).
+            gw_decoders (`Mapping[str, torch.nn.Module]`): mapping for each domain
+                name to a `torch.nn.Module` class which role is to decode a
+                GW representation into a unimodal latent representations.
             workspace_dim (`int`): dimension of the GW.
             optim_lr (`float`): learning rate
             optim_weight_decay (`float`): weight decay
@@ -682,8 +703,13 @@ class GlobalWorkspaceFusion(GlobalWorkspaceBase):
                 function used for alignment. `learn_logit_scale` will not affect custom
                 contrastive losses.
         """
-        gw_mod = GWModuleFusion(gw_interfaces, workspace_dim)
         domain_mods = freeze_domain_modules(domain_mods)
+        gw_mod = GWModuleFusion(
+            domain_mods,
+            workspace_dim,
+            gw_encoders,
+            gw_decoders,
+        )
 
         if contrastive_loss is None:
             contrastive_loss = ContrastiveLoss(
@@ -697,7 +723,6 @@ class GlobalWorkspaceFusion(GlobalWorkspaceBase):
 
         super().__init__(
             gw_mod,
-            domain_mods,
             loss_mod,
             optim_lr,
             optim_weight_decay,
@@ -708,7 +733,8 @@ class GlobalWorkspaceFusion(GlobalWorkspaceBase):
 def pretrained_global_workspace(
     checkpoint_path: str | Path,
     domain_mods: Mapping[str, DomainModule],
-    gw_interfaces: Mapping[str, GWInterfaceBase],
+    gw_encoders: Mapping[str, Module],
+    gw_decoders: Mapping[str, Module],
     workspace_dim: int,
     loss_coefs: LossCoefs,
     contrastive_fn: ContrastiveLossType,
@@ -722,9 +748,12 @@ def pretrained_global_workspace(
         domain_mods (`Mapping[str, DomainModule]`): mapping of the domains
             connected to the GW. Keys are domain names, values are the
             `DomainModule`.
-        gw_interfaces (`Mapping[str, GWInterfaceBase]`): mapping for each domain
-            name to a `GWInterfaceBase` class which role is to encode/decode
+        gw_encoders (`Mapping[str, torch.nn.Module]`): mapping for each domain
+            name to a `torch.nn.Module` class which role is to encode a
             unimodal latent representations into a GW representation (pre fusion).
+        gw_decoders (`Mapping[str, torch.nn.Module]`): mapping for each domain
+            name to a `torch.nn.Module` class which role is to decode a
+            GW representation into a unimodal latent representations.
         workspace_dim (`int`): dimension of the GW.
         loss_coefs (`LossCoefs`): loss coefficients
         contrastive_loss (`ContrastiveLossType`): a contrastive loss
@@ -739,8 +768,13 @@ def pretrained_global_workspace(
     Raises:
         `TypeError`: if loaded type is not `GlobalWorkspace`.
     """
-    gw_mod = GWModule(gw_interfaces, workspace_dim)
     domain_mods = freeze_domain_modules(domain_mods)
+    gw_mod = GWModule(
+        domain_mods,
+        workspace_dim,
+        gw_encoders,
+        gw_decoders,
+    )
     loss_mod = GWLosses(
         gw_mod,
         domain_mods,
@@ -750,7 +784,6 @@ def pretrained_global_workspace(
 
     gw = GlobalWorkspace.load_from_checkpoint(
         checkpoint_path,
-        domain_mods=domain_mods,
         gw_mod=gw_mod,
         loss_coefs=loss_coefs,
         loss_mod=loss_mod,

@@ -2,8 +2,9 @@ from dataset import GWDataModule, get_domain_data, make_datasets
 from domains import GenericDomain
 from lightning.pytorch import Trainer
 from lightning.pytorch.callbacks import ModelCheckpoint
+from torch import nn
 
-from shimmer import GlobalWorkspace, GWInterface, LossCoefs
+from shimmer import GlobalWorkspace, GWDecoder, GWEncoder, LossCoefs
 
 
 def train_gw():
@@ -35,20 +36,24 @@ def train_gw():
 
     workspace_dim = 16
 
-    # Now we define interfaces that will encode and decode the domain representations
-    # to and from the global workspace
-    # We will use the already defined GWInterface class
-    gw_interfaces: dict[str, GWInterface] = {}
+    # Now we define modality encoders and decoders that will encode and decode
+    # the domain representations to and from the global workspace
+    gw_encoders: dict[str, nn.Module] = {}
+    gw_decoders: dict[str, nn.Module] = {}
     for name, mod in domain_mods.items():
-        gw_interfaces[name] = GWInterface(
-            mod,
-            workspace_dim,
-            encoder_hidden_dim=64,
+        gw_encoders[name] = GWEncoder(
+            mod.latent_dim,
+            hidden_dim=64,
+            out_dim=workspace_dim,
             # total number of Linear layers is this value + 2 (one before, one after)
-            encoder_n_layers=1,
-            decoder_hidden_dim=64,
+            n_layers=1,
+        )
+        gw_decoders[name] = GWDecoder(
+            in_dim=workspace_dim,
+            hidden_dim=64,
+            out_dim=mod.latent_dim,
             # total number of Linear layers is this value + 2 (one before, one after)
-            decoder_n_layers=1,
+            n_layers=1,
         )
 
     loss_coefs: LossCoefs = {
@@ -59,7 +64,7 @@ def train_gw():
     }
 
     global_workspace = GlobalWorkspace(
-        domain_mods, gw_interfaces, workspace_dim, loss_coefs
+        domain_mods, gw_encoders, gw_decoders, workspace_dim, loss_coefs
     )
 
     trainer = Trainer(
