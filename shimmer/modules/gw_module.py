@@ -27,7 +27,7 @@ def get_n_layers(n_layers: int, hidden_dim: int) -> list[nn.Module]:
 
 
 class GWDecoder(nn.Sequential):
-    """A Decoder network used in GWInterfaces."""
+    """A Decoder network for GWModules."""
 
     def __init__(
         self,
@@ -68,7 +68,7 @@ class GWDecoder(nn.Sequential):
 
 
 class GWEncoder(GWDecoder):
-    """An Encoder network used in GWInterfaces.
+    """An Encoder network used in GWModules.
 
     This is similar to the decoder, but adds a tanh non-linearity at the end.
     """
@@ -90,6 +90,13 @@ class GWEncoder(GWDecoder):
                 will be `n_layers` + 2 (one before, one after).
         """
         super().__init__(in_dim, hidden_dim, out_dim, n_layers)
+
+    def forward(self, input: torch.Tensor) -> torch.Tensor:
+        return torch.tanh(super().forward(input))
+
+
+class GWEncoderLinear(nn.Linear):
+    """A linear Encoder network used in GWModules."""
 
     def forward(self, input: torch.Tensor) -> torch.Tensor:
         return torch.tanh(super().forward(input))
