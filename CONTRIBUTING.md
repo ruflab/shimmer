@@ -31,8 +31,14 @@ poetry run ruff check . --fix  # lint the project (and fix errors if ruff can)
 ```sh
 poetry run ruff format .  # reformat the project
 ```
+
+> [!NOTE]
+> There is a [pre-commit](https://pre-commit.com/) configuration set to lint and
+> reformat usinf ruff. Set it up to everything with each commit.
+
+To check type issues with mypy:
 ```sh
-poetry run mypy .
+poetry run mypy --install-types .
 ```
 
 ## Tests
