@@ -36,3 +36,8 @@ refers to `DeterministicGlobalWorkspace`.
 * Rename every abstract class with ClassNameBase. Rename every "Deterministic" classes 
     to remove "Deterministic".
 * Remove all config related functions. This is not the role of this repo.
+
+# 0.4.1
+* Remove `GWInterfaces` entirely and favor giving encoders and decoders directly to the
+    `GWModule`. See the updated example `examples/main_example/train_gw.py` to see what 
+    changes to make.
