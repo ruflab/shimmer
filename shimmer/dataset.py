@@ -16,12 +16,7 @@ class RepeatedDataset(Dataset):
     the min_size ≤ size < min_size + len(dataset).
     """
 
-    def __init__(
-        self,
-        dataset: _SizedDataset,
-        min_size: int,
-        drop_last: bool = False,
-    ):
+    def __init__(self, dataset: _SizedDataset, min_size: int, drop_last: bool = False):
         """
         Args:
             dataset (SizedDataset): dataset to repeat. The dataset should have a size

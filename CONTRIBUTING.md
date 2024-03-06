@@ -14,8 +14,8 @@ With each commit, the github workflow is executed and will check for:
 
 ## Code quality workflow
 This workflow makes sure that the provided code follows correct code formatting
-(using [isort](https://github.com/PyCQA/isort) and [black](https://github.com/psf/black)),
-[flake8](https://github.com/PyCQA/flake8), and type issues with [mypy](https://github.com/python/mypy).
+and linting using [ruff](https://github.com/astral-sh/ruff),
+and type issues with [mypy](https://github.com/python/mypy).
 
 This project is fully typed, so any contribution should provide typing annotations.
 
@@ -26,13 +26,10 @@ poetry install --with=dev
 
 Then you can run:
 ```sh
-poetry run isort .
+poetry run ruff check . --fix  # lint the project (and fix errors if ruff can)
 ```
 ```sh
-poetry run black .
-```
-```sh
-poetry run flake8 .
+poetry run ruff format .  # reformat the project
 ```
 ```sh
 poetry run mypy .
