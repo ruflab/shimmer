@@ -52,7 +52,7 @@ target-version = "py311"
 extend-exclude = [
     "__pycache__",
     ".mypy_cache",
-    "docs",
+    "docs/api",
     ".github",
 ]
 

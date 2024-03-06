@@ -1,0 +1,20 @@
+from pathlib import Path
+
+import pdoc
+
+modules = [
+    "shimmer.types",
+    "shimmer.modules.global_workspace",
+    "shimmer.modules.domain",
+    "shimmer.modules.gw_module",
+    "shimmer.modules.losses",
+    "shimmer.modules.contrastive_loss",
+    "shimmer.dataset",
+    "shimmer.modules.vae",
+]
+
+here = Path(__file__).parent
+
+if __name__ == "__main__":
+    pdoc.render.configure(docformat="google")
+    pdoc.pdoc(*modules, output_directory=here / "api")
