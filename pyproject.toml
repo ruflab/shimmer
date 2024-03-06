@@ -44,6 +44,7 @@ build-backend = "poetry.core.masonry.api"
 ignore_missing_imports = true
 install_types = true
 check_untyped_defs = true
+exclude = ["examples/*"]
 
 
 [tool.ruff]
