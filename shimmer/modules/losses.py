@@ -163,7 +163,6 @@ def _translation_loss(
         if len(domains) < 2:
             continue
         for domain_name_target in domains:
-
             domain_sources = {
                 domain: latents[domain]
                 for domain in domains

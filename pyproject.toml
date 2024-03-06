@@ -23,10 +23,9 @@ types-pywin32 = "^306.0.0.2"
 types-setuptools = "^67.8.0.0"
 types-tabulate = "^0.9.0.2"
 types-dataclasses = "^0.6.6"
-flake8 = "^6.0.0"
 mypy = "^1.4.0"
-isort = "^5.13.2"
-black = "^24.2.0"
+ruff = "^0.3.0"
+pre-commit = "^3.6.2"
 
 [tool.poetry.group.test.dependencies]
 torchvision = "^0.15.2"
@@ -35,21 +34,31 @@ pytest = "^7.3.2"
 [tool.poetry.group.docs.dependencies]
 pdoc = "^14.4.0"
 
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
-[tool.isort]
-profile = "black"
-line_length = 88
-
-[tool.black]
-line-length = 88
 
 [tool.mypy]
 ignore_missing_imports = true
 install_types = true
 check_untyped_defs = true
+exclude = ["examples/*"]
+
+
+[tool.ruff]
+target-version = "py311"
+extend-exclude = [
+    "__pycache__",
+    ".mypy_cache",
+    "docs",
+    ".github",
+]
+
+[tool.ruff.format]
+docstring-code-format = true
+
 
 [tool.pyright]
 # reportIncompatibleMethodOverride = "none"

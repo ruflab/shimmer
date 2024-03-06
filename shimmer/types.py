@@ -1,5 +1,5 @@
 from collections.abc import Mapping
-from typing import Any, Literal, TypeAlias
+from typing import Any, Literal
 
 import torch
 

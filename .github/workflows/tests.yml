@@ -24,15 +24,8 @@ jobs:
           poetry run pip install --upgrade pip
           poetry run pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
           poetry run pip install lightning
-      - uses: isort/isort-action@master
-        with:
-          sort-paths: "./shimmer"
-      - uses: psf/black@stable
-        with:
-          src: "./shimmer"
-      - name: Analysing the code with flake8
-        run: |
-          poetry run flake8 .
+      - name: Ruff checks
+        uses: chartboost/ruff-action@v1
       - name: Analysing the code with mypy
         run: |
           poetry run mypy --install-types --non-interactive .
