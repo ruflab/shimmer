@@ -37,7 +37,15 @@ refers to `DeterministicGlobalWorkspace`.
     to remove "Deterministic".
 * Remove all config related functions. This is not the role of this repo.
 
-# 0.4.1
+# 0.5.0
+* Replace loss coef buffers by a `LossCoef` TypedDict.
+* Add
+  [`RepeatedDataset`](https://bdvllrs.github.io/shimmer/shimmer/dataset.html#RepeatedDataset)
+  to shimmer.
+* Add docs in `docs/`, API documentation in https://bdvllrs.github.io/shimmer/, and
+    some code examples.
+* Replace Black, isort, and flake8 with Ruff (see
+      https://github.com/bdvllrs/shimmer/pull/8).
 * Remove `GWInterfaces` entirely and favor giving encoders and decoders directly to the
     `GWModule`. See the updated example `examples/main_example/train_gw.py` to see what 
-    changes to make.
+    changes to make (see https://github.com/bdvllrs/shimmer/pull/9).
