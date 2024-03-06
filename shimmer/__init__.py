@@ -19,12 +19,9 @@ from shimmer.modules.global_workspace import (
 from shimmer.modules.gw_module import (
     GWDecoder,
     GWEncoder,
-    GWInterface,
-    GWInterfaceBase,
     GWModule,
     GWModuleBase,
     VariationalGWEncoder,
-    VariationalGWInterface,
     VariationalGWModule,
 )
 from shimmer.modules.losses import (
@@ -69,9 +66,6 @@ __all__ = [
     "GWDecoder",
     "GWEncoder",
     "VariationalGWEncoder",
-    "GWInterfaceBase",
-    "GWInterface",
-    "VariationalGWInterface",
     "GWModuleBase",
     "GWModule",
     "VariationalGWModule",
