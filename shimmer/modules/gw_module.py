@@ -102,8 +102,8 @@ class GWEncoderLinear(nn.Linear):
         return torch.tanh(super().forward(input))
 
 
-class VariationalGWEncoder(nn.Module):
-    """A Variational flavor of encoder network used in GWInterfaces."""
+class GWEncoderWithUncertainty(nn.Module):
+    """An encoder network with uncertainty."""
 
     def __init__(
         self,
@@ -124,31 +124,37 @@ class VariationalGWEncoder(nn.Module):
         super().__init__()
 
         self.in_dim = in_dim
-        """input dimension"""
+        """Input dimension"""
 
         self.hidden_dim = hidden_dim
-        """hidden dimension"""
+        """Hidden dimension"""
 
         self.out_dim = out_dim
-        """output dimension"""
+        """Output dimension"""
 
         self.n_layers = n_layers
-        """number of hidden layers. The total number of layers
+        """Number of hidden layers. The total number of layers
                 will be `n_layers` + 2 (one before, one after)."""
 
-        self.layers = nn.Sequential(
-            nn.Linear(self.in_dim, self.hidden_dim),
-            nn.ReLU(),
-            *get_n_layers(n_layers, self.hidden_dim),
-            nn.Linear(self.hidden_dim, self.out_dim),
-            nn.Tanh(),
+        self.layers = GWEncoder(
+            self.in_dim, self.hidden_dim, self.out_dim, self.n_layers
         )
 
-        self.uncertainty_level = nn.Parameter(torch.full((self.out_dim,), 3.0))
-        """The log uncertainty of the model."""
+        self.log_uncertainty_level = nn.Parameter(torch.zeros(self.out_dim))
+        """Log of the uncertainty level of the model."""
 
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        return self.layers(x), self.uncertainty_level.expand(x.size(0), -1)
+        """Encodes the latent unimodal representation into the pre-fusion
+        GW representation.
+
+        Args:
+            x (`torch.Tensor`): the latent unimodal representation
+
+        Returns:
+            `tuple[torch.Tensor, torch.Tensor]`: pre-fusion representation and
+            uncertainty level.
+        """
+        return self.layers(x), self.log_uncertainty_level.expand(x.size(0), -1)
 
 
 class GWModuleBase(nn.Module, ABC):
@@ -408,8 +414,8 @@ class GWModule(GWModuleBase):
         }
 
 
-class VariationalGWModule(GWModuleBase):
-    """Variational flavor of `GWModule`."""
+class GWModuleWithUncertainty(GWModuleBase):
+    """`GWModule` with uncertainty information."""
 
     def __init__(
         self,
@@ -418,7 +424,7 @@ class VariationalGWModule(GWModuleBase):
         gw_encoders: Mapping[str, nn.Module],
         gw_decoders: Mapping[str, nn.Module],
     ) -> None:
-        """Initializes the VariationalGWModule.
+        """Initializes the GWModuleWithUncertainty.
 
         Args:
             domain_modules (`Mapping[str, DomainModule]`): the domain modules.
@@ -448,10 +454,7 @@ class VariationalGWModule(GWModuleBase):
         """
         return torch.mean(torch.stack(list(x.values())), dim=0)
 
-    def encode(
-        self,
-        x: LatentsDomainGroupT,
-    ) -> torch.Tensor:
+    def encode(self, x: LatentsDomainGroupT) -> torch.Tensor:
         """Encode a unimodal latent group into a GW representation.
         The pre-fusion GW representation are sampled from the predicted distribution.
 
@@ -459,7 +462,7 @@ class VariationalGWModule(GWModuleBase):
             x (`LatentsDomainGroupT`): unimodal latent group.
 
         Returns:
-            `torch.Tensor`: GW representation
+            `torch.Tensor`: GW representation.
         """
         latents: LatentsDomainGroupDT = {}
         for domain in x.keys():
@@ -468,8 +471,7 @@ class VariationalGWModule(GWModuleBase):
         return self.fusion_mechanism(latents)
 
     def encoded_distribution(
-        self,
-        x: LatentsDomainGroupT,
+        self, x: LatentsDomainGroupT
     ) -> tuple[LatentsDomainGroupDT, LatentsDomainGroupDT]:
         """Encode a unimodal latent group into a pre-fusion GW distributions.
         The pre-fusion GW representation are the mean of the predicted distribution.
@@ -489,10 +491,7 @@ class VariationalGWModule(GWModuleBase):
             log_uncertainties[domain] = log_uncertainty
         return means, log_uncertainties
 
-    def encode_mean(
-        self,
-        x: LatentsDomainGroupT,
-    ) -> torch.Tensor:
+    def encoded_mean(self, x: LatentsDomainGroupT) -> torch.Tensor:
         """Encodes a unimodal latent group into a GW representation (post-fusion)
         using the mean value of the pre-fusion representations.
 
@@ -500,8 +499,7 @@ class VariationalGWModule(GWModuleBase):
             x (`LatentsDomainGroupT`): unimodal latent group.
 
         Returns:
-            `torch.Tensor`: GW representation encoded using the mean of pre-fusion
-                GW.
+            `torch.Tensor`: GW representation encoded using the mean of pre-fusion GW.
         """
         return self.fusion_mechanism(self.encoded_distribution(x)[0])
 
@@ -533,7 +531,7 @@ class VariationalGWModule(GWModuleBase):
         Returns:
             `torch.Tensor`: translated unimodal representation in domain given in `to`.
         """
-        return self.decode(self.encode_mean(x), domains={to})[to]
+        return self.decode(self.encoded_mean(x), domains={to})[to]
 
     def cycle(self, x: LatentsDomainGroupT, through: str) -> LatentsDomainGroupDT:
         """Do a full cycle from a group of representation through one domain.
