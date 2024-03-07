@@ -145,6 +145,7 @@ class VariationalGWEncoder(nn.Module):
         )
 
         self.uncertainty_level = nn.Parameter(torch.full((self.out_dim,), 3.0))
+        """The log uncertainty of the model."""
 
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         return self.layers(x), self.uncertainty_level.expand(x.size(0), -1)
