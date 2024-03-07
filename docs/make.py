@@ -16,5 +16,5 @@ modules = [
 here = Path(__file__).parent
 
 if __name__ == "__main__":
-    pdoc.render.configure(docformat="google")
+    pdoc.render.configure(docformat="google", math=True)
     pdoc.pdoc(*modules, output_directory=here / "api")
