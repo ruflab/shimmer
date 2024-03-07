@@ -19,7 +19,7 @@ from shimmer.modules.gw_module import (
     GWModule,
     GWModuleBase,
     GWModuleFusion,
-    VariationalGWModule,
+    GWModuleWithUncertainty,
 )
 from shimmer.modules.losses import (
     GWLosses,
@@ -571,8 +571,8 @@ class GlobalWorkspace(GlobalWorkspaceBase):
         )
 
 
-class VariationalGlobalWorkspace(GlobalWorkspaceBase):
-    """A simple 2-domains max variational flavor of GlobalWorkspaceBase.
+class GlobalWorkspaceWithUncertainty(GlobalWorkspaceBase):
+    """A simple 2-domains max GlobalWorkspaceBase with uncertainty.
 
     This is used to simplify a Global Workspace instanciation and only overrides the
     `__init__` method.
@@ -592,6 +592,7 @@ class VariationalGlobalWorkspace(GlobalWorkspaceBase):
         learn_logit_scale: bool = False,
         contrastive_loss: ContrastiveLossType | None = None,
         var_contrastive_loss: VarContrastiveLossType | None = None,
+        binary_uncertainty: bool = False,
     ) -> None:
         """Initializes a Global Workspace
 
@@ -620,10 +621,12 @@ class VariationalGlobalWorkspace(GlobalWorkspaceBase):
             var_contrastive_loss (`VarContrastiveLossType | None`): a variational
                 contrastive loss. Only used if `use_var_contrastive_loss` is set to
                 `True`.
+            binary_uncertainty (`bool`): whether to use
+                `contrastive_loss_with_binary_uncertainty` for contrastive learning.
         """
         domain_mods = freeze_domain_modules(domain_mods)
 
-        gw_mod = VariationalGWModule(
+        gw_mod = GWModuleWithUncertainty(
             domain_mods,
             workspace_dim,
             gw_encoders,
@@ -633,7 +636,10 @@ class VariationalGlobalWorkspace(GlobalWorkspaceBase):
         if use_var_contrastive_loss:
             if var_contrastive_loss is None:
                 var_contrastive_loss = ContrastiveLossWithUncertainty(
-                    torch.tensor([1]).log(), "mean", learn_logit_scale
+                    torch.tensor([1]).log(),
+                    "mean",
+                    learn_logit_scale,
+                    binary_uncertainty,
                 )
             loss_mod = VariationalGWLosses(
                 gw_mod,

@@ -6,7 +6,7 @@ import torch.nn.functional as F
 
 from shimmer.modules.contrastive_loss import ContrastiveLossType, VarContrastiveLossType
 from shimmer.modules.domain import DomainModule, LossOutput
-from shimmer.modules.gw_module import GWModule, GWModuleBase, VariationalGWModule
+from shimmer.modules.gw_module import GWModule, GWModuleBase, GWModuleWithUncertainty
 from shimmer.modules.vae import kl_divergence_loss
 from shimmer.types import LatentsDomainGroupsT, ModelModeT
 
@@ -252,7 +252,7 @@ def _contrastive_loss(
 
 
 def _contrastive_loss_with_uncertainty(
-    gw_mod: VariationalGWModule,
+    gw_mod: GWModuleWithUncertainty,
     latent_domains: LatentsDomainGroupsT,
     contrastive_fn: VarContrastiveLossType,
 ) -> dict[str, torch.Tensor]:
@@ -489,33 +489,21 @@ class GWLosses(GWLossesBase):
         return LossOutput(loss, metrics)
 
 
-class VariationalLossCoefs(LossCoefs, total=False):
+class GWLossesWithUncertainty(GWLossesBase):
     """
-    Dict of loss coefficients used in the VariationalGWLosses
-    If one is not provided, the coefficient is assumed to be 0 and will not be logged.
-    If the loss is excplicitely set to 0, it will be logged, but not take part in
-    the total loss.
-    """
-
-    kl: float
-    """ Coefficient of the KL loss. Deprecated, should not be set. """
-
-
-class VariationalGWLosses(GWLossesBase):
-    """
-    Implementation of `GWLossesBase` used for `VariationalGWModule`.
+    Implementation of `GWLossesBase` used for `GWModuleWithUncertainty`.
     """
 
     def __init__(
         self,
-        gw_mod: VariationalGWModule,
+        gw_mod: GWModuleWithUncertainty,
         domain_mods: dict[str, DomainModule],
-        loss_coefs: VariationalLossCoefs,
+        loss_coefs: LossCoefs,
         contrastive_fn: ContrastiveLossType | None = None,
         var_contrastive_fn: VarContrastiveLossType | None = None,
     ):
         """
-        Variational loss module to use with the VariationalGlobalWorkspace
+        Loss module with uncertainty to use with the GlobalWorkspaceWithUncertainty
 
         Args:
             gw_mod (`VariationalGWModule`): the GWModule
