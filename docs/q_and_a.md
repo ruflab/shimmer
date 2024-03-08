@@ -28,7 +28,7 @@ when defining the `compute_loss` method.
 
 You also can have different losses for demi-cycles, cycles, ... by implementing
 the corresponding methods
-([`compute_dcy_loss`)(https://bdvllrs.github.io/shimmer/shimmer/modules/domain.html#DomainModule.compute_dcy_loss),
+([`compute_dcy_loss`](https://bdvllrs.github.io/shimmer/shimmer/modules/domain.html#DomainModule.compute_dcy_loss),
 [`compute_tr_loss`](https://bdvllrs.github.io/shimmer/shimmer/modules/domain.html#DomainModule.compute_tr_loss), ...).
 
 You can use your own contrastive loss function by passing it as an argument to the
