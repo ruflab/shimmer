@@ -596,25 +596,27 @@ class GlobalWorkspaceWithUncertainty(GlobalWorkspaceBase):
             domain_mods, workspace_dim, gw_encoders, gw_decoders
         )
 
+        if use_cont_loss_with_uncertainty and cont_loss_with_uncertainty is None:
+            cont_loss_with_uncertainty = ContrastiveLossWithUncertainty(
+                torch.tensor([1]).log(), "mean", learn_logit_scale
+            )
+        elif not use_cont_loss_with_uncertainty and contrastive_loss is None:
+            contrastive_loss = ContrastiveLoss(
+                torch.tensor([1]).log(), "mean", learn_logit_scale
+            )
+
         if use_cont_loss_with_uncertainty:
-            if cont_loss_with_uncertainty is None:
-                cont_loss_with_uncertainty = ContrastiveLossWithUncertainty(
-                    torch.tensor([1]).log(), "mean", learn_logit_scale
-                )
-            loss_mod = GWLossesWithUncertainty(
-                gw_mod,
-                domain_mods,
-                loss_coefs,
-                cont_fn_with_uncertainty=cont_loss_with_uncertainty,
-            )
+            contrastive_loss = None
         else:
-            if contrastive_loss is None:
-                contrastive_loss = ContrastiveLoss(
-                    torch.tensor([1]).log(), "mean", learn_logit_scale
-                )
-            loss_mod = GWLossesWithUncertainty(
-                gw_mod, domain_mods, loss_coefs, contrastive_fn=contrastive_loss
-            )
+            cont_loss_with_uncertainty = None
+
+        loss_mod = GWLossesWithUncertainty(
+            gw_mod,
+            domain_mods,
+            loss_coefs,
+            contrastive_loss,
+            cont_loss_with_uncertainty,
+        )
 
         super().__init__(gw_mod, loss_mod, optim_lr, optim_weight_decay, scheduler_args)
 
