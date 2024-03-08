@@ -10,7 +10,10 @@ See [Installation instructions](docs/installation.md).
 You can find code examples in the `examples` folder. Each subfolder is a different
 example.
 
+## Tutorial
 You can also follow a tutorial on the basics of shimmer [here](docs/shimmer_basics.md).
+
+You can also find some additional information in the [Q&A](docs/q_and_a.md).
 
 ## API Documentation
 The full API documentation is available here:
