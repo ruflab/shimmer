@@ -108,6 +108,7 @@ class GlobalWorkspaceBase(LightningModule):
                 "loss_mod",
                 "domain_descriptions",
                 "contrastive_loss",
+                "cont_loss_with_uncertainty",
                 "gw_encoders",
                 "gw_decoders",
             ]
