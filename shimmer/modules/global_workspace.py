@@ -27,7 +27,6 @@ from shimmer.modules.losses import (
     GWLossesFusion,
     GWLossesWithUncertainty,
     LossCoefs,
-    VariationalLossCoefs,
 )
 from shimmer.types import (
     LatentsDomainGroupsDT,
@@ -553,7 +552,7 @@ class GlobalWorkspaceWithUncertainty(GlobalWorkspaceBase):
         gw_encoders: Mapping[str, Module],
         gw_decoders: Mapping[str, Module],
         workspace_dim: int,
-        loss_coefs: VariationalLossCoefs,
+        loss_coefs: LossCoefs,
         use_var_contrastive_loss: bool = False,
         optim_lr: float = 1e-3,
         optim_weight_decay: float = 0.0,
