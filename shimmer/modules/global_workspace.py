@@ -25,8 +25,8 @@ from shimmer.modules.losses import (
     GWLosses,
     GWLossesBase,
     GWLossesFusion,
+    GWLossesWithUncertainty,
     LossCoefs,
-    VariationalGWLosses,
     VariationalLossCoefs,
 )
 from shimmer.types import (
@@ -592,7 +592,6 @@ class GlobalWorkspaceWithUncertainty(GlobalWorkspaceBase):
         learn_logit_scale: bool = False,
         contrastive_loss: ContrastiveLossType | None = None,
         var_contrastive_loss: VarContrastiveLossType | None = None,
-        binary_uncertainty: bool = False,
     ) -> None:
         """Initializes a Global Workspace
 
@@ -621,8 +620,6 @@ class GlobalWorkspaceWithUncertainty(GlobalWorkspaceBase):
             var_contrastive_loss (`VarContrastiveLossType | None`): a variational
                 contrastive loss. Only used if `use_var_contrastive_loss` is set to
                 `True`.
-            binary_uncertainty (`bool`): whether to use
-                `contrastive_loss_with_binary_uncertainty` for contrastive learning.
         """
         domain_mods = freeze_domain_modules(domain_mods)
 
@@ -636,12 +633,9 @@ class GlobalWorkspaceWithUncertainty(GlobalWorkspaceBase):
         if use_var_contrastive_loss:
             if var_contrastive_loss is None:
                 var_contrastive_loss = ContrastiveLossWithUncertainty(
-                    torch.tensor([1]).log(),
-                    "mean",
-                    learn_logit_scale,
-                    binary_uncertainty,
+                    torch.tensor([1]).log(), "mean", learn_logit_scale
                 )
-            loss_mod = VariationalGWLosses(
+            loss_mod = GWLossesWithUncertainty(
                 gw_mod,
                 domain_mods,
                 loss_coefs,
@@ -652,7 +646,7 @@ class GlobalWorkspaceWithUncertainty(GlobalWorkspaceBase):
                 contrastive_loss = ContrastiveLoss(
                     torch.tensor([1]).log(), "mean", learn_logit_scale
                 )
-            loss_mod = VariationalGWLosses(
+            loss_mod = GWLossesWithUncertainty(
                 gw_mod,
                 domain_mods,
                 loss_coefs,

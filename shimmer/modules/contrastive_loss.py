@@ -105,43 +105,6 @@ def contrastive_loss_with_uncertainty(
     return 0.5 * (ce + ce_t)
 
 
-def contrastive_loss_with_binary_uncertainty(
-    x: torch.Tensor,
-    x_log_uncertainty: torch.Tensor,
-    y: torch.Tensor,
-    y_log_uncertainty: torch.Tensor,
-    logit_scale: torch.Tensor,
-    reduction: Literal["mean", "sum", "none"] = "mean",
-) -> torch.Tensor:
-    """CLIP-like contrastive loss with binary uncertainty.
-    This is used in Global Workspaces with uncertainty.
-
-    The contrastive loss is computed between
-    $\\text{sigmoid}(\\sigma_1) \\cdot \\text{sigmoid}(\\sigma_2) \\cdot x$
-    and $\\text{sigmoid}(\\sigma_1) \\cdot \\text{sigmoid}(\\sigma_2) \\cdot y$
-
-    Args:
-        x (`torch.Tensor`): prediction
-        x_log_uncertainty (`torch.Tensor`): logvar of the prediction
-        y (`torch.Tensor`): target
-        y_log_uncertainty (`torch.Tensor`): logvar of the target
-        logit_scale (`torch.Tensor`): logit scale
-        reduction (`Literal["mean", "sum", "none"]`): reduction to apply
-
-    Returns: the contrastive loss with uncertainty.
-    """
-    uncertainty_coef = torch.sigmoid(x_log_uncertainty) * torch.sigmoid(
-        y_log_uncertainty
-    )
-    xn = normalize(x) * uncertainty_coef
-    yn = normalize(y) * uncertainty_coef
-    logits = torch.clamp(logit_scale.exp(), max=100) * xn @ yn.t()
-    labels = torch.arange(xn.size(0)).to(logits.device)
-    ce = cross_entropy(logits, labels, reduction=reduction)
-    ce_t = cross_entropy(logits.t(), labels, reduction=reduction)
-    return 0.5 * (ce + ce_t)
-
-
 class ContrastiveLoss(torch.nn.Module):
     """CLIP-like ContrastiveLoss torch module."""
 
@@ -196,7 +159,6 @@ class ContrastiveLossWithUncertainty(torch.nn.Module):
         logit_scale: torch.Tensor,
         reduction: Literal["mean", "sum", "none"] = "mean",
         learn_logit_scale: bool = False,
-        binary: bool = False,
     ) -> None:
         """
         ContrastiveLoss used for VariationalGlobalWorkspace
@@ -207,8 +169,6 @@ class ContrastiveLossWithUncertainty(torch.nn.Module):
                 the loss. Defaults to `"mean"`.
             learn_logit_scale (`bool`): whether to learn the logit_scale parameter.
             Defaults to `False`.
-            binary (`bool`): whether to use `contrastive_loss_with_binary_uncertainty`
-                instead of `contrastive_loss_with_uncertainty`.
         """
         super().__init__()
 
@@ -218,7 +178,6 @@ class ContrastiveLossWithUncertainty(torch.nn.Module):
             self.register_buffer("logit_scale", logit_scale)
         self.learn_logit_scale = learn_logit_scale
         self.reduction: Literal["mean", "sum", "none"] = reduction
-        self.binary = binary
 
     def forward(
         self,
@@ -239,24 +198,14 @@ class ContrastiveLossWithUncertainty(torch.nn.Module):
             `"no_uncertainty"` metric with the classic contrastive loss computed without
             the logvar information.
         """
-        if self.binary:
-            loss = contrastive_loss_with_binary_uncertainty(
-                x,
-                x_log_uncertainty,
-                y,
-                y_log_uncertainty,
-                self.logit_scale,
-                self.reduction,
-            )
-        else:
-            loss = contrastive_loss_with_uncertainty(
-                x,
-                x_log_uncertainty,
-                y,
-                y_log_uncertainty,
-                self.logit_scale,
-                self.reduction,
-            )
+        loss = contrastive_loss_with_uncertainty(
+            x,
+            x_log_uncertainty,
+            y,
+            y_log_uncertainty,
+            self.logit_scale,
+            self.reduction,
+        )
 
         metrics = {
             "no_uncertainty": contrastive_loss(x, y, self.logit_scale, self.reduction),
