@@ -14,10 +14,10 @@ ContrastiveLossType = Callable[[torch.Tensor, torch.Tensor], LossOutput]
 A function taking the prediction and targets and returning a LossOutput.
 """
 
-VarContrastiveLossType = Callable[
+ContrastiveLossWithUncertaintyType = Callable[
     [torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor], LossOutput
 ]
-"""Contrastive loss function type for variational GlobalWorkspace.
+"""Contrastive loss function type for GlobalWorkspaceWithUncertainty.
 
 A function taking the prediction mean, prediction std, target mean and target std and
     returns a LossOutput.
@@ -81,7 +81,7 @@ def contrastive_loss_with_uncertainty(
     reduction: Literal["mean", "sum", "none"] = "mean",
 ) -> torch.Tensor:
     """CLIP-like contrastive loss with uncertainty.
-    This is used in Variational Global Workspaces.
+    This is used in Global Workspaces with uncertainty.
 
     Args:
         x (`torch.Tensor`): prediction
@@ -151,7 +151,7 @@ class ContrastiveLoss(torch.nn.Module):
 class ContrastiveLossWithUncertainty(torch.nn.Module):
     """CLIP-like contrastive loss with uncertainty module.
 
-    This is used in Variational Global Workspaces.
+    This is used in Global Workspaces with uncertainty.
     """
 
     def __init__(
@@ -161,7 +161,7 @@ class ContrastiveLossWithUncertainty(torch.nn.Module):
         learn_logit_scale: bool = False,
     ) -> None:
         """
-        ContrastiveLoss used for VariationalGlobalWorkspace
+        ContrastiveLoss used for GlobalWorkspaceWithUncertainty
 
         Args:
             logit_scale (`torch.Tensor`): logit_scale tensor.

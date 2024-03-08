@@ -3,7 +3,7 @@ from shimmer.modules.contrastive_loss import (
     ContrastiveLoss,
     ContrastiveLossType,
     ContrastiveLossWithUncertainty,
-    VarContrastiveLossType,
+    ContrastiveLossWithUncertaintyType,
     contrastive_loss,
     contrastive_loss_with_uncertainty,
 )
@@ -71,7 +71,7 @@ __all__ = [
     "GWModule",
     "GWModuleWithUncertainty",
     "ContrastiveLossType",
-    "VarContrastiveLossType",
+    "ContrastiveLossWithUncertaintyType",
     "contrastive_loss",
     "ContrastiveLoss",
     "contrastive_loss_with_uncertainty",

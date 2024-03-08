@@ -4,7 +4,10 @@ from typing import TypedDict
 import torch
 import torch.nn.functional as F
 
-from shimmer.modules.contrastive_loss import ContrastiveLossType, VarContrastiveLossType
+from shimmer.modules.contrastive_loss import (
+    ContrastiveLossType,
+    ContrastiveLossWithUncertaintyType,
+)
 from shimmer.modules.domain import DomainModule, LossOutput
 from shimmer.modules.gw_module import GWModule, GWModuleBase, GWModuleWithUncertainty
 from shimmer.types import LatentsDomainGroupsT, ModelModeT
@@ -253,9 +256,9 @@ def contrastive_loss(
 def contrastive_loss_with_uncertainty(
     gw_mod: GWModuleWithUncertainty,
     latent_domains: LatentsDomainGroupsT,
-    contrastive_fn: VarContrastiveLossType,
+    contrastive_fn: ContrastiveLossWithUncertaintyType,
 ) -> dict[str, torch.Tensor]:
-    """Computes the variational contrastive loss with uncertainty.
+    """Computes the contrastive loss with uncertainty.
 
     This return multiple metrics:
         * `contrastive_{domain_1}_and_{domain_2}` with the contrastive
@@ -267,9 +270,9 @@ def contrastive_loss_with_uncertainty(
             `contrastive_{domain_1}_and_{domain_2}` values.
 
     Args:
-        gw_mod (`VariationalGWModule`): The GWModule to use
+        gw_mod (`GWModuleWithUncertainty`): The GWModule to use
         latent_domains (`LatentsDomainGroupsT`): the latent unimodal groups
-        contrastive_fn (`VarContrastiveLossType`): the variational contrastive function
+        contrastive_fn (`ContrastiveLossWithUncertaintyType`): the contrastive function
             to apply
 
     Returns:
@@ -474,19 +477,19 @@ class GWLossesWithUncertainty(GWLossesBase):
         domain_mods: dict[str, DomainModule],
         loss_coefs: LossCoefs,
         contrastive_fn: ContrastiveLossType | None = None,
-        var_contrastive_fn: VarContrastiveLossType | None = None,
+        cont_fn_with_uncertainty: ContrastiveLossWithUncertaintyType | None = None,
     ):
         """
         Loss module with uncertainty to use with the GlobalWorkspaceWithUncertainty
 
         Args:
-            gw_mod (`VariationalGWModule`): the GWModule
+            gw_mod (`GWModuleWithUncertainty`): the GWModule
             domain_mods (`dict[str, DomainModule]`): a dict where the key is the
                 domain name and value is the DomainModule
-            loss_coefs (`VariationalLossCoefs`): loss coefficients
+            loss_coefs (`LossCoefsWithUncertainty`): loss coefficients
             contrastive_fn (`ContrastiveLossType | None`): the contrastive function
                 to use in contrastive loss
-            var_contrastive_fn (`VarContrastiveLossType | None`): a contrastive
+            cont_fn_with_uncertainty (`ContrastiveLossWithUncertaintyType | None`): a contrastive
                 function that uses uncertainty
         """
 
@@ -502,15 +505,16 @@ class GWLossesWithUncertainty(GWLossesBase):
         """The loss coefficients."""
 
         assert (contrastive_fn is not None) != (
-            var_contrastive_fn is not None
-        ), "Should either have contrastive_fn or var_contrastive_fn"
+            cont_fn_with_uncertainty is not None
+        ), "Should either have contrastive_fn or cont_fn_with_uncertainty"
 
         self.contrastive_fn = contrastive_fn
         """Contrastive loss to use without the use of uncertainty. This is only
-        used in `VariationalGWLosses.step` if `VariationalGWLosses.var_contrastive_fn`
-        is not set."""
+        used in `GWLossesWithUncertainty.step` if 
+        `GWLossesWithUncertainty.cont_fn_with_uncertainty` is not set.
+        """
 
-        self.var_contrastive_fn = var_contrastive_fn
+        self.cont_fn_with_uncertainty = cont_fn_with_uncertainty
         """Contrastive loss to use with the use of uncertainty."""
 
     def demi_cycle_loss(
@@ -557,7 +561,7 @@ class GWLossesWithUncertainty(GWLossesBase):
     ) -> dict[str, torch.Tensor]:
         """Contrastive loss.
 
-        If `VariationalGWLosses.var_contrastive_fn` is set, will use the
+        If `GWLossesWithUncertainty.cont_fn_with_uncertainty` is set, will use the
         contrastive loss with uncertainty. Otherwise, use the traditional
         contrastive loss (see `GWLosses.contrastive_loss`).
 
@@ -567,9 +571,9 @@ class GWLossesWithUncertainty(GWLossesBase):
         Returns:
             `dict[str, torch.Tensor]`: a dict of metrics.
         """
-        if self.var_contrastive_fn is not None:
+        if self.cont_fn_with_uncertainty is not None:
             return contrastive_loss_with_uncertainty(
-                self.gw_mod, latent_domains, self.var_contrastive_fn
+                self.gw_mod, latent_domains, self.cont_fn_with_uncertainty
             )
 
         assert self.contrastive_fn is not None
@@ -582,10 +586,10 @@ class GWLossesWithUncertainty(GWLossesBase):
         Computes and returns the losses
 
         Contains:
-            - Demi-cycle metrics (see `VariationalGWLosses.demi_cycle_loss`)
-            - Cycle metrics (see `VariationalGWLosses.cycle_loss`)
-            - Translation metrics (see `VariationalGWLosses.translation_loss`)
-            - Contrastive metrics (see `VariationalGWLosses.contrastive_loss`)
+            - Demi-cycle metrics (see `GWLossesWithUncertainty.demi_cycle_loss`)
+            - Cycle metrics (see `GWLossesWithUncertainty.cycle_loss`)
+            - Translation metrics (see `GWLossesWithUncertainty.translation_loss`)
+            - Contrastive metrics (see `GWLossesWithUncertainty.contrastive_loss`)
 
         Args:
             domain_latents (`LatentsDomainGroupsT`): All latent groups

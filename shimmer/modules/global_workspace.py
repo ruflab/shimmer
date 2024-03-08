@@ -12,7 +12,7 @@ from shimmer.modules.contrastive_loss import (
     ContrastiveLoss,
     ContrastiveLossType,
     ContrastiveLossWithUncertainty,
-    VarContrastiveLossType,
+    ContrastiveLossWithUncertaintyType,
 )
 from shimmer.modules.domain import DomainModule
 from shimmer.modules.gw_module import (
@@ -553,13 +553,13 @@ class GlobalWorkspaceWithUncertainty(GlobalWorkspaceBase):
         gw_decoders: Mapping[str, Module],
         workspace_dim: int,
         loss_coefs: LossCoefs,
-        use_var_contrastive_loss: bool = False,
+        use_cont_loss_with_uncertainty: bool = False,
         optim_lr: float = 1e-3,
         optim_weight_decay: float = 0.0,
         scheduler_args: SchedulerArgs | None = None,
         learn_logit_scale: bool = False,
         contrastive_loss: ContrastiveLossType | None = None,
-        var_contrastive_loss: VarContrastiveLossType | None = None,
+        cont_loss_with_uncertainty: ContrastiveLossWithUncertaintyType | None = None,
     ) -> None:
         """Initializes a Global Workspace
 
@@ -575,8 +575,8 @@ class GlobalWorkspaceWithUncertainty(GlobalWorkspaceBase):
                 GW representation into a unimodal latent representations.
             workspace_dim (`int`): dimension of the GW.
             loss_coefs (`LossCoefs`): loss coefficients
-            use_var_contrastive_loss (`bool`): whether to use the variational
-                contrastive loss which uses means and log variance for computations.
+            use_cont_loss_with_uncertainty (`bool`): whether to use the contrastive
+                loss with uncertainty which uses means and log variance for computations.
             optim_lr (`float`): learning rate
             optim_weight_decay (`float`): weight decay
             scheduler_args (`SchedulerArgs | None`): optimization scheduler's arguments
@@ -585,9 +585,9 @@ class GlobalWorkspaceWithUncertainty(GlobalWorkspaceBase):
             contrastive_loss (`ContrastiveLossType | None`): a contrastive loss
                 function used for alignment. `learn_logit_scale` will not affect custom
                 contrastive losses.
-            var_contrastive_loss (`VarContrastiveLossType | None`): a variational
-                contrastive loss. Only used if `use_var_contrastive_loss` is set to
-                `True`.
+            cont_loss_with_uncertainty (`ContrastiveLossWithUncertaintyType | None`): a
+                contrastive loss with uncertainty.
+                Only used if `use_cont_loss_with_uncertainty` is set to `True`.
         """
         domain_mods = freeze_domain_modules(domain_mods)
 
@@ -595,13 +595,16 @@ class GlobalWorkspaceWithUncertainty(GlobalWorkspaceBase):
             domain_mods, workspace_dim, gw_encoders, gw_decoders
         )
 
-        if use_var_contrastive_loss:
-            if var_contrastive_loss is None:
-                var_contrastive_loss = ContrastiveLossWithUncertainty(
+        if use_cont_loss_with_uncertainty:
+            if cont_loss_with_uncertainty is None:
+                cont_loss_with_uncertainty = ContrastiveLossWithUncertainty(
                     torch.tensor([1]).log(), "mean", learn_logit_scale
                 )
             loss_mod = GWLossesWithUncertainty(
-                gw_mod, domain_mods, loss_coefs, var_contrastive_fn=var_contrastive_loss
+                gw_mod,
+                domain_mods,
+                loss_coefs,
+                cont_fn_with_uncertainty=cont_loss_with_uncertainty,
             )
         else:
             if contrastive_loss is None:
