@@ -371,7 +371,7 @@ class GWLosses(GWLossesBase):
     ) -> dict[str, torch.Tensor]:
         """Computes the demi-cycle loss.
 
-        See `demi_cycle_loss`.
+        See `shimmer.mdoules.losses.demi_cycle_loss`.
 
         Args:
             latent_domains (`LatentsDomainGroupsT`): the latent unimodal groups
@@ -401,7 +401,7 @@ class GWLosses(GWLossesBase):
     ) -> dict[str, torch.Tensor]:
         """Computes the translation loss.
 
-        See `translation_loss`.
+        See `shimmer.mdoules.losses.translation_loss`.
 
         Args:
             latent_domains (`LatentsDomainGroupsT`): the latent unimodal groups
@@ -416,7 +416,7 @@ class GWLosses(GWLossesBase):
     ) -> dict[str, torch.Tensor]:
         """Computes the contrastive loss.
 
-        See `contrastive_loss`.
+        See `shimmer.mdoules.losses.contrastive_loss`.
 
         Args:
             latent_domains (`LatentsDomainGroupsT`): the latent unimodal groups
