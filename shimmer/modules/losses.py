@@ -230,19 +230,19 @@ def contrastive_loss(
     for latents in latent_domains.values():
         if len(latents) != 2:
             continue
-        for domain1_name, domain1 in latents.items():
-            z1 = gw_mod.encode(gw_mod.on_before_gw_encode_cont({domain1_name: domain1}))
-            for domain2_name, domain2 in latents.items():
-                selected_domains = {domain1_name, domain2_name}
-                if domain1_name == domain2_name or selected_domains in keys:
+
+        cont_latents = gw_mod.on_before_gw_encode_cont(latents)
+        for domain1 in cont_latents.keys():
+            z1 = gw_mod.encode_pre_fusion(cont_latents, domain1)
+            for domain2 in cont_latents.keys():
+                selected_domains = {domain1, domain2}
+                if domain1 == domain2 or selected_domains in keys:
                     continue
 
                 keys.append(selected_domains)
 
-                loss_name = f"contrastive_{domain1_name}_and_{domain2_name}"
-                z2 = gw_mod.encode(
-                    gw_mod.on_before_gw_encode_cont({domain2_name: domain2})
-                )
+                loss_name = f"contrastive_{domain1}_and_{domain2}"
+                z2 = gw_mod.encode_pre_fusion(cont_latents, domain2)
                 loss_output = contrastive_fn(z1, z2)
                 losses[loss_name] = loss_output.loss
                 metrics.update(
