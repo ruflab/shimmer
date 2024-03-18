@@ -189,13 +189,13 @@ Let's first define a dataset and data module for this.
 
 ## Data for GW
 
-To train a GW, we need several datasets:
-- one for each domain used for the unsupervised losses,
-- some with paired data to the supervised losses
+Data coming to the GW can contain different modalities:
+- unimodal data where only one domain is available,
+- some matched data of unimodal representations of different domains.
 
 To keep track of all these datasets, we put them in a dict (val/train_datasets)
-that is indexed by a frozenset of domain names 
-(sets cannot be used as dict keys as they are mutable).
+that is indexed by a frozenset of the different domain names
+(sets cannot be used as dict keys as they are mutable, so we need to use frozensets).
 
 For example:
 ```python
@@ -253,15 +253,25 @@ datasets = {
     frozenset(["domain1", "domain2"]): DomainDataset({
         "domain1": train_domain1,
         "domain2": train_domain2,
-    }), 
+    }),
 }
 ```
-But this only works if all data is paired (the dataset with both domains contains
-everything).
+In this example, all items of `train_domain1`  and `train_domain2` are paired, but we
+could imagine a case where data from `train_domain1` is unrelated to `train_domain2`, 
+and have extra matched representation in `train_domain{k}_matched`:
+
+```python
+    frozenset(["domain1", "domain2"]): DomainDataset({
+        "domain1": train_domain1_matched,
+        "domain2": train_domain2_matched,
+    }),
+
+```
 
 We will make a helper function that will create these dataset, and will use only
 a fraction of the data as paired as given by a `paired_items` parameter which will
 be a list of keys that will be paired:
+
 ```python
 def make_datasets(
     domain_data: Mapping[str, torch.Tensor],
