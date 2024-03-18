@@ -254,17 +254,15 @@ class GWModuleBase(nn.Module, ABC):
         }
 
     @abstractmethod
-    def encode_pre_fusion(
-        self, x: LatentsDomainGroupT, domain_name: str
-    ) -> torch.Tensor:
+    def encode_pre_fusion(self, x: torch.Tensor, domain_name: str) -> torch.Tensor:
         """Encode the latent representation infos to the pre-fusion GW representation.
 
         Args:
-            x (`LatentsDomainGroupT`): the input domain representations.
+            x (`torch.Tensor`): the input domain representation.
             domain_name (`str`): domain name to of the encoded pre-fusion
 
         Returns:
-            `torch.Tensor`: pre-fusion representation
+            `torch.Tensor`: pre-fusion representation of the domain
         """
         ...
 
@@ -367,19 +365,17 @@ class GWModule(GWModuleBase):
         """
         return torch.mean(torch.stack(list(x.values())), dim=0)
 
-    def encode_pre_fusion(
-        self, x: LatentsDomainGroupT, domain_name: str
-    ) -> torch.Tensor:
+    def encode_pre_fusion(self, x: torch.Tensor, domain_name: str) -> torch.Tensor:
         """Encode the latent representation infos to the pre-fusion GW representation.
 
         Args:
-            x (`LatentsDomainGroupT`): the input domain representations.
+            x (`torch.Tensor`): the input domain representation.
             domain_name (`str`): domain name to of the encoded pre-fusion
 
         Returns:
             `torch.Tensor`: pre-fusion representation
         """
-        return self.gw_encoders[domain_name](x[domain_name])
+        return self.gw_encoders[domain_name](x)
 
     def encode(self, x: LatentsDomainGroupT) -> torch.Tensor:
         """Encode the unimodal latent representation `x` into the GW representation.
@@ -392,7 +388,10 @@ class GWModule(GWModuleBase):
 
         """
         return self.fusion_mechanism(
-            {domain: self.encode_pre_fusion(x, domain) for domain in x.keys()}
+            {
+                domain_name: self.encode_pre_fusion(domain, domain_name)
+                for domain_name, domain in x.items()
+            }
         )
 
     def decode(
@@ -483,19 +482,17 @@ class GWModuleWithUncertainty(GWModuleBase):
         """
         return torch.mean(torch.stack(list(x.values())), dim=0)
 
-    def encode_pre_fusion(
-        self, x: LatentsDomainGroupT, domain_name: str
-    ) -> torch.Tensor:
+    def encode_pre_fusion(self, x: torch.Tensor, domain_name: str) -> torch.Tensor:
         """Encode the latent representation infos to the pre-fusion GW representation.
 
         Args:
-            x (`LatentsDomainGroupT`): the input domain representations.
+            x (`torch.Tensor`): the input domain representation.
             domain_name (`str`): domain name to of the encoded pre-fusion
 
         Returns:
             `torch.Tensor`: pre-fusion representation
         """
-        mean, log_uncertainty = self.gw_encoders[domain_name](x[domain_name])
+        mean, log_uncertainty = self.gw_encoders[domain_name](x)
         return reparameterize(mean, log_uncertainty)
 
     def encode(self, x: LatentsDomainGroupT) -> torch.Tensor:
@@ -509,7 +506,10 @@ class GWModuleWithUncertainty(GWModuleBase):
             `torch.Tensor`: GW representation.
         """
         return self.fusion_mechanism(
-            {domain: self.encode_pre_fusion(x, domain) for domain in x.keys()}
+            {
+                domain_name: self.encode_pre_fusion(domain, domain_name)
+                for domain_name, domain in x.items()
+            }
         )
 
     def encoded_distribution(
@@ -605,19 +605,17 @@ class GWModuleFusion(GWModule):
         """
         return torch.sum(torch.stack(list(x.values())), dim=0)
 
-    def encode_pre_fusion(
-        self, x: LatentsDomainGroupT, domain_name: str
-    ) -> torch.Tensor:
+    def encode_pre_fusion(self, x: torch.Tensor, domain_name: str) -> torch.Tensor:
         """Encode the latent representation infos to the pre-fusion GW representation.
 
         Args:
-            x (`LatentsDomainGroupT`): the input domain representations.
+            x (`torch.Tensor`): the input domain representation.
             domain_name (`str`): domain name to of the encoded pre-fusion
 
         Returns:
             `torch.Tensor`: pre-fusion representation
         """
-        return self.gw_encoders[domain_name](x[domain_name])
+        return self.gw_encoders[domain_name](x)
 
     def encode(self, x: LatentsDomainGroupT) -> torch.Tensor:
         """Encode the unimodal latent representation `x` into the GW representation.
