@@ -294,46 +294,6 @@ class GWModuleBase(nn.Module, ABC):
         ...
 
 
-def translation(
-    gw_module: GWModuleBase, x: LatentsDomainGroupT, to: str
-) -> torch.Tensor:
-    """Translate from multiple domains to one domain.
-
-    Args:
-        gw_module (`GWModuleBase`): GWModule to perform the translation over
-        x (`LatentsDomainGroupT`): the group of latent representations
-        to (`str`): the domain name to encode to
-
-    Returns:
-        `torch.Tensor`: the translated unimodal representation
-            of the provided domain.
-    """
-    return gw_module.decode(gw_module.encode(x), domains={to})[to]
-
-
-def cycle(
-    gw_module: GWModuleBase, x: LatentsDomainGroupT, through: str
-) -> LatentsDomainGroupDT:
-    """Do a full cycle from a group of representation through one domain.
-
-    [Original domains] -> [GW] -> [through] -> [GW] -> [Original domains]
-
-    Args:
-        gw_module (`GWModuleBase`): GWModule to perform the translation over
-        x (`LatentsDomainGroupT`): group of unimodal latent representation
-        through (`str`): domain name to cycle through
-    Returns:
-        `LatentsDomainGroupDT`: group of unimodal latent representation after
-            cycling.
-    """
-    return {
-        domain: translation(
-            gw_module, {through: translation(gw_module, x, through)}, domain
-        )
-        for domain in x.keys()
-    }
-
-
 class GWModule(GWModuleBase):
     """GW nn.Module. Implements `GWModuleBase`."""
 

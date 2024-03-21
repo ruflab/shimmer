@@ -31,6 +31,13 @@ from shimmer.modules.losses import (
     GWLossesWithUncertainty,
     LossCoefs,
 )
+from shimmer.modules.utils import (
+    batch_cycles,
+    batch_demi_cycles,
+    batch_translations,
+    cycle,
+    translation,
+)
 from shimmer.types import (
     LatentsDomainGroupDT,
     LatentsDomainGroupsDT,
@@ -81,4 +88,9 @@ __all__ = [
     "GWLosses",
     "GWLossesWithUncertainty",
     "RepeatedDataset",
+    "batch_cycles",
+    "batch_demi_cycles",
+    "batch_translations",
+    "cycle",
+    "translation",
 ]

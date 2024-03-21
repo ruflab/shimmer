@@ -31,6 +31,13 @@ from shimmer.modules.losses import (
     GWLossesWithUncertainty,
     LossCoefs,
 )
+from shimmer.modules.utils import (
+    batch_cycles,
+    batch_demi_cycles,
+    batch_translations,
+    cycle,
+    translation,
+)
 from shimmer.modules.vae import (
     VAE,
     VAEDecoder,
@@ -73,4 +80,9 @@ __all__ = [
     "VAEEncoder",
     "VAEDecoder",
     "VAE",
+    "batch_cycles",
+    "batch_demi_cycles",
+    "batch_translations",
+    "cycle",
+    "translation",
 ]
