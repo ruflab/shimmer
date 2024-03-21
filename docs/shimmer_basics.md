@@ -32,6 +32,8 @@ from typing import Literal
 
 import torch
 
+domain_sizes = {"domain1": 8, "domain2": 16}
+
 
 def get_domain_data(
     domain_name: Literal["domain1", "domain2"],
@@ -43,12 +45,12 @@ def get_domain_data(
     n_train = 256
     n_val = 128
     if domain_name == "domain1":
-        train_data = torch.randn(n_train, 8)
-        val_data = torch.randn(n_val, 8)
+        train_data = torch.randn(n_train, domain_sizes[domain_name])
+        val_data = torch.randn(n_val, domain_sizes[domain_name])
         return train_data, val_data
     if domain_name == "domain2":
-        train_data = torch.randn(n_train, 16)
-        val_data = torch.randn(n_val, 16)
+        train_data = torch.randn(n_train, domain_sizes[domain_name])
+        val_data = torch.randn(n_val, domain_sizes[domain_name])
         return train_data, val_data
 ```
 
@@ -145,8 +147,12 @@ class GenericDomain(DomainModule):
 
 With all this defined, we can make a script to train our unimodal module:
 ```python
+import os
+import shutil
 from typing import Literal
 
+from dataset import DomainDataModule, domain_sizes, get_domain_data
+from domains import GenericDomain
 from lightning.pytorch import Trainer
 from lightning.pytorch.callbacks import ModelCheckpoint
 
@@ -155,14 +161,16 @@ def train_unimodal_module(module_name: Literal["domain1", "domain2"]):
     train_data, val_data = get_domain_data(module_name)
 
     data = DomainDataModule(train_data, val_data, batch_size=32)
-    domain_module = GenericDomain(input_size=8, latent_dim=32)
+    domain_module = GenericDomain(input_size=domain_sizes[module_name], latent_dim=32)
 
     trainer = Trainer(
         max_epochs=4,
+        log_every_n_steps=4,  # log metrics every 4 training steps
+        devices=1,  # use only one GPU when training
         callbacks=[
             ModelCheckpoint(
-                dirpath="path/to/checkpoint/dir",
-                filename="{epoch}",
+                dirpath="checkpoints",
+                filename=module_name,
                 monitor="val_loss",
                 mode="min",
                 save_top_k=1,
@@ -174,8 +182,14 @@ def train_unimodal_module(module_name: Literal["domain1", "domain2"]):
 
 
 if __name__ == "__main__":
-    # Let's train domain1
+    # reset the checkpoints directory
+    if os.path.exists("checkpoints"):
+        shutil.rmtree("checkpoints")
+    os.mkdir("checkpoints")
+
+    # Let's train domain1 and domain2
     train_unimodal_module("domain1")
+    train_unimodal_module("domain2")
 ```
 
 We now have unimodal modules!
@@ -422,13 +436,14 @@ We already have all the building blocks, we just need to add them together!
 Let's make our `train_gw` function to train the final model:
 
 ```python
-from dataset import GWDataModule, get_domain_data, make_datasets
+from dataset import GWDataModule, domain_sizes, get_domain_data, make_datasets
 from domains import GenericDomain
 from lightning.pytorch import Trainer
 from lightning.pytorch.callbacks import ModelCheckpoint
 from torch import nn
 
 from shimmer import GlobalWorkspace, GWDecoder, GWEncoder, LossCoefs
+from shimmer.modules.global_workspace import SchedulerArgs
 
 
 def train_gw():
@@ -447,11 +462,21 @@ def train_gw():
     # The val set is completely paired and we do not add the unpaired datasets
     val_datasets = make_datasets(val_data, list(range(val_domain1.size(0))))
 
-    data = GWDataModule(val_datasets, train_datasets, batch_size=32)
+    batch_size = 32
+
+    data = GWDataModule(val_datasets, train_datasets, batch_size=batch_size)
 
     # We have pretrained the domain module, we need to load them.
-    domain_mod1 = GenericDomain.load_from_checkpoint("path/to/checkpoint/domain1.ckpt")
-    domain_mod2 = GenericDomain.load_from_checkpoint("path/to/checkpoint/domain2.ckpt")
+    domain_mod1 = GenericDomain.load_from_checkpoint(
+        "checkpoints/domain1.ckpt",
+        input_size=domain_sizes["domain1"],
+        latent_dim=32,
+    )
+    domain_mod2 = GenericDomain.load_from_checkpoint(
+        "checkpoints/domain2.ckpt",
+        input_size=domain_sizes["domain2"],
+        latent_dim=32,
+    )
 
     domain_mods = {
         "domain1": domain_mod1,
@@ -487,17 +512,33 @@ def train_gw():
         "contrastives": 0.01,
     }
 
+    n_epochs = 4
+
     global_workspace = GlobalWorkspace(
-        domain_mods, gw_encoders, gw_decoders, workspace_dim, loss_coefs
+        domain_mods,
+        gw_encoders,
+        gw_decoders,
+        workspace_dim,
+        loss_coefs,
+        # Secify learning rate scheduler arguments. It will use a
+        # [OneCycleLR](https://pytorch.org/docs/stable/generated/torch.optim.lr_scheduler.OneCycleLR.html#torch.optim.lr_scheduler.OneCycleLR)
+        scheduler_args=SchedulerArgs(
+            max_lr=1e-3,  # max learning rate of the OneCycle
+            # number of steps for training:
+            # number of epochs * dataset size (`train_domain1.size(0)`) / batch size
+            total_steps=n_epochs * train_domain1.size(0) // batch_size,
+        ),
     )
 
     trainer = Trainer(
-        max_epochs=4,
+        devices=1,  # only train on 1 GPU
+        max_epochs=n_epochs,
+        log_every_n_steps=1,  # evaluate metrics every step
         callbacks=[
             ModelCheckpoint(
-                dirpath="path/to/checkpoint/dir",
-                filename="{epoch}",
-                monitor="val_loss",
+                dirpath="checkpoints",
+                filename="gw",
+                monitor="val/loss",
                 mode="min",
                 save_top_k=1,
             ),
@@ -532,15 +573,25 @@ section.
     # The val set is completely paired and we do not add the unpaired datasets
     val_datasets = make_datasets(val_data, list(range(val_domain1.size(0))))
 
-    data = GWDataModule(val_datasets, train_datasets, batch_size=32)
+    batch_size = 32
+
+    data = GWDataModule(val_datasets, train_datasets, batch_size=batch_size)
 ```
 
 Then we load pretrained domains and put them in a dictionary indexed by the domain name.
 This should be the same as what was used for the data.
 ```python
     # We have pretrained the domain module, we need to load them.
-    domain_mod1 = GenericDomain.load_from_checkpoint("path/to/checkpoint/domain1.ckpt")
-    domain_mod2 = GenericDomain.load_from_checkpoint("path/to/checkpoint/domain2.ckpt")
+    domain_mod1 = GenericDomain.load_from_checkpoint(
+        "checkpoints/domain1.ckpt",
+        input_size=domain_sizes["domain1"],
+        latent_dim=32,
+    )
+    domain_mod2 = GenericDomain.load_from_checkpoint(
+        "checkpoints/domain2.ckpt",
+        input_size=domain_sizes["domain2"],
+        latent_dim=32,
+    )
 
     domain_mods = {
         "domain1": domain_mod1,
@@ -587,15 +638,36 @@ We define loss coefficients for the different losses. Note that `LossCoefs` is a
 Finally we make the GlobalWorkspace and train it.
 ```python
     global_workspace = GlobalWorkspace(
-        domain_mods, gw_encoders, gw_decoders, workspace_dim, loss_coefs
+        domain_mods,
+        gw_encoders,
+        gw_decoders,
+        workspace_dim,
+        loss_coefs,
+        # Secify learning rate scheduler arguments. It will use a
+        # [OneCycleLR](https://pytorch.org/docs/stable/generated/torch.optim.lr_scheduler.OneCycleLR.html#torch.optim.lr_scheduler.OneCycleLR)
+        scheduler_args=SchedulerArgs(
+            max_lr=1e-3,  # max learning rate of the OneCycle
+            # number of steps for training:
+            # number of epochs * dataset size (`train_domain1.size(0)`) / batch size
+            total_steps=n_epochs * train_domain1.size(0) // batch_size,
+        ),
     )
+```
+The learning scheduler currently uses [OneCycleLR](https://pytorch.org/docs/stable/generated/torch.optim.lr_scheduler.OneCycleLR.html#torch.optim.lr_scheduler.OneCycleLR)
+and there is no way of changing it currently.
 
+Moreover, the optimizer used is AdamW.
+
+
+```python
     trainer = Trainer(
-        max_epochs=4,
+        devices=1,  # only train on 1 GPU
+        max_epochs=n_epochs,
+        log_every_n_steps=1,  # evaluate metrics every step
         callbacks=[
             ModelCheckpoint(
-                dirpath="path/to/checkpoint/dir",
-                filename="{epoch}",
+                dirpath="checkpoints",
+                filename="gw",
                 monitor="val/loss",
                 mode="min",
                 save_top_k=1,

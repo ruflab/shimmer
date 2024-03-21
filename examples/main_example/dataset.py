@@ -8,6 +8,8 @@ from torch.utils.data import DataLoader, Dataset, TensorDataset
 
 from shimmer import RepeatedDataset
 
+domain_sizes = {"domain1": 8, "domain2": 16}
+
 
 def get_domain_data(
     domain_name: Literal["domain1", "domain2"],
@@ -19,12 +21,12 @@ def get_domain_data(
     n_train = 256
     n_val = 128
     if domain_name == "domain1":
-        train_data = torch.randn(n_train, 8)
-        val_data = torch.randn(n_val, 8)
+        train_data = torch.randn(n_train, domain_sizes[domain_name])
+        val_data = torch.randn(n_val, domain_sizes[domain_name])
         return train_data, val_data
     if domain_name == "domain2":
-        train_data = torch.randn(n_train, 16)
-        val_data = torch.randn(n_val, 16)
+        train_data = torch.randn(n_train, domain_sizes[domain_name])
+        val_data = torch.randn(n_val, domain_sizes[domain_name])
         return train_data, val_data
 
 
