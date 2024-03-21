@@ -651,7 +651,14 @@ Finally we make the GlobalWorkspace and train it.
             total_steps=n_epochs * train_domain1.size(0) // batch_size,
         ),
     )
+```
+The learning scheduler currently uses [OneCycleLR](https://pytorch.org/docs/stable/generated/torch.optim.lr_scheduler.OneCycleLR.html#torch.optim.lr_scheduler.OneCycleLR)
+and there is no way of changing it currently.
 
+Moreover, the optimizer used is AdamW.
+
+
+```python
     trainer = Trainer(
         devices=1,  # only train on 1 GPU
         max_epochs=n_epochs,
