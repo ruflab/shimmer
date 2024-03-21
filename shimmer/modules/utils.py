@@ -2,7 +2,7 @@ from collections.abc import Iterable
 
 import torch
 
-from shimmer.modules.gw_module import GWModuleBase
+from shimmer.modules.gw_module import GWModuleBase, GWModuleWithUncertainty
 from shimmer.types import (
     LatentsDomainGroupDT,
     LatentsDomainGroupsT,
@@ -27,6 +27,21 @@ def translation(
     return gw_module.decode(gw_module.encode(x), domains={to})[to]
 
 
+def translation_uncertainty(
+    gw_module: GWModuleWithUncertainty, x: LatentsDomainGroupT, to: str
+) -> torch.Tensor:
+    """Translate a latent representation to a specified domain.
+
+    Args:
+        x (`LatentsDomainGroupT`): group of latent representations.
+        to (`str`): domain name to translate to.
+
+    Returns:
+        `torch.Tensor`: translated unimodal representation in domain given in `to`.
+    """
+    return gw_module.decode(gw_module.encoded_mean(x), domains={to})[to]
+
+
 def cycle(
     gw_module: GWModuleBase, x: LatentsDomainGroupT, through: str
 ) -> LatentsDomainGroupDT:
@@ -45,6 +60,28 @@ def cycle(
     return {
         domain: translation(
             gw_module, {through: translation(gw_module, x, through)}, domain
+        )
+        for domain in x.keys()
+    }
+
+
+def cycle_uncertainty(
+    gw_module: GWModuleWithUncertainty, x: LatentsDomainGroupT, through: str
+) -> LatentsDomainGroupDT:
+    """Do a full cycle from a group of representation through one domain.
+
+    [Original domains] -> [GW] -> [through] -> [GW] -> [Original domains]
+
+    Args:
+        x (`LatentsDomainGroupT`): group of unimodal latent representation
+        through (`str`): domain name to cycle through
+    Returns:
+        `LatentsDomainGroupDT`: group of unimodal latent representation after
+            cycling.
+    """
+    return {
+        domain: translation_uncertainty(
+            gw_module, {through: translation_uncertainty(gw_module, x, through)}, domain
         )
         for domain in x.keys()
     }

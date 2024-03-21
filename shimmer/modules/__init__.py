@@ -36,7 +36,9 @@ from shimmer.modules.utils import (
     batch_demi_cycles,
     batch_translations,
     cycle,
+    cycle_uncertainty,
     translation,
+    translation_uncertainty,
 )
 from shimmer.modules.vae import (
     VAE,
@@ -85,4 +87,6 @@ __all__ = [
     "batch_translations",
     "cycle",
     "translation",
+    "cycle_uncertainty",
+    "translation_uncertainty",
 ]
