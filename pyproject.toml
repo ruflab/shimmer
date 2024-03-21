@@ -8,6 +8,7 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.11"
+torchvision = "^0.15.2"
 torch = "^2.0.1"
 lightning = "^2.1.0"
 numpy = "^1.25"
@@ -28,7 +29,6 @@ ruff = "^0.3.0"
 pre-commit = "^3.6.2"
 
 [tool.poetry.group.test.dependencies]
-torchvision = "^0.15.2"
 pytest = "^7.3.2"
 
 [tool.poetry.group.docs.dependencies]
