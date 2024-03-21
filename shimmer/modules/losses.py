@@ -233,7 +233,7 @@ def contrastive_loss(
 
         cont_latents = gw_mod.on_before_gw_encode_cont(latents)
         for domain1 in cont_latents.keys():
-            z1 = gw_mod.encode_pre_fusion(cont_latents, domain1)
+            z1 = gw_mod.encode_pre_fusion(cont_latents[domain1], domain1)
             for domain2 in cont_latents.keys():
                 selected_domains = {domain1, domain2}
                 if domain1 == domain2 or selected_domains in keys:
@@ -242,7 +242,7 @@ def contrastive_loss(
                 keys.append(selected_domains)
 
                 loss_name = f"contrastive_{domain1}_and_{domain2}"
-                z2 = gw_mod.encode_pre_fusion(cont_latents, domain2)
+                z2 = gw_mod.encode_pre_fusion(cont_latents[domain2], domain2)
                 loss_output = contrastive_fn(z1, z2)
                 losses[loss_name] = loss_output.loss
                 metrics.update(
@@ -715,10 +715,12 @@ class GWLossesFusion(GWLossesBase):
             batch_size = latents[next(iter(latents))].size(0)
             device = latents[next(iter(latents))].device
 
+            # TODO: don't hardcode the proportions (first param of the sample_scaling_factors function)
+
             if mode == "val":
                 scaling_factors = sample_scaling_factors(0.5, batch_size, 5.0, device)
             else:
-                scaling_factors = sample_scaling_factors(0.0, batch_size, 5.0, device)
+                scaling_factors = sample_scaling_factors(0.9, batch_size, 5.0, device)
 
             for scale_type, (
                 scaling_factor_1,
@@ -796,6 +798,6 @@ class GWLossesFusion(GWLossesBase):
         metrics.update(self.contrastive_loss(domain_latents))
         metrics.update(self.broadcast_loss(domain_latents, mode))
 
-        loss = metrics["broadcast"]
+        loss = metrics["broadcast"] + metrics["contrastives"]
 
         return LossOutput(loss, metrics)
