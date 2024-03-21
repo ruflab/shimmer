@@ -622,3 +622,20 @@ class GWModuleFusion(GWModuleBase):
                 for domain_name, domain in domains.items()
             }
         )
+
+    def decode(
+        self, z: torch.Tensor, domains: Iterable[str] | None = None
+    ) -> LatentsDomainGroupDT:
+        """Decodes a GW representation to multiple domains.
+
+        Args:
+            z (`torch.Tensor`): the GW representation
+            domains (`Iterable[str] | None`): the domains to decode to. Defaults to
+                use keys in `gw_interfaces` (all domains).
+        Returns:
+            `LatentsDomainGroupDT`: decoded unimodal representation
+        """
+        return {
+            domain: self.gw_decoders[domain](z)
+            for domain in domains or self.gw_decoders.keys()
+        }
