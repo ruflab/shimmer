@@ -82,15 +82,20 @@ def train_gw():
         gw_decoders,
         workspace_dim,
         loss_coefs,
+        # Secify learning rate scheduler arguments. It will use a
+        # [OneCycleLR](https://pytorch.org/docs/stable/generated/torch.optim.lr_scheduler.OneCycleLR.html#torch.optim.lr_scheduler.OneCycleLR)
         scheduler_args=SchedulerArgs(
-            max_lr=1e-3, total_steps=n_epochs * train_domain1.size(0) // batch_size
+            max_lr=1e-3,  # max learning rate of the OneCycle
+            # number of steps for training:
+            # number of epochs * dataset size (`train_domain1.size(0)`) / batch size
+            total_steps=n_epochs * train_domain1.size(0) // batch_size,
         ),
     )
 
     trainer = Trainer(
-        devices=1,
+        devices=1,  # only train on 1 GPU
         max_epochs=n_epochs,
-        log_every_n_steps=1,
+        log_every_n_steps=1,  # evaluate metrics every step
         callbacks=[
             ModelCheckpoint(
                 dirpath="checkpoints",

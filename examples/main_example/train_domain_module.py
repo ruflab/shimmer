@@ -16,8 +16,8 @@ def train_unimodal_module(module_name: Literal["domain1", "domain2"]):
 
     trainer = Trainer(
         max_epochs=4,
-        log_every_n_steps=4,
-        devices=1,
+        log_every_n_steps=4,  # log metrics every 4 training steps
+        devices=1,  # use only one GPU when training
         callbacks=[
             ModelCheckpoint(
                 dirpath="checkpoints",
