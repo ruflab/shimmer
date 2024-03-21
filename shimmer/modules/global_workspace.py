@@ -20,6 +20,8 @@ from shimmer.modules.gw_module import (
     GWModuleBase,
     GWModuleFusion,
     GWModuleWithUncertainty,
+    cycle,
+    translation,
 )
 from shimmer.modules.losses import (
     GWLosses,
@@ -226,7 +228,7 @@ class GlobalWorkspaceBase(LightningModule):
             if len(domains) > 1:
                 continue
             domain_name = list(domains)[0]
-            z = self.gw_mod.translate(latents, to=domain_name)
+            z = translation(self.gw_mod, latents, to=domain_name)
             predictions[domain_name] = z
         return predictions
 
@@ -250,7 +252,7 @@ class GlobalWorkspaceBase(LightningModule):
             for domain_name_target in self.domain_mods.keys():
                 if domain_name_source == domain_name_target:
                     continue
-                z = self.gw_mod.cycle(latents_source, through=domain_name_target)
+                z = cycle(self.gw_mod, latents_source, through=domain_name_target)
                 domains = (domain_name_source, domain_name_target)
                 predictions[domains] = z[domain_name_source]
         return predictions
@@ -275,7 +277,8 @@ class GlobalWorkspaceBase(LightningModule):
                 for domain_name_target in domains:
                     if domain_name_source == domain_name_target:
                         continue
-                    prediction = self.gw_mod.translate(
+                    prediction = translation(
+                        self.gw_mod,
                         {domain_name_source: latents[domain_name_source]},
                         to=domain_name_target,
                     )
