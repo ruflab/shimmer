@@ -183,7 +183,8 @@ def train_unimodal_module(module_name: Literal["domain1", "domain2"]):
 
 if __name__ == "__main__":
     # reset the checkpoints directory
-    shutil.rmtree("checkpoints")
+    if os.path.exists("checkpoints"):
+        shutil.rmtree("checkpoints")
     os.mkdir("checkpoints")
 
     # Let's train domain1 and domain2
