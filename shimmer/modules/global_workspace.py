@@ -28,7 +28,14 @@ from shimmer.modules.losses import (
     GWLossesWithUncertainty,
     LossCoefs,
 )
-from shimmer.modules.utils import batch_cycles, batch_demi_cycles, batch_translations
+from shimmer.modules.utils import (
+    batch_cycles,
+    batch_cycles_with_uncertainty,
+    batch_demi_cycles,
+    batch_demi_cycles_with_uncertainty,
+    batch_translations,
+    batch_translations_with_uncertainty,
+)
 from shimmer.types import (
     LatentsDomainGroupsDT,
     LatentsDomainGroupsT,
@@ -481,6 +488,8 @@ class GlobalWorkspaceWithUncertainty(GlobalWorkspaceBase):
     `__init__` method.
     """
 
+    gw_mod: GWModuleWithUncertainty
+
     def __init__(
         self,
         domain_mods: Mapping[str, DomainModule],
@@ -553,6 +562,29 @@ class GlobalWorkspaceWithUncertainty(GlobalWorkspaceBase):
         )
 
         super().__init__(gw_mod, loss_mod, optim_lr, optim_weight_decay, scheduler_args)
+
+    def forward(  # type: ignore
+        self,
+        latent_domains: LatentsDomainGroupsT,
+    ) -> GWPredictions:
+        """Computes demi-cycles, cycles, and translations.
+
+        Args:
+            latent_domains (`LatentsT`): Groups of domains for the computation.
+
+        Returns:
+            `GWPredictions`: the predictions on the batch.
+        """
+        return GWPredictions(
+            demi_cycles=batch_demi_cycles_with_uncertainty(self.gw_mod, latent_domains),
+            cycles=batch_cycles_with_uncertainty(
+                self.gw_mod, latent_domains, self.domain_mods.keys()
+            ),
+            translations=batch_translations_with_uncertainty(
+                self.gw_mod, latent_domains
+            ),
+            **super().forward(latent_domains),
+        )
 
 
 class GlobalWorkspaceFusion(GlobalWorkspaceBase):
