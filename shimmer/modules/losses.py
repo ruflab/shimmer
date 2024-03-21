@@ -10,7 +10,12 @@ from shimmer.modules.contrastive_loss import (
     ContrastiveLossWithUncertaintyType,
 )
 from shimmer.modules.domain import DomainModule, LossOutput
-from shimmer.modules.gw_module import GWModule, GWModuleBase, GWModuleWithUncertainty
+from shimmer.modules.gw_module import (
+    GWModule,
+    GWModuleBase,
+    GWModuleFusion,
+    GWModuleWithUncertainty,
+)
 from shimmer.types import LatentsDomainGroupsT, ModelModeT
 
 
@@ -674,7 +679,7 @@ def sample_scaling_factors(
 class GWLossesFusion(GWLossesBase):
     def __init__(
         self,
-        gw_mod: GWModule,
+        gw_mod: GWModuleFusion,
         domain_mods: dict[str, DomainModule],
         contrastive_fn: ContrastiveLossType,
     ):

@@ -49,3 +49,8 @@ refers to `DeterministicGlobalWorkspace`.
 * Remove `GWInterfaces` entirely and favor giving encoders and decoders directly to the
     `GWModule`. See the updated example `examples/main_example/train_gw.py` to see what 
     changes to make (see https://github.com/bdvllrs/shimmer/pull/9).
+* Remove `GWModuleBase.translate`  and `GWModuleBase.cycle`. Translation and cycles
+    can now be done with the utils function `translation` and `cycle`.
+* Remove `GlobalWorkspaceBase.batch_demi_cycles`, `GlobalWorkspaceBase.batch_cycles`, 
+    and `GlobalWorkspaceBase.batch_translations`. This can be done with utils
+    functions of the same name.
