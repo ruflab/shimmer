@@ -1,10 +1,11 @@
-from dataset import GWDataModule, get_domain_data, make_datasets
+from dataset import GWDataModule, domain_sizes, get_domain_data, make_datasets
 from domains import GenericDomain
 from lightning.pytorch import Trainer
 from lightning.pytorch.callbacks import ModelCheckpoint
 from torch import nn
 
 from shimmer import GlobalWorkspace, GWDecoder, GWEncoder, LossCoefs
+from shimmer.modules.global_workspace import SchedulerArgs
 
 
 def train_gw():
@@ -23,11 +24,21 @@ def train_gw():
     # The val set is completely paired and we do not add the unpaired datasets
     val_datasets = make_datasets(val_data, list(range(val_domain1.size(0))))
 
-    data = GWDataModule(val_datasets, train_datasets, batch_size=32)
+    batch_size = 32
+
+    data = GWDataModule(val_datasets, train_datasets, batch_size=batch_size)
 
     # We have pretrained the domain module, we need to load them.
-    domain_mod1 = GenericDomain.load_from_checkpoint("path/to/checkpoint/domain1.ckpt")
-    domain_mod2 = GenericDomain.load_from_checkpoint("path/to/checkpoint/domain2.ckpt")
+    domain_mod1 = GenericDomain.load_from_checkpoint(
+        "checkpoints/domain1.ckpt",
+        input_size=domain_sizes["domain1"],
+        latent_dim=32,
+    )
+    domain_mod2 = GenericDomain.load_from_checkpoint(
+        "checkpoints/domain2.ckpt",
+        input_size=domain_sizes["domain2"],
+        latent_dim=32,
+    )
 
     domain_mods = {
         "domain1": domain_mod1,
@@ -63,17 +74,28 @@ def train_gw():
         "contrastives": 0.01,
     }
 
+    n_epochs = 4
+
     global_workspace = GlobalWorkspace(
-        domain_mods, gw_encoders, gw_decoders, workspace_dim, loss_coefs
+        domain_mods,
+        gw_encoders,
+        gw_decoders,
+        workspace_dim,
+        loss_coefs,
+        scheduler_args=SchedulerArgs(
+            max_lr=1e-3, total_steps=n_epochs * train_domain1.size(0) // batch_size
+        ),
     )
 
     trainer = Trainer(
-        max_epochs=4,
+        devices=1,
+        max_epochs=n_epochs,
+        log_every_n_steps=1,
         callbacks=[
             ModelCheckpoint(
-                dirpath="path/to/checkpoint/dir",
-                filename="{epoch}",
-                monitor="val_loss",
+                dirpath="checkpoints",
+                filename="gw",
+                monitor="val/loss",
                 mode="min",
                 save_top_k=1,
             ),
