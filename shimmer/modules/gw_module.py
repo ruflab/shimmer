@@ -293,35 +293,45 @@ class GWModuleBase(nn.Module, ABC):
         """
         ...
 
-    @abstractmethod
-    def translate(self, x: LatentsDomainGroupT, to: str) -> torch.Tensor:
-        """
-        Translate from one domain to another.
 
-        Args:
-            x (`LatentsDomainGroupT`): mapping of domain name
-                to unimodal representation.
-            to (`str`): domain to translate to.
-        Returns:
-            `torch.Tensor`: the unimodal representation of domain given by `to`.
-        """
-        ...
+def translation(
+    gw_module: GWModuleBase, x: LatentsDomainGroupT, to: str
+) -> torch.Tensor:
+    """Translate from multiple domains to one domain.
 
-    @abstractmethod
-    def cycle(self, x: LatentsDomainGroupT, through: str) -> LatentsDomainGroupDT:
-        """
-        Cycle from one domain through another.
+    Args:
+        gw_module (`GWModuleBase`): GWModule to perform the translation over
+        x (`LatentsDomainGroupT`): the group of latent representations
+        to (`str`): the domain name to encode to
 
-        Args:
-            x (`LatentsDomainGroupT`): mapping of domain name
-                to unimodal representation.
-            through (`str`): intermediate domain of the cycle
+    Returns:
+        `torch.Tensor`: the translated unimodal representation
+            of the provided domain.
+    """
+    return gw_module.decode(gw_module.encode(x), domains={to})[to]
 
-        Returns:
-            `LatentsDomainGroupDT`: the decoded unimodal representations after the
-            cycle.
-        """
-        ...
+
+def cycle(
+    gw_module: GWModuleBase, x: LatentsDomainGroupT, through: str
+) -> LatentsDomainGroupDT:
+    """Do a full cycle from a group of representation through one domain.
+
+    [Original domains] -> [GW] -> [through] -> [GW] -> [Original domains]
+
+    Args:
+        gw_module (`GWModuleBase`): GWModule to perform the translation over
+        x (`LatentsDomainGroupT`): group of unimodal latent representation
+        through (`str`): domain name to cycle through
+    Returns:
+        `LatentsDomainGroupDT`: group of unimodal latent representation after
+            cycling.
+    """
+    return {
+        domain: translation(
+            gw_module, {through: translation(gw_module, x, through)}, domain
+        )
+        for domain in x.keys()
+    }
 
 
 class GWModule(GWModuleBase):
@@ -409,36 +419,6 @@ class GWModule(GWModuleBase):
         return {
             domain: self.gw_decoders[domain](z)
             for domain in domains or self.gw_decoders.keys()
-        }
-
-    def translate(self, x: LatentsDomainGroupT, to: str) -> torch.Tensor:
-        """Translate from multiple domains to one domain.
-
-        Args:
-            x (`LatentsDomainGroupT`): the group of latent representations
-            to (`str`): the domain name to encode to
-
-        Returns:
-            `torch.Tensor`: the translated unimodal representation
-                of the provided domain.
-        """
-        return self.decode(self.encode(x), domains={to})[to]
-
-    def cycle(self, x: LatentsDomainGroupT, through: str) -> LatentsDomainGroupDT:
-        """Do a full cycle from a group of representation through one domain.
-
-        [Original domains] -> [GW] -> [through] -> [GW] -> [Original domains]
-
-        Args:
-            x (`LatentsDomainGroupT`): group of unimodal latent representation
-            through (`str`): domain name to cycle through
-        Returns:
-            `LatentsDomainGroupDT`: group of unimodal latent representation after
-                cycling.
-        """
-        return {
-            domain: self.translate({through: self.translate(x, through)}, domain)
-            for domain in x.keys()
         }
 
 
@@ -563,37 +543,76 @@ class GWModuleWithUncertainty(GWModuleBase):
             for domain in domains or self.gw_decoders.keys()
         }
 
-    def translate(self, x: LatentsDomainGroupT, to: str) -> torch.Tensor:
-        """Translate a latent representation to a specified domain.
+
+def translation_uncertainty(
+    gw_module: GWModuleWithUncertainty, x: LatentsDomainGroupT, to: str
+) -> torch.Tensor:
+    """Translate a latent representation to a specified domain.
+
+    Args:
+        x (`LatentsDomainGroupT`): group of latent representations.
+        to (`str`): domain name to translate to.
+
+    Returns:
+        `torch.Tensor`: translated unimodal representation in domain given in `to`.
+    """
+    return gw_module.decode(gw_module.encoded_mean(x), domains={to})[to]
+
+
+def cycle_uncertainty(
+    gw_module: GWModuleWithUncertainty, x: LatentsDomainGroupT, through: str
+) -> LatentsDomainGroupDT:
+    """Do a full cycle from a group of representation through one domain.
+
+    [Original domains] -> [GW] -> [through] -> [GW] -> [Original domains]
+
+    Args:
+        x (`LatentsDomainGroupT`): group of unimodal latent representation
+        through (`str`): domain name to cycle through
+    Returns:
+        `LatentsDomainGroupDT`: group of unimodal latent representation after
+            cycling.
+    """
+    return {
+        domain: translation_uncertainty(
+            gw_module, {through: translation_uncertainty(gw_module, x, through)}, domain
+        )
+        for domain in x.keys()
+    }
+
+
+class GWModuleFusion(GWModuleBase):
+    """
+    GWModule used for fusion.
+    """
+
+    def __init__(
+        self,
+        domain_modules: Mapping[str, DomainModule],
+        workspace_dim: int,
+        gw_encoders: Mapping[str, nn.Module],
+        gw_decoders: Mapping[str, nn.Module],
+    ) -> None:
+        """Initializes the GWModule Fusion.
 
         Args:
-            x (`LatentsDomainGroupT`): group of latent representations.
-            to (`str`): domain name to translate to.
-
-        Returns:
-            `torch.Tensor`: translated unimodal representation in domain given in `to`.
+            domain_modules (`Mapping[str, DomainModule]`): the domain modules.
+            workspace_dim (`int`): dimension of the GW.
+            gw_encoders (`Mapping[str, torch.nn.Module]`): mapping for each domain
+                name to a an torch.nn.Module class that encodes a
+                unimodal latent representations into a GW representation (pre fusion).
+            gw_decoders (`Mapping[str, torch.nn.Module]`): mapping for each domain
+                name to a an torch.nn.Module class that decodes a
+                 GW representation to a unimodal latent representation.
         """
-        return self.decode(self.encoded_mean(x), domains={to})[to]
+        super().__init__(domain_modules, workspace_dim)
 
-    def cycle(self, x: LatentsDomainGroupT, through: str) -> LatentsDomainGroupDT:
-        """Do a full cycle from a group of representation through one domain.
+        self.gw_encoders = nn.ModuleDict(gw_encoders)
+        """The module's encoders"""
 
-        [Original domains] -> [GW] -> [through] -> [GW] -> [Original domains]
+        self.gw_decoders = nn.ModuleDict(gw_decoders)
+        """The module's decoders"""
 
-        Args:
-            x (`LatentsDomainGroupT`): group of unimodal latent representation
-            through (`str`): domain name to cycle through
-        Returns:
-            `LatentsDomainGroupDT`: group of unimodal latent representation after
-                cycling.
-        """
-        return {
-            domain: self.translate({through: self.translate(x, through)}, domain)
-            for domain in x.keys()
-        }
-
-
-class GWModuleFusion(GWModule):
     def fusion_mechanism(self, x: LatentsDomainGroupT) -> torch.Tensor:
         """
         Merge function used to combine domains.
