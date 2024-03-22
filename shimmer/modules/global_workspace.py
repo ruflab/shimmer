@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Any, TypedDict, cast
 
 import torch
+import torch.nn as nn
 from lightning.pytorch import LightningModule
 from lightning.pytorch.utilities.types import OptimizerLRSchedulerConfig
 from torch.nn import Module, ModuleDict
@@ -666,14 +667,16 @@ class AttentionMechanism(nn.Module):
             'v_latents': nn.Linear(domain_dim, head_size),
             'attr': nn.Linear(domain_dim, head_size)
         })
-        self.gw_vector = torch.randn(domain_dim).to(device)  # Fixed random global workspace vector
+        self.gw_vector = torch.randn(domain_dim)  # Fixed random global workspace vector
         self.attention_scores = None  # Attribute to store the latest attention scores
 
     def forward(self, domain_encodings: LatentsDomainGroupT) -> LatentsDomainGroupT:
         # Initialize key_layers if not already done
         keys = {domain: self.key_layers[domain](encoding) for domain, encoding in domain_encodings.items()}
 
-        query = self.query_layer(self.gw_vector)
+        device = next(iter(keys.values())).device
+
+        query = self.query_layer(self.gw_vector.to(device))
 
         # Calculate dot products for each domain
         dot_products = [torch.sum(key_tensor * query, dim=1) for key_tensor in keys.values()]
@@ -704,11 +707,10 @@ class AttentionGlobalWorkspace(LightningModule):
     def __init__(
         self,
         global_workspace: GlobalWorkspaceFusion,#need to do fusion
-        loss_mod: nn.Module(), #peutêtre faire plus spécifique, mais par exemple ici ça serait la loss de prédiction du classifieur dans mon cas
+        loss_mod: GWLossesBase, #peutêtre faire plus spécifique, mais par exemple ici ça serait la loss de prédiction du classifieur dans mon cas
         optim_lr: float = 1e-3,
         optim_weight_decay: float = 0.0,
-        scheduler_args: SchedulerArgs | None = None,
-        attention_mechanism: AttentionMechanism
+        scheduler_args: SchedulerArgs | None = None
     ) -> None:
 
         super().__init__()
@@ -721,7 +723,7 @@ class AttentionGlobalWorkspace(LightningModule):
                 "contrastive_loss",
                 "cont_loss_with_uncertainty",
                 "gw_encoders",
-                "gw_decoders",,
+                "gw_decoders",
                 "attention_mechanism",
             ]
         )
@@ -771,7 +773,7 @@ class AttentionGlobalWorkspace(LightningModule):
 
         batch_size = groups_batch_size(domain_latents)
 
-        loss_output = self.loss_mod.step(domain_latents, mode)
+        loss_output = self.loss_mod.step(attended_latents, mode)
 
         for name, metric in loss_output.all.items():
             self.log(
@@ -795,7 +797,7 @@ class AttentionGlobalWorkspace(LightningModule):
         Returns:
             `dict[str, torch.Tensor]`: states for each domain.
         """
-        return self.global_workspace.batch_gw_states(self.attention_mechanism(x))
+        return self.global_workspace.batch_gw_states(self.attention_mechanism(latent_domains))
 
 
 

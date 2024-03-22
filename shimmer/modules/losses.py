@@ -3,6 +3,7 @@ from collections.abc import Mapping
 from typing import TypedDict
 
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 
 from shimmer.modules.contrastive_loss import (
@@ -818,12 +819,13 @@ class GWLossesShapesClassifierAttention(GWLossesBase):
         self,
         gw_mod: GWModuleFusion,
         domain_mods: dict[str, DomainModule],
-        classification_head: nn.Module()
+        classification_head: torch.nn.Module
     ):
         super().__init__()
         self.gw_mod = gw_mod
         self.domain_mods = domain_mods
         self.classification_head = classification_head
+        self.criterion = nn.CrossEntropyLoss()
 
 
 
@@ -835,14 +837,14 @@ class GWLossesShapesClassifierAttention(GWLossesBase):
         losses: dict[str, torch.Tensor] = {}
         metrics: dict[str, torch.Tensor] = {}
 
-        gw_vector = self.gw_mod.encode(scaled_latents)
+        gw_vector = self.gw_mod.encode(latent_domains)
         #apply nonlinearity
-        gw_vector = torch.tanh(encoded_latents_for_subset)
+        gw_vector = torch.tanh(gw_vector)
 
         #metrics omitted
 
-        shape_logits = classification_head(gw_vector)
-        losses["classifier_loss"] = criterion(shape_logits_v_latents, shape_class_indices)
+        shape_logits = self.classification_head(gw_vector)
+        losses["classifier_loss"] = (shape_logits, shape_class_indices)
 
         losses.update(metrics)
         return losses
