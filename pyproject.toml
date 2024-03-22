@@ -36,6 +36,9 @@ pytest = "^7.3.2"
 [tool.poetry.group.docs.dependencies]
 pdoc = "^14.4.0"
 
+[tool.poetry.scripts]
+shimmer = "shimmer.cli:cli"
+
 
 [build-system]
 requires = ["poetry-core"]
