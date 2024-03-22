@@ -11,6 +11,8 @@ modules = [
     "shimmer.modules.contrastive_loss",
     "shimmer.dataset",
     "shimmer.modules.vae",
+    "shimmer.modules.utils",
+    "shimmer.utils",
 ]
 
 here = Path(__file__).parent
