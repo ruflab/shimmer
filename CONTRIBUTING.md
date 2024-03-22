@@ -21,20 +21,35 @@ This project is fully typed, so any contribution should provide typing annotatio
 
 To run the tools locally, make sure that you have installed dependencies with dev group:
 ```sh
-poetry install --with=dev
+poetry install --with=dev --with=test
 ```
 
 Then you can run:
 ```sh
-poetry run ruff check . --fix  # lint the project (and fix errors if ruff can)
+poetry run ruff check --fix  # lint the project (and fix errors if ruff can)
 ```
 ```sh
-poetry run ruff format .  # reformat the project
+poetry run ruff format  # reformat the project
+```
+
+There is a [pre-commit](https://pre-commit.com/) configuration set to lint and
+reformat usinf ruff. Set it up to everything with each commit.
+
+To install the pre-commit hooks:
+```sh
+poetry run pre-commit install
+```
+After this command, the ruff format and checks will be automatically done before
+each commit.
+
+You can test the hook by running it explicitely:
+```sh
+poetry run pre-commit run --all-files
 ```
 
 > [!NOTE]
-> There is a [pre-commit](https://pre-commit.com/) configuration set to lint and
-> reformat usinf ruff. Set it up to everything with each commit.
+> mypy can be long to execute, so it is not ran as a pre-commit hook.
+> you can run it manually, or let github run it for you when you push.
 
 To check type issues with mypy:
 ```sh
@@ -44,12 +59,6 @@ poetry run mypy --install-types .
 ## Tests
 We use [pytest](https://github.com/pytest-dev/pytest/).
 
-Make sure you installed with test dependencies:
-```sh
-poetry install --with=test
-```
-
-Then:
 ```sh
 poetry run pytest tests/
 ```
