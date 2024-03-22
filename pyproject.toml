@@ -5,6 +5,7 @@ description = "A light GLoW"
 authors = ["bdvllrs <bdvllrs@gmail.com>"]
 license = "MIT"
 readme = "README.md"
+include = [{path = "ckpt_migration"}]
 
 [tool.poetry.dependencies]
 python = "^3.11"
@@ -13,6 +14,7 @@ lightning = "^2.1.0"
 numpy = "^1.25"
 pandas = "^2.0.2"
 matplotlib = "^3.7.1"
+migrate-ckpt = {git = "https://github.com/bdvllrs/migrate-ckpt.git", rev = "main"}
 
 [tool.poetry.group.dev.dependencies]
 types-tqdm = "^4.65.0.1"

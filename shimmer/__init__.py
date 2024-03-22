@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from shimmer.dataset import RepeatedDataset
 from shimmer.modules.contrastive_loss import (
     ContrastiveLoss,
@@ -56,6 +58,8 @@ from shimmer.types import (
 )
 from shimmer.version import __version__
 
+MIGRATION_DIR = Path(__file__).parent.parent / "ckpt_migrations"
+
 __all__ = [
     "__version__",
     "LatentsDomainGroupDT",
@@ -103,4 +107,5 @@ __all__ = [
     "batch_translations_with_uncertainty",
     "batch_demi_cycles_with_uncertainty",
     "batch_cycles_with_uncertainty",
+    "MIGRATION_DIR",
 ]
