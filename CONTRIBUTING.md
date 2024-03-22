@@ -33,7 +33,7 @@ poetry run ruff format  # reformat the project
 ```
 
 There is a [pre-commit](https://pre-commit.com/) configuration set to lint and
-reformat usinf ruff. Set it up to everything with each commit.
+reformat using ruff. Set it up to run all automated checks before each commit:
 
 To install the pre-commit hooks:
 ```sh
