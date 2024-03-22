@@ -2,13 +2,8 @@ from collections.abc import Sequence
 from pathlib import Path
 
 import click
-import torch
-from migrate_ckpt import (
-    ckpt_migration_key,
-    migrate_from_folder,
-)
 
-from shimmer import MIGRATION_DIR
+from shimmer.utils import migrate_model
 
 
 @click.command("migrate-ckpt")
@@ -19,13 +14,4 @@ from shimmer import MIGRATION_DIR
 )
 def migrate_ckpt(paths: Sequence[Path]):
     for path in paths:
-        ckpt = torch.load(path, map_location="cpu")
-        new_ckpt, done_migrations = migrate_from_folder(ckpt, MIGRATION_DIR)
-        done_migration_log = ", ".join(map(lambda x: x.name, done_migrations))
-        print(f"Migrating: {done_migration_log}")
-        if len(done_migrations) or ckpt_migration_key not in ckpt:
-            version = 0
-            if ckpt_migration_key in ckpt:
-                version = len(ckpt[ckpt_migration_key])
-            torch.save(ckpt, path.with_stem(f"{path.stem}-{version}"))
-            torch.save(new_ckpt, path)
+        migrate_model(path)
