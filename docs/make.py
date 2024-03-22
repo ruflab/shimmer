@@ -38,13 +38,13 @@ if __name__ == "__main__":
 
     latest_version: None | str = None
     doc_versions: list[str] = []
-    for version in (here / "api").iterdir():
-        if version.name == "index.html":
+    for folder in (here / "api").iterdir():
+        if folder.name == "index.html":
             continue
-        if version.name != "latest":
-            doc_versions.append(version.name)
+        if folder.name != "latest":
+            doc_versions.append(folder.name)
         else:
-            latest_version = version.name
+            latest_version = folder.name
     doc_versions = list(sorted(doc_versions, reverse=True))
     if latest_version is not None:
         doc_versions = [latest_version] + doc_versions
