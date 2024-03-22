@@ -803,3 +803,65 @@ class GWLossesFusion(GWLossesBase):
         loss = metrics["broadcast"] + metrics["contrastives"]
 
         return LossOutput(loss, metrics)
+
+
+
+
+
+#TODO : proper documentation
+class GWLossesShapesClassifierAttention(GWLossesBase):
+    """
+    pass the attented-to and fused global workspace vector through a pretrained classifier to get its classification loss
+    """
+
+    def __init__(
+        self,
+        gw_mod: GWModuleFusion,
+        domain_mods: dict[str, DomainModule],
+        classification_head: nn.Module()
+    ):
+        super().__init__()
+        self.gw_mod = gw_mod
+        self.domain_mods = domain_mods
+        self.classification_head = classification_head
+
+
+
+    def classifier_loss(
+        self, latent_domains: LatentsDomainGroupsT,
+        mode: ModelModeT,
+        shape_class_indices: torch.Tensor
+    ) -> dict[str, torch.Tensor]:
+        losses: dict[str, torch.Tensor] = {}
+        metrics: dict[str, torch.Tensor] = {}
+
+        gw_vector = self.gw_mod.encode(scaled_latents)
+        #apply nonlinearity
+        gw_vector = torch.tanh(encoded_latents_for_subset)
+
+        #metrics omitted
+
+        shape_logits = classification_head(gw_vector)
+        losses["classifier_loss"] = criterion(shape_logits_v_latents, shape_class_indices)
+
+        losses.update(metrics)
+        return losses
+
+    def step(
+        self,
+        domain_latents: LatentsDomainGroupsT,
+        mode: ModelModeT,
+    ) -> LossOutput:
+
+        #!!!!!problem : we need an extra input argument for the shape info ground truth
+        #but that's not clean !
+        #we could set it from the lightningmodule, as loss_mod.shape_info before calling the step() function but that's also not clean
+        shape_class_indices = None#just a draft, this for ruff
+
+        metrics: dict[str, torch.Tensor] = {}
+
+        metrics.update(self.classifier_loss(domain_latents, shape_class_indices))
+
+        loss = metrics["classifier_loss"]#as metrics we would have all the scale-wise and domain-wise-corrupted losses and accuracies
+
+        return LossOutput(loss, metrics)

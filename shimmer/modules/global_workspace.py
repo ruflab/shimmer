@@ -656,6 +656,150 @@ class GlobalWorkspaceFusion(GlobalWorkspaceBase):
         super().__init__(gw_mod, loss_mod, optim_lr, optim_weight_decay, scheduler_args)
 
 
+
+class AttentionMechanism(nn.Module):
+    def __init__(self, domain_dim, head_size):
+        super().__init__()
+        self.head_size = head_size
+        self.query_layer = nn.Linear(domain_dim, head_size)
+        self.key_layers = nn.ModuleDict({
+            'v_latents': nn.Linear(domain_dim, head_size),
+            'attr': nn.Linear(domain_dim, head_size)
+        })
+        self.gw_vector = torch.randn(domain_dim).to(device)  # Fixed random global workspace vector
+        self.attention_scores = None  # Attribute to store the latest attention scores
+
+    def forward(self, domain_encodings: LatentsDomainGroupT) -> LatentsDomainGroupT:
+        # Initialize key_layers if not already done
+        keys = {domain: self.key_layers[domain](encoding) for domain, encoding in domain_encodings.items()}
+
+        query = self.query_layer(self.gw_vector)
+
+        # Calculate dot products for each domain
+        dot_products = [torch.sum(key_tensor * query, dim=1) for key_tensor in keys.values()]
+
+        # Organize the dot products into a 2D tensor [number_of_domains, 2]
+        dot_products_tensor = torch.stack(dot_products)
+
+        attention_scores = torch.softmax(dot_products_tensor,dim=0)
+
+        # Scale the input latents by attention scores and print before and after scaling for the first two pairs
+        weighted_encodings = {}
+        for idx, (domain, encoding) in enumerate(domain_encodings.items()):
+            # Reshape attention scores to match the encoding shape for broadcasting
+            scaled_latent = encoding * attention_scores[idx].unsqueeze(1).expand_as(encoding)
+            weighted_encodings[domain] = scaled_latent
+
+        return weighted_encodings
+
+
+
+#The GWencoders are in gw_module.py so I'm putting this here, but I think it would be cleaner to put it in utils or something
+class AttentionGlobalWorkspace(LightningModule):
+    """Attention Global Workspace Lightning Module.
+
+    This is the class to train an attention module on top of a frozen global workspace.
+    """
+
+    def __init__(
+        self,
+        global_workspace: GlobalWorkspaceFusion,#need to do fusion
+        loss_mod: nn.Module(), #peutêtre faire plus spécifique, mais par exemple ici ça serait la loss de prédiction du classifieur dans mon cas
+        optim_lr: float = 1e-3,
+        optim_weight_decay: float = 0.0,
+        scheduler_args: SchedulerArgs | None = None,
+        attention_mechanism: AttentionMechanism
+    ) -> None:
+
+        super().__init__()
+        self.save_hyperparameters(
+            ignore=[
+                "gw_mod",
+                "domain_mods",
+                "loss_mod",
+                "domain_descriptions",
+                "contrastive_loss",
+                "cont_loss_with_uncertainty",
+                "gw_encoders",
+                "gw_decoders",,
+                "attention_mechanism",
+            ]
+        )
+
+        self.global_workspace = global_workspace
+        """ a `fusion-compatible global workspace` implementation."""
+
+        self.loss_mod = loss_mod
+        """The module that computes losses of the attention module (usually a downstream task"""
+
+        self.optim_lr = optim_lr
+        self.optim_weight_decay = optim_weight_decay
+        self.scheduler_args = SchedulerArgs(max_lr=optim_lr, total_steps=1)
+        if scheduler_args is not None:
+            self.scheduler_args.update(scheduler_args)
+
+    def encode(self, x: LatentsDomainGroupT) -> torch.Tensor:
+        """Encode latent representations into the GW representation.
+
+        This directly calls `GWModuleBase.encode` and is a convenient proxy to
+        ```python
+        self.gw_mod.encode(x)
+        ```
+
+        Args:
+            x (`LatentsDomainGroupT`): the input domain representations.
+
+        Returns:
+            `torch.Tensor`: the GW representations.
+        """
+        return self.global_workspace.encode(self.attention_mechanism(x))
+
+    def generic_step(self, batch: RawDomainGroupsT, mode: ModelModeT) -> torch.Tensor:
+        """The generic step used in `training_step`, `validation_step` and
+        `test_step`.
+
+        Args:
+            batch (`RawDomainGroupsT`): the batch of groups of raw unimodal data.
+            mode (`ModelModeT`):
+
+        Returns:
+            `torch.Tensor`: the loss to train on.
+        """
+        domain_latents = self.encode_domains(batch)
+
+        attended_latents = self.attention_mechanism(domain_latents)#not the loss mod's responsibility
+
+        batch_size = groups_batch_size(domain_latents)
+
+        loss_output = self.loss_mod.step(domain_latents, mode)
+
+        for name, metric in loss_output.all.items():
+            self.log(
+                f"{mode}/{name}",
+                metric,
+                batch_size=batch_size,
+                add_dataloader_idx=False,
+            )
+
+        return loss_output.loss
+
+
+    def batch_gw_states(
+        self, latent_domains: LatentsDomainGroupsT
+    ) -> dict[str, torch.Tensor]:
+        """Comptues GW states of a batch of groups of domains.
+
+        Args:
+            latent_domains (`LatentsT`): the batch of groups of domains
+
+        Returns:
+            `dict[str, torch.Tensor]`: states for each domain.
+        """
+        return self.global_workspace.batch_gw_states(self.attention_mechanism(x))
+
+
+
+
 def pretrained_global_workspace(
     checkpoint_path: str | Path,
     domain_mods: Mapping[str, DomainModule],
