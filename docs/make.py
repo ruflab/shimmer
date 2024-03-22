@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 
 import pdoc
@@ -18,5 +19,10 @@ modules = [
 here = Path(__file__).parent
 
 if __name__ == "__main__":
+    args = sys.argv[1:]
+    version = "latest"
+    if len(args):
+        version = args[0]
+
     pdoc.render.configure(docformat="google", math=True)
-    pdoc.pdoc(*modules, output_directory=here / "api")
+    pdoc.pdoc(*modules, output_directory=here / "api" / version)
