@@ -12,7 +12,7 @@ from migrate_ckpt import (
 
 from shimmer.types import LatentsDomainGroupsT, LatentsDomainGroupT
 
-MIGRATION_DIR = Path(__file__).parent.parent / "ckpt_migrations"
+MIGRATION_DIR = Path(__file__).parent / "ckpt_migrations"
 
 
 def group_batch_size(x: LatentsDomainGroupT) -> int:

@@ -5,7 +5,6 @@ description = "A light GLoW"
 authors = ["bdvllrs <bdvllrs@gmail.com>"]
 license = "MIT"
 readme = "README.md"
-include = [{path = "ckpt_migration"}]
 
 [tool.poetry.dependencies]
 python = "^3.11"
