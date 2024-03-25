@@ -836,7 +836,7 @@ class GWLossesShapesClassifierAttention(GWLossesBase):
         losses: dict[str, torch.Tensor] = {}
         metrics: dict[str, torch.Tensor] = {}
 
-        losses|"classifier_loss"] = torch.tensor(0.)
+        losses["classifier_loss"] = torch.tensor(0.)
 
         for domains, latents in latent_domains.items():
             if len(domains) != 2:#the shapes classification task happens on two modalities, with paired data
