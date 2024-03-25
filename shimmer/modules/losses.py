@@ -831,20 +831,25 @@ class GWLossesShapesClassifierAttention(GWLossesBase):
 
     def classifier_loss(
         self, latent_domains: LatentsDomainGroupsT,
-        mode: ModelModeT,
         shape_class_indices: torch.Tensor
     ) -> dict[str, torch.Tensor]:
         losses: dict[str, torch.Tensor] = {}
         metrics: dict[str, torch.Tensor] = {}
 
-        gw_vector = self.gw_mod.encode(latent_domains)
-        #apply nonlinearity
-        gw_vector = torch.tanh(gw_vector)
+        losses|"classifier_loss"] = torch.tensor(0.)
 
-        #metrics omitted
+        for domains, latents in latent_domains.items():
+            if len(domains) != 2:#the shapes classification task happens on two modalities, with paired data
+                continue
 
-        shape_logits = self.classification_head(gw_vector)
-        losses["classifier_loss"] = (shape_logits, shape_class_indices)
+            gw_vector = self.gw_mod.encode(latents)
+            #apply nonlinearity
+            gw_vector = torch.tanh(gw_vector)
+
+            #metrics omitted
+
+            shape_logits = self.classification_head(gw_vector)
+            losses["classifier_loss"] += self.criterion(shape_logits, shape_class_indices)
 
         losses.update(metrics)
         return losses
@@ -857,7 +862,7 @@ class GWLossesShapesClassifierAttention(GWLossesBase):
 
         #!!!!!problem : we need an extra input argument for the shape info ground truth
         #but that's not clean !
-        #we could set it from the lightningmodule, as loss_mod.shape_info before calling the step() function but that's also not clean
+        #for now we set it from the lightningmodule, as loss_mod.shape_info before calling the step() function but that's also not clean
         shape_class_indices = None#just a draft, this for ruff
 
         metrics: dict[str, torch.Tensor] = {}
