@@ -54,6 +54,7 @@ from shimmer.types import (
     RawDomainGroupsT,
     RawDomainGroupT,
 )
+from shimmer.utils import MIGRATION_DIR, SaveMigrations, migrate_model
 from shimmer.version import __version__
 
 __all__ = [
@@ -103,4 +104,7 @@ __all__ = [
     "batch_translations_with_uncertainty",
     "batch_demi_cycles_with_uncertainty",
     "batch_cycles_with_uncertainty",
+    "MIGRATION_DIR",
+    "migrate_model",
+    "SaveMigrations",
 ]

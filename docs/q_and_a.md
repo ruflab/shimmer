@@ -41,3 +41,7 @@ Loss Module inheriting from
 Then, you can create a new implementation of
 [`GlobalWorkspaceBase`](https://bdvllrs.github.io/shimmer/shimmer/modules/global_workspace.html#GlobalWorkspaceBase)
 (see section "How can I customize my GlobalWorkspace" for more details.)
+
+
+## shimmer has broken my checkpoints! How can I upgrade them?
+See [Checkpoint Migrations](ckpt_migrations.md).
