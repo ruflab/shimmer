@@ -3,7 +3,6 @@ from collections.abc import Mapping
 from typing import TypedDict
 
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 
 from shimmer.modules.contrastive_loss import (
