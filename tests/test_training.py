@@ -81,7 +81,7 @@ def test_training():
     assert isinstance(unimodal_latents["v"], torch.Tensor)
     assert unimodal_latents["v"].size() == (32, 128)
 
-    workspace_latent = gw.encode(unimodal_latents)
+    workspace_latent = gw.encode_and_fuse(unimodal_latents)
 
     assert workspace_latent.size() == (32, 16)
 

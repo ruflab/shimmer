@@ -73,7 +73,7 @@ def demi_cycle_loss(
         domain_name = next(iter(domains))
         domain_mod = domain_mods[domain_name]
         x_recons = gw_mod.decode(
-            gw_mod.encode(gw_mod.on_before_gw_encode_dcy(latents)),
+            gw_mod.encode_and_fuse(gw_mod.on_before_gw_encode_dcy(latents)),
             domains={domain_name},
         )[domain_name]
         loss_output = domain_mod.compute_dcy_loss(x_recons, latents[domain_name])
@@ -117,14 +117,14 @@ def cycle_loss(
         domain_name_source = list(domains_source)[0]
 
         domain_mod = domain_mods[domain_name_source]
-        z = gw_mod.encode(gw_mod.on_before_gw_encode_cy(latents_source))
+        z = gw_mod.encode_and_fuse(gw_mod.on_before_gw_encode_cy(latents_source))
         for domain_name_target in domain_mods.keys():
             if domain_name_target == domain_name_source:
                 continue
 
             x_pred = gw_mod.decode(z, domains={domain_name_target})
             x_recons = gw_mod.decode(
-                gw_mod.encode(x_pred), domains={domain_name_source}
+                gw_mod.encode_and_fuse(x_pred), domains={domain_name_source}
             )
 
             loss_name = f"{domain_name_source}_through_{domain_name_target}"
@@ -177,7 +177,7 @@ def translation_loss(
                 if domain != domain_name_target
             }
 
-            z = gw_mod.encode(gw_mod.on_before_gw_encode_tr(domain_sources))
+            z = gw_mod.encode_and_fuse(gw_mod.on_before_gw_encode_tr(domain_sources))
             mod = domain_mods[domain_name_target]
 
             domain_source_names = "/".join(domain_sources.keys())
@@ -236,10 +236,9 @@ def contrastive_loss(
         if len(latents) != 2:
             continue
 
-        cont_latents = gw_mod.on_before_gw_encode_cont(latents)
-        for domain1 in cont_latents.keys():
-            z1 = gw_mod.encode_pre_fusion(cont_latents[domain1], domain1)
-            for domain2 in cont_latents.keys():
+        cont_latents = gw_mod.encode(gw_mod.on_before_gw_encode_cont(latents))
+        for domain1, z1 in cont_latents.items():
+            for domain2, z2 in cont_latents.items():
                 selected_domains = {domain1, domain2}
                 if domain1 == domain2 or selected_domains in keys:
                     continue
@@ -247,7 +246,6 @@ def contrastive_loss(
                 keys.append(selected_domains)
 
                 loss_name = f"contrastive_{domain1}_and_{domain2}"
-                z2 = gw_mod.encode_pre_fusion(cont_latents[domain2], domain2)
                 loss_output = contrastive_fn(z1, z2)
                 losses[loss_name] = loss_output.loss
                 metrics.update(
@@ -743,7 +741,7 @@ class GWLossesFusion(GWLossesBase):
 
                     scaled_latents[domain_name] = scaled_latents_subset
 
-                encoded_latents_for_subset = self.gw_mod.encode(scaled_latents)
+                encoded_latents_for_subset = self.gw_mod.encode_and_fuse(scaled_latents)
                 encoded_latents_for_subset = torch.tanh(encoded_latents_for_subset)
                 decoded_latents_for_subset = self.gw_mod.decode(
                     encoded_latents_for_subset
