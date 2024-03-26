@@ -140,7 +140,7 @@ class GlobalWorkspaceBase(LightningModule):
         Returns:
             `torch.Tensor`: the GW representations.
         """
-        return self.gw_mod.encode(x)
+        return self.gw_mod.encode_and_fuse(x)
 
     def decode(
         self, z: torch.Tensor, domains: Iterable[str] | None = None
@@ -192,7 +192,7 @@ class GlobalWorkspaceBase(LightningModule):
             if len(domains) > 1:
                 continue
             domain_name = list(domains)[0]
-            z = self.gw_mod.encode(latents)
+            z = self.gw_mod.encode_and_fuse(latents)
             predictions[domain_name] = z
         return predictions
 
