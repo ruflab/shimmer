@@ -126,8 +126,24 @@ class GlobalWorkspaceBase(LightningModule):
         """Dimension of the GW."""
         return self.gw_mod.workspace_dim
 
-    def encode(self, x: LatentsDomainGroupT) -> torch.Tensor:
+    def encode_and_fuse(self, x: LatentsDomainGroupT) -> torch.Tensor:
         """Encode latent representations into the GW representation.
+
+        This directly calls `GWModuleBase.encode_and_fuse` and is a convenient proxy to
+        ```python
+        self.gw_mod.encode_and_fuse(x)
+        ```
+
+        Args:
+            x (`LatentsDomainGroupT`): the input domain representations.
+
+        Returns:
+            `torch.Tensor`: the GW representations.
+        """
+        return self.gw_mod.encode_and_fuse(x)
+
+    def encode(self, x: LatentsDomainGroupT) -> LatentsDomainGroupT:
+        """Encode latent representations into the pre-fusion GW representation.
 
         This directly calls `GWModuleBase.encode` and is a convenient proxy to
         ```python
@@ -138,9 +154,9 @@ class GlobalWorkspaceBase(LightningModule):
             x (`LatentsDomainGroupT`): the input domain representations.
 
         Returns:
-            `torch.Tensor`: the GW representations.
+            `LatensDomainGroupT`: the GW representations.
         """
-        return self.gw_mod.encode_and_fuse(x)
+        return self.gw_mod.encode(x)
 
     def decode(
         self, z: torch.Tensor, domains: Iterable[str] | None = None

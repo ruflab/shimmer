@@ -24,7 +24,7 @@ def translation(
         `torch.Tensor`: the translated unimodal representation
             of the provided domain.
     """
-    return gw_module.decode(gw_module.encode(x), domains={to})[to]
+    return gw_module.decode(gw_module.encode_and_fuse(x), domains={to})[to]
 
 
 def translation_with_uncertainty(
