@@ -8,9 +8,10 @@ from shimmer.types import (
 )
 
 
-#todo : the abstract class
-
-
+class AttentionBase(torch.nn.Module, ABC):
+    @abstractmethod
+    def forward(self, domains: LatentsDomainGroupT, gw_state: torch.Tensor) -> dict[str, float]:
+        ...
 
 
 
@@ -34,7 +35,20 @@ def sample_scaling_factors(
     """
     assert 0 <= binary_scaling_prob <= 1
 
-    # TODO: make selection deterministic
+    # TODO: make selec    def decode(
+        self, z: torch.Tensor, domains: Iterable[str] | None = None
+    ) -> LatentsDomainGroupDT:
+        """Decode the GW representation into given `domains`.
+
+        Args:
+            z (`torch.Tensor`): the GW representation.
+            domains (`Iterable[str]`): iterable of domains to decode.
+
+        Returns:
+            `LatentsDomainGroupDT`: the decoded unimodal representations.
+        """
+        ...
+tion deterministic
     binary_mask = torch.rand(batch_size) < binary_scaling_prob
 
     binary_factors = torch.randint(0, 2, (batch_size,)).float()
@@ -70,14 +84,14 @@ def sample_scaling_factors(
 
 
 
-class RandomAttention(nn.Module):
+class RandomAttention(AttentionBase):
     def __init__(self, binary_proportion, temperature):
         super().__init__()
         self.binary_proportion = binary_proportion
         self.temperature = temperature
 
     def forward(self, domains: LatentsDomainGroupT, gw_states: torch.Tensor) -> dict[str, float]:
-        return sample_scaling_factors(self.binary_proportion, gw_states.shape[0], self.temperature, gw_states.device())
+        return sample_scaling_factors(self.binary_proportion, gw_states.shape[0], self.temperature, gw_states.device)
 
 
 
@@ -91,7 +105,7 @@ class RandomAttention(nn.Module):
 
 
 
-class KQAttentionOnePass(nn.Module):
+class KQAttentionOnePass(AttentionBase):
     def __init__(self, domain_dim, head_size):
         super().__init__()
         self.head_size = head_size
@@ -104,6 +118,8 @@ class KQAttentionOnePass(nn.Module):
         self.attention_scores = None  # Attribute to store the latest attention scores
 
     def forward(self, domain_encodings: LatentsDomainGroupT, gw_states: torch.Tensor) -> LatentsDomainGroupT:
+        #TODO : check if this actually works !
+
         # Initialize key_layers if not already done
         keys = {domain: self.key_layers[domain](encoding) for domain, encoding in domain_encodings.items()}
 
@@ -131,7 +147,7 @@ class KQAttentionOnePass(nn.Module):
 
 
 
-class BinaryAttention(nn.Module):
+class BinaryAttention(AttentionBase):
     def __init__(self, domain_dim, head_size):
         super().__init__()
 
