@@ -1,8 +1,5 @@
 import torch
-
 from abc import ABC, abstractmethod
-
-
 from shimmer.types import LatentsDomainGroupT
 
 
