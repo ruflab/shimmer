@@ -1,6 +1,10 @@
 from abc import ABC, abstractmethod
+from typing import Dict
 
 import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
 
 from shimmer.types import LatentsDomainGroupT
 
@@ -188,47 +192,31 @@ class RandomSelection(SelectionBase):
 
 
 
-class KQAttentionOnePass(SelectionBase):
+class KQAttentionOnePass(nn.Module):
     def __init__(self, domain_dim, head_size):
         super().__init__()
         self.head_size = head_size
         self.query_layer = nn.Linear(domain_dim, head_size)
         self.key_layers = nn.ModuleDict({
             'v_latents': nn.Linear(domain_dim, head_size),
-            'attr': nn.Linear(domain_dim, head_size)
+            'attr': nn.Linear(domain_dim, head_size),
         })
-        self.gw_vector = torch.randn(domain_dim)  # Fixed random global workspace vector
-        self.attention_scores = None  # Attribute to store the latest attention scores
 
-    def forward(self, domain_encodings: LatentsDomainGroupT, gw_states: torch.Tensor) -> LatentsDomainGroupT:
-        #TODO : check if this actually works !
+    def forward(self, domains: Dict[str, torch.Tensor], gw_state: torch.Tensor) -> Dict[str, torch.Tensor]:
+        keys = {domain: self.key_layers[domain](encoding) for domain, encoding in domains.items()}
 
-        # Initialize key_layers if not already done
-        keys = {domain: self.key_layers[domain](encoding) for domain, encoding in domain_encodings.items()}
+        device = gw_state.device
+        query = self.query_layer(gw_state.to(device))
 
-        device = next(iter(keys.values())).device
+        dot_products = {domain: torch.bmm(key.unsqueeze(1), query.unsqueeze(2)).squeeze() for domain, key in keys.items()}
 
-        query = self.query_layer(self.gw_vector.to(device))
+        dot_products_tensor = torch.stack(list(dot_products.values()), dim=1)
 
-        # Calculate dot products for each domain
-        dot_products = [torch.sum(key_tensor * query, dim=1) for key_tensor in keys.values()]
+        attention_scores = torch.softmax(dot_products_tensor, dim=1)
 
-        # Organize the dot products into a 2D tensor [number_of_domains, 2]
-        dot_products_tensor = torch.stack(dot_products)
+        attention_dict = {domain: attention_scores[:, i:i+1] for i, domain in enumerate(keys)}
 
-        attention_scores = torch.softmax(dot_products_tensor,dim=0)
-
-        # Scale the input latents by attention scores and print before and after scaling for the first two pairs
-        weighted_encodings = {}
-        for idx, (domain, encoding) in enumerate(domain_encodings.items()):
-            # Reshape attention scores to match the encoding shape for broadcasting
-            scaled_latent = encoding * attention_scores[idx].unsqueeze(1).expand_as(encoding)
-            weighted_encodings[domain] = scaled_latent
-
-        return weighted_encodings
-
-
-
+        return attention_dict
 
 class BinaryAttention(SelectionBase):
     def __init__(self, domain_dim, head_size):
