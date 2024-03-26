@@ -26,6 +26,8 @@ jobs:
           poetry run pip install lightning
       - name: Ruff checks
         uses: chartboost/ruff-action@v1
+        with:
+            args: "format --check"
       - name: Analysing the code with mypy
         run: |
           poetry run mypy --install-types --non-interactive .
