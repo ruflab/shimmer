@@ -45,3 +45,54 @@ class SelectionBase(torch.nn.Module, ABC):
             {"v": torch.Tensor([0.0, 0.4, 1.0]), "t": torch.Tensor([1.0, 0.6, 0.0])}
         """
         ...
+
+
+class KQAttentionOnePass(SelectionBase):
+    def __init__(self, domain_dim, head_size):
+        super().__init__()
+        self.head_size = head_size
+        self.query_layer = nn.Linear(domain_dim, head_size)
+        self.key_layers = nn.ModuleDict(
+            {
+                "v_latents": nn.Linear(domain_dim, head_size),
+                "attr": nn.Linear(domain_dim, head_size),
+            }
+        )
+
+    def forward(
+        self, domains: LatentsDomainGroupT, gw_state: torch.Tensor
+    ) -> dict[str, torch.Tensor]:
+        keys = {
+            domain: self.key_layers[domain](encoding)
+            for domain, encoding in domains.items()
+        }
+
+        device = gw_state.device
+        query = self.query_layer(gw_state.to(device))
+
+        dot_products = {
+            domain: torch.bmm(key.unsqueeze(1), query.unsqueeze(2)).squeeze()
+            for domain, key in keys.items()
+        }
+
+        dot_products_tensor = torch.stack(list(dot_products.values()), dim=1)
+
+        attention_scores = torch.softmax(dot_products_tensor, dim=1)
+
+        attention_dict = {
+            domain: attention_scores[:, i : i + 1] for i, domain in enumerate(keys)
+        }
+
+        return attention_dict
+
+
+class RandomSelection(SelectionBase):
+    def __init__(self, binary_proportion, temperature):
+        super().__init__()
+        self.binary_proportion = binary_proportion
+        self.temperature = temperature
+
+    def forward(
+        self, domains: LatentsDomainGroupT, gw_states: torch.Tensor
+    ) -> dict[str, torch.Tensor]:
+        pass

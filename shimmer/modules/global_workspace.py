@@ -657,7 +657,6 @@ class GlobalWorkspaceFusion(GlobalWorkspaceBase):
         super().__init__(gw_mod, loss_mod, optim_lr, optim_weight_decay, scheduler_args)
 
 
-
 def pretrained_global_workspace(
     checkpoint_path: str | Path,
     domain_mods: Mapping[str, DomainModule],
