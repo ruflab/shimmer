@@ -1,5 +1,7 @@
 import torch
+
 from shimmer.modules.selection import KQAttentionOnePass
+
 
 def test_single_domain():
     domain_dim = 12
