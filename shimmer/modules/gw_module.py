@@ -254,7 +254,7 @@ class GWModuleBase(nn.Module, ABC):
         }
 
     @abstractmethod
-    def fusion_mechanism(self, x: LatentsDomainGroupT) -> torch.Tensor:
+    def fuse(self, x: LatentsDomainGroupT) -> torch.Tensor:
         """
         Merge function used to combine domains.
 
@@ -278,7 +278,7 @@ class GWModuleBase(nn.Module, ABC):
         ...
 
     def encode_and_fuse(self, x: LatentsDomainGroupT) -> torch.Tensor:
-        return self.fusion_mechanism(self.encode(x))
+        return self.fuse(self.encode(x))
 
     @abstractmethod
     def decode(
@@ -326,7 +326,7 @@ class GWModule(GWModuleBase):
         self.gw_decoders = nn.ModuleDict(gw_decoders)
         """The module's decoders"""
 
-    def fusion_mechanism(self, x: LatentsDomainGroupT) -> torch.Tensor:
+    def fuse(self, x: LatentsDomainGroupT) -> torch.Tensor:
         """
         Merge function used to combine domains.
 
@@ -400,7 +400,7 @@ class GWModuleWithUncertainty(GWModuleBase):
         self.gw_decoders = nn.ModuleDict(gw_decoders)
         """The module's decoders"""
 
-    def fusion_mechanism(self, x: LatentsDomainGroupT) -> torch.Tensor:
+    def fuse(self, x: LatentsDomainGroupT) -> torch.Tensor:
         """Fusion of the pre-fusion GW representations.
 
         Args:
@@ -456,7 +456,7 @@ class GWModuleWithUncertainty(GWModuleBase):
         Returns:
             `torch.Tensor`: GW representation encoded using the mean of pre-fusion GW.
         """
-        return self.fusion_mechanism(self.encoded_distribution(x)[0])
+        return self.fuse(self.encoded_distribution(x)[0])
 
     def decode(
         self, z: torch.Tensor, domains: Iterable[str] | None = None
@@ -509,7 +509,7 @@ class GWModuleFusion(GWModuleBase):
         self.gw_decoders = nn.ModuleDict(gw_decoders)
         """The module's decoders"""
 
-    def fusion_mechanism(self, x: LatentsDomainGroupT) -> torch.Tensor:
+    def fuse(self, x: LatentsDomainGroupT) -> torch.Tensor:
         """
         Merge function used to combine domains.
 
