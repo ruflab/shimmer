@@ -18,13 +18,13 @@ class SelectionBase(torch.nn.Module, ABC):
         By default, this is not implemented and will raise an error if used.
 
         :note..
-            This is not defined as an abstractmethod as some Selection method may
+            This is not defined as an abstractmethod as some selection method may
             not need it.
 
         Args:
             gw_state (`torch.Tensor`): the previous GW state
         """
-        raise NotImplementedError()
+        pass
 
     @abstractmethod
     def forward(self, domains: LatentsDomainGroupT) -> dict[str, torch.Tensor]:
