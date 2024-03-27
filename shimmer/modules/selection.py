@@ -95,11 +95,7 @@ class KQAttentionOnePass(SelectionBase):
     ) -> dict[str, torch.Tensor]: ...
 
 
-
-
-
-
-#todo : make this return a dict of attention scores. and move it into randomattention.
+# todo : make this return a dict of attention scores. and move it into randomattention.
 def sample_scaling_factors(
     binary_scaling_prob: float,
     batch_size: int,
@@ -128,6 +124,7 @@ def sample_scaling_factors(
             `LatentsDomainGroupDT`: the decoded unimodal representations.
         """
         ...
+
     binary_mask = torch.rand(batch_size) < binary_scaling_prob
 
     binary_factors = torch.randint(0, 2, (batch_size,)).float()
@@ -163,13 +160,13 @@ def sample_scaling_factors(
 
 >>>>>>> 380f5f2 (I've no idea why rebase didn't create selection.py but I'm creating it here)
 
-
 class RandomSelection(SelectionBase):
     def __init__(self, binary_proportion, temperature):
         super().__init__()
         self.binary_proportion = binary_proportion
         self.temperature = temperature
 
+<<<<<<< HEAD
 <<<<<<< HEAD
     def forward(
         self, domains: LatentsDomainGroupT, gw_states: torch.Tensor
@@ -189,6 +186,17 @@ class RandomSelection(SelectionBase):
 
 
 
+=======
+    def forward(
+        self, domains: LatentsDomainGroupT, gw_states: torch.Tensor
+    ) -> dict[str, float]:
+        return sample_scaling_factors(
+            self.binary_proportion,
+            gw_states.shape[0],
+            self.temperature,
+            gw_states.device,
+        )
+>>>>>>> 8fdbc34 (trying ruff format again..)
 
 
 class KQAttentionOnePass(nn.Module):
@@ -196,37 +204,54 @@ class KQAttentionOnePass(nn.Module):
         super().__init__()
         self.head_size = head_size
         self.query_layer = nn.Linear(domain_dim, head_size)
-        self.key_layers = nn.ModuleDict({
-            'v_latents': nn.Linear(domain_dim, head_size),
-            'attr': nn.Linear(domain_dim, head_size),
-        })
+        self.key_layers = nn.ModuleDict(
+            {
+                "v_latents": nn.Linear(domain_dim, head_size),
+                "attr": nn.Linear(domain_dim, head_size),
+            }
+        )
 
-    def forward(self, domains: Dict[str, torch.Tensor], gw_state: torch.Tensor) -> Dict[str, torch.Tensor]:
-        keys = {domain: self.key_layers[domain](encoding) for domain, encoding in domains.items()}
+    def forward(
+        self, domains: Dict[str, torch.Tensor], gw_state: torch.Tensor
+    ) -> Dict[str, torch.Tensor]:
+        keys = {
+            domain: self.key_layers[domain](encoding)
+            for domain, encoding in domains.items()
+        }
 
         device = gw_state.device
         query = self.query_layer(gw_state.to(device))
 
-        dot_products = {domain: torch.bmm(key.unsqueeze(1), query.unsqueeze(2)).squeeze() for domain, key in keys.items()}
+        dot_products = {
+            domain: torch.bmm(key.unsqueeze(1), query.unsqueeze(2)).squeeze()
+            for domain, key in keys.items()
+        }
 
         dot_products_tensor = torch.stack(list(dot_products.values()), dim=1)
 
         attention_scores = torch.softmax(dot_products_tensor, dim=1)
 
-        attention_dict = {domain: attention_scores[:, i:i+1] for i, domain in enumerate(keys)}
+        attention_dict = {
+            domain: attention_scores[:, i : i + 1] for i, domain in enumerate(keys)
+        }
 
         return attention_dict
+
 
 class BinaryAttention(SelectionBase):
     def __init__(self, domain_dim, head_size):
         super().__init__()
 
         weights = {}
-        #unsure what is meant by "1 if domain is here, 0 otherwise" -- how do we get the domain key if it's not there ?
+
+        # unsure what is meant by "1 if domain is here, 0 otherwise" -- how do we get the domain key if it's not there ?
         def forward(self, domain_encodings: LatentsDomainGroupT) -> LatentsDomainGroupT:
-            for (domain, encoding) in domain_encodings.items():
+            for domain, encoding in domain_encodings.items():
                 weights[domain] = torch.ones(encoding.shape[0])
 
             return weights
+<<<<<<< HEAD
 
 >>>>>>> 380f5f2 (I've no idea why rebase didn't create selection.py but I'm creating it here)
+=======
+>>>>>>> 8fdbc34 (trying ruff format again..)
