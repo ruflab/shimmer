@@ -54,3 +54,9 @@ refers to `DeterministicGlobalWorkspace`.
 * Remove `GlobalWorkspaceBase.batch_demi_cycles`, `GlobalWorkspaceBase.batch_cycles`, 
     and `GlobalWorkspaceBase.batch_translations`. This can be done with utils
     functions of the same name.
+* Rename `GWModuleBase.fusion_mechanism` to `GWModuleBase.fuse`,
+    `GWModuleBase.encode` to `GWModuleBase.encode_and_fuse`, and
+    `GWModuleBase.encode_pre_fusion` to `GWModuleBase.encode`. Same for the associated
+    methods in `GlobalWorkspaceBase`.
+* Remove on_before_gw_encode_{loss} callbacks to allow sharing computation between
+    loss functions.
