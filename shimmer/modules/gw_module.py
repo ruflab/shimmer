@@ -293,7 +293,7 @@ class GWModule(GWModuleBase):
         Returns:
             `torch.Tensor`: The merged representation.
         """
-        return torch.mean(torch.stack(list(x.values())), dim=0)
+        return torch.sum(torch.stack(list(x.values())), dim=0)
 
     def encode(
         self,
@@ -371,7 +371,7 @@ class GWModuleWithUncertainty(GWModuleBase):
         Returns:
             `torch.Tensor`: the merged GW representation.
         """
-        return torch.mean(torch.stack(list(x.values())), dim=0)
+        return torch.sum(torch.stack(list(x.values())), dim=0)
 
     def encode(
         self,
