@@ -485,6 +485,30 @@ class GWModuleWithSelection(GWModule):
         self.selection_mod = selection_mod
         """Selection module"""
 
+    def encode(
+        self,
+        x: LatentsDomainGroupT,
+        selection_scores: Mapping[str, torch.Tensor] | None = None,
+    ) -> LatentsDomainGroupT:
+        """Encode the latent representation infos to the pre-fusion GW representation.
+
+        Args:
+            x (`LatentsDomainGroupT`): the input domain representations.
+            selection_score (`Mapping[str, torch.Tensor] | None`): attention scores to
+                use to encode the reprensetation.
+
+        Returns:
+            `LatentsDomainGroupT`: pre-fusion representations
+        """
+        if selection_scores is None:
+            scores: Mapping[str, torch.Tensor] = self.selection_mod(x)
+        else:
+            scores = selection_scores
+        return {
+            domain_name: scores[domain_name] * self.gw_encoders[domain_name](domain)
+            for domain_name, domain in x.items()
+        }
+
 
 class GWModuleFusion(GWModuleBase):
     """
