@@ -73,8 +73,7 @@ def demi_cycle_loss(
         domain_name = next(iter(domains))
         domain_mod = domain_mods[domain_name]
         x_recons = gw_mod.decode(
-            gw_mod.encode_and_fuse(gw_mod.on_before_gw_encode_dcy(latents)),
-            domains={domain_name},
+            gw_mod.encode_and_fuse(latents), domains={domain_name}
         )[domain_name]
         loss_output = domain_mod.compute_dcy_loss(x_recons, latents[domain_name])
         losses[f"demi_cycle_{domain_name}"] = loss_output.loss
@@ -117,7 +116,7 @@ def cycle_loss(
         domain_name_source = list(domains_source)[0]
 
         domain_mod = domain_mods[domain_name_source]
-        z = gw_mod.encode_and_fuse(gw_mod.on_before_gw_encode_cy(latents_source))
+        z = gw_mod.encode_and_fuse(latents_source)
         for domain_name_target in domain_mods.keys():
             if domain_name_target == domain_name_source:
                 continue
@@ -177,7 +176,7 @@ def translation_loss(
                 if domain != domain_name_target
             }
 
-            z = gw_mod.encode_and_fuse(gw_mod.on_before_gw_encode_tr(domain_sources))
+            z = gw_mod.encode_and_fuse(domain_sources)
             mod = domain_mods[domain_name_target]
 
             domain_source_names = "/".join(domain_sources.keys())
@@ -236,7 +235,7 @@ def contrastive_loss(
         if len(latents) != 2:
             continue
 
-        cont_latents = gw_mod.encode(gw_mod.on_before_gw_encode_cont(latents))
+        cont_latents = gw_mod.encode(latents)
         for domain1, z1 in cont_latents.items():
             for domain2, z2 in cont_latents.items():
                 selected_domains = {domain1, domain2}
@@ -291,7 +290,7 @@ def contrastive_loss_with_uncertainty(
             continue
         for domain1_name, domain1 in latents.items():
             z1_mean, z1_log_uncertainty = gw_mod.encoded_distribution(
-                gw_mod.on_before_gw_encode_cont({domain1_name: domain1})
+                {domain1_name: domain1}
             )
             for domain2_name, domain2 in latents.items():
                 selected_domains = {domain1_name, domain2_name}
@@ -302,7 +301,7 @@ def contrastive_loss_with_uncertainty(
 
                 loss_name = f"contrastive_{domain1_name}_and_{domain2_name}"
                 z2_mean, z2_log_uncertainty = gw_mod.encoded_distribution(
-                    gw_mod.on_before_gw_encode_cont({domain2_name: domain2})
+                    {domain2_name: domain2}
                 )
                 loss_output = contrastive_fn(
                     z1_mean[domain1_name],
