@@ -59,17 +59,21 @@ class KQAttentionOnePass(SelectionBase):
                 "attr": nn.Linear(domain_dim, head_size),
             }
         )
+        self.gw_vector=None
 
     def forward(
-        self, domains: LatentsDomainGroupT, gw_state: torch.Tensor
+        self, domains: LatentsDomainGroupT
     ) -> dict[str, torch.Tensor]:
         keys = {
             domain: self.key_layers[domain](encoding)
             for domain, encoding in domains.items()
         }
 
-        device = gw_state.device
-        query = self.query_layer(gw_state.to(device))
+        if self.gw_state is None:
+            raise ValueError("GW state has not been initialized.")
+
+        device = next(iter(domains.values())).device
+        query = self.query_layer(self.gw_state.to(device))
 
         dot_products = {
             domain: torch.bmm(key.unsqueeze(1), query.unsqueeze(2)).squeeze()
@@ -86,7 +90,14 @@ class KQAttentionOnePass(SelectionBase):
 
         return attention_dict
 
-    @abstractmethod
+
+class RandomSelection(SelectionBase):
+    def __init__(self, binary_proportion, temperature):
+        super().__init__()
+        self.binary_proportion = binary_proportion
+        self.temperature = temperature
+
     def forward(
-        self, domains: LatentsDomainGroupT, gw_state: torch.Tensor
-    ) -> dict[str, torch.Tensor]: ...
+        self, domains: LatentsDomainGroupT
+    ) -> dict[str, torch.Tensor]:
+        pass
