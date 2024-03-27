@@ -5,6 +5,7 @@ import torch
 from torch import nn
 
 from shimmer.modules.domain import DomainModule
+from shimmer.modules.selection import SingleDomainSelection
 from shimmer.modules.vae import reparameterize
 from shimmer.types import LatentsDomainGroupDT, LatentsDomainGroupT
 from shimmer.utils import group_batch_size, group_device
@@ -452,6 +453,37 @@ class GWModuleWithUncertainty(GWModuleBase):
             domain: self.gw_decoders[domain](z)
             for domain in domains or self.gw_decoders.keys()
         }
+
+
+class GWModuleWithSelection(GWModule):
+    """GWModule version that uses the selection module."""
+
+    def __init__(
+        self,
+        domain_modules: Mapping[str, DomainModule],
+        workspace_dim: int,
+        selection_mod: SingleDomainSelection,
+        gw_encoders: Mapping[str, nn.Module],
+        gw_decoders: Mapping[str, nn.Module],
+    ) -> None:
+        """Initializes the GWModule.
+
+        Args:
+            domain_modules (`Mapping[str, DomainModule]`): the domain modules.
+            workspace_dim (`int`): dimension of the GW.
+            selection_mod (`SingleDomainSelection`): selection module that selects
+                only one domain at a time.
+            gw_encoders (`Mapping[str, torch.nn.Module]`): mapping for each domain
+                name to a an torch.nn.Module class that encodes a
+                unimodal latent representations into a GW representation (pre fusion).
+            gw_decoders (`Mapping[str, torch.nn.Module]`): mapping for each domain
+                name to a an torch.nn.Module class that decodes a
+                 GW representation to a unimodal latent representation.
+        """
+        super().__init__(domain_modules, workspace_dim, gw_encoders, gw_decoders)
+
+        self.selection_mod = selection_mod
+        """Selection module"""
 
 
 class GWModuleFusion(GWModuleBase):
