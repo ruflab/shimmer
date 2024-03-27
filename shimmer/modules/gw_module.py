@@ -202,18 +202,39 @@ class GWModuleBase(nn.Module, ABC):
         ...
 
     @abstractmethod
-    def encode(self, x: LatentsDomainGroupT) -> LatentsDomainGroupT:
+    def encode(
+        self,
+        x: LatentsDomainGroupT,
+        selection_scores: Mapping[str, torch.Tensor] | None = None,
+    ) -> LatentsDomainGroupT:
         """Encode the latent representation infos to the pre-fusion GW representation.
 
         Args:
             x (`LatentsDomainGroupT`): the input domain representations
+            selection_score (`Mapping[str, torch.Tensor] | None`): attention scores to
+                use to encode the reprensetation.
 
         Returns:
             `LatentsDomainGroupT`: pre-fusion GW representations
         """
         ...
 
-    def encode_and_fuse(self, x: LatentsDomainGroupT) -> torch.Tensor:
+    def encode_and_fuse(
+        self,
+        x: LatentsDomainGroupT,
+        selection_scores: Mapping[str, torch.Tensor] | None = None,
+    ) -> torch.Tensor:
+        """Encode the latent representation infos to the final GW representation.
+        It combines the encode and fuse methods.
+
+        Args:
+            x (`LatentsDomainGroupT`): the input domain representations
+            selection_score (`Mapping[str, torch.Tensor] | None`): attention scores to
+                use to encode the reprensetation.
+
+        Returns:
+            `torch.Tensor`: The merged representation.
+        """
         return self.fuse(self.encode(x))
 
     @abstractmethod
@@ -273,15 +294,20 @@ class GWModule(GWModuleBase):
         """
         return torch.mean(torch.stack(list(x.values())), dim=0)
 
-    def encode(self, x: LatentsDomainGroupT) -> LatentsDomainGroupT:
+    def encode(
+        self,
+        x: LatentsDomainGroupT,
+        selection_scores: Mapping[str, torch.Tensor] | None = None,
+    ) -> LatentsDomainGroupT:
         """Encode the latent representation infos to the pre-fusion GW representation.
 
         Args:
-            x (`torch.Tensor`): the input domain representation.
-            domain_name (`str`): domain name to of the encoded pre-fusion
+            x (`LatentsDomainGroupT`): the input domain representations.
+            selection_score (`Mapping[str, torch.Tensor] | None`): attention scores to
+                use to encode the reprensetation.
 
         Returns:
-            `torch.Tensor`: pre-fusion representation
+            `LatentsDomainGroupT`: pre-fusion representation
         """
         return {
             domain_name: self.gw_encoders[domain_name](domain)
@@ -346,15 +372,20 @@ class GWModuleWithUncertainty(GWModuleBase):
         """
         return torch.mean(torch.stack(list(x.values())), dim=0)
 
-    def encode(self, x: LatentsDomainGroupT) -> LatentsDomainGroupT:
+    def encode(
+        self,
+        x: LatentsDomainGroupT,
+        selection_scores: Mapping[str, torch.Tensor] | None = None,
+    ) -> LatentsDomainGroupT:
         """Encode the latent representation infos to the pre-fusion GW representation.
 
         Args:
-            x (`torch.Tensor`): the input domain representation.
-            domain_name (`str`): domain name to of the encoded pre-fusion
+            x (`LatentsDomainGroupT`): the input domain representations.
+            selection_score (`Mapping[str, torch.Tensor] | None`): attention scores to
+                use to encode the reprensetation.
 
         Returns:
-            `torch.Tensor`: pre-fusion representation
+            `LatentsDomainGroupT`: pre-fusion representations
         """
         return {
             domain_name: reparameterize(*self.gw_encoders[domain_name](domain))
@@ -362,13 +393,17 @@ class GWModuleWithUncertainty(GWModuleBase):
         }
 
     def encoded_distribution(
-        self, x: LatentsDomainGroupT
+        self,
+        x: LatentsDomainGroupT,
+        selection_scores: Mapping[str, torch.Tensor] | None = None,
     ) -> tuple[LatentsDomainGroupDT, LatentsDomainGroupDT]:
         """Encode a unimodal latent group into a pre-fusion GW distributions.
         The pre-fusion GW representation are the mean of the predicted distribution.
 
         Args:
             x (`LatentsDomainGroupT`): unimodal latent group
+            selection_score (`Mapping[str, torch.Tensor] | None`): attention scores to
+                use to encode the reprensetation.
 
         Returns:
             `tuple[LatentsDomainGroupDT, LatentsDomainGroupDT]`: means and "log
@@ -382,12 +417,18 @@ class GWModuleWithUncertainty(GWModuleBase):
             log_uncertainties[domain] = log_uncertainty
         return means, log_uncertainties
 
-    def encoded_mean(self, x: LatentsDomainGroupT) -> torch.Tensor:
+    def encoded_mean(
+        self,
+        x: LatentsDomainGroupT,
+        selection_scores: Mapping[str, torch.Tensor] | None = None,
+    ) -> torch.Tensor:
         """Encodes a unimodal latent group into a GW representation (post-fusion)
         using the mean value of the pre-fusion representations.
 
         Args:
             x (`LatentsDomainGroupT`): unimodal latent group.
+            selection_score (`Mapping[str, torch.Tensor] | None`): attention scores to
+                use to encode the reprensetation.
 
         Returns:
             `torch.Tensor`: GW representation encoded using the mean of pre-fusion GW.
@@ -456,7 +497,11 @@ class GWModuleFusion(GWModuleBase):
         """
         return torch.sum(torch.stack(list(x.values())), dim=0)
 
-    def encode(self, x: LatentsDomainGroupT) -> LatentsDomainGroupT:
+    def encode(
+        self,
+        x: LatentsDomainGroupT,
+        selection_scores: Mapping[str, torch.Tensor] | None = None,
+    ) -> LatentsDomainGroupT:
         """Encode the unimodal latent representation `x` into the pre-fusion GW
         representations.
 
