@@ -49,6 +49,11 @@ class SelectionBase(torch.nn.Module, ABC):
 
 
 class KQAttentionOnePass(SelectionBase):
+    """
+    Key-Query attention with a fixed gw vector.
+    """
+
+
     def __init__(self, domain_dim, head_size):
         super().__init__()
         self.head_size = head_size
@@ -59,11 +64,33 @@ class KQAttentionOnePass(SelectionBase):
                 "attr": nn.Linear(domain_dim, head_size),
             }
         )
-        self.gw_vector=None
+        self.gw_state=None
+
+    def update_gw_state(self, gw_state: torch.Tensor) -> None:
+        """
+        Set the internal copy of the fixed gw state. You're meant to only call this once
+
+        Args:
+            gw_state (`torch.Tensor`): the previous GW state
+        """
+        self.gw_state = gw_state
+
 
     def forward(
         self, domains: LatentsDomainGroupT
     ) -> dict[str, torch.Tensor]:
+        """
+        Compute keys and queries, match them with dot product and softmax.
+
+        Args:
+            domains (`LatentsDomainGroupT`): Group of unimodal latent representations.
+
+        Returns:
+            `dict[str, torch.Tensor]`: for each domain in the group, the fusion
+            coefficient for each item in the batch.
+        """
+
+
         keys = {
             domain: self.key_layers[domain](encoding)
             for domain, encoding in domains.items()

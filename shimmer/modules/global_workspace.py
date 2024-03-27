@@ -3,7 +3,6 @@ from pathlib import Path
 from typing import Any, TypedDict, cast
 
 import torch
-import torch.nn as nn
 from lightning.pytorch import LightningModule
 from lightning.pytorch.utilities.types import OptimizerLRSchedulerConfig
 from torch.nn import Module, ModuleDict
