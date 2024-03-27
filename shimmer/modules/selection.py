@@ -1,9 +1,7 @@
 from abc import ABC, abstractmethod
-from collections.abc import Iterable
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 from shimmer.types import LatentsDomainGroupT
 
@@ -95,6 +93,7 @@ class KQAttentionOnePass(SelectionBase):
     ) -> dict[str, torch.Tensor]: ...
 
 
+<<<<<<< HEAD
 # todo : make this return a dict of attention scores. and move it into randomattention.
 def sample_scaling_factors(
     binary_scaling_prob: float,
@@ -200,6 +199,9 @@ class RandomSelection(SelectionBase):
 
 
 class KQAttentionOnePass(nn.Module):
+=======
+class KQAttentionOnePass(SelectionBase):
+>>>>>>> c95c4ed (took out BinaryAttention -no longer needed)
     def __init__(self, domain_dim, head_size):
         super().__init__()
         self.head_size = head_size
@@ -212,7 +214,7 @@ class KQAttentionOnePass(nn.Module):
         )
 
     def forward(
-        self, domains: Dict[str, torch.Tensor], gw_state: torch.Tensor
+        self, domains: LatentsDomainGroupT, gw_state: torch.Tensor
     ) -> dict[str, torch.Tensor]:
         keys = {
             domain: self.key_layers[domain](encoding)
@@ -238,10 +240,13 @@ class KQAttentionOnePass(nn.Module):
         return attention_dict
 
 
-class BinaryAttention(SelectionBase):
-    def __init__(self, domain_dim, head_size):
+class RandomSelection(SelectionBase):
+    def __init__(self, binary_proportion, temperature):
         super().__init__()
+        self.binary_proportion = binary_proportion
+        self.temperature = temperature
 
+<<<<<<< HEAD
         weights = {}
 
         # unsure what is meant by "1 if domain is here, 0 otherwise" -- how do we get the domain key if it's not there ?
@@ -255,3 +260,9 @@ class BinaryAttention(SelectionBase):
 >>>>>>> 380f5f2 (I've no idea why rebase didn't create selection.py but I'm creating it here)
 =======
 >>>>>>> 8fdbc34 (trying ruff format again..)
+=======
+    def forward(
+        self, domains: LatentsDomainGroupT, gw_states: torch.Tensor
+    ) -> dict[str, torch.Tensor]:
+        pass
+>>>>>>> c95c4ed (took out BinaryAttention -no longer needed)
