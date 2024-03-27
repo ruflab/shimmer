@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict
+from collections.abc import Iterable
 
 import torch
 import torch.nn as nn
@@ -213,7 +213,7 @@ class KQAttentionOnePass(nn.Module):
 
     def forward(
         self, domains: Dict[str, torch.Tensor], gw_state: torch.Tensor
-    ) -> Dict[str, torch.Tensor]:
+    ) -> dict[str, torch.Tensor]:
         keys = {
             domain: self.key_layers[domain](encoding)
             for domain, encoding in domains.items()
