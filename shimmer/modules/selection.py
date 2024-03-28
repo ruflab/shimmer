@@ -124,7 +124,44 @@ class RandomSelection(SelectionBase):
         self.binary_proportion = binary_proportion
         self.temperature = temperature
 
-    def forward(
-        self, domains: LatentsDomainGroupT
-    ) -> dict[str, torch.Tensor]:
-        pass
+    def forward(self, domains: LatentsDomainGroupT) -> dict[str, torch.Tensor]:
+        num_domains = len(domains)
+        batch_size = next(iter(domains.values())).shape[0]
+
+        # Calculate the number of samples for each part
+        num_uniform = int(batch_size * (1 - self.binary_proportion))
+        num_binary_per_domain = (batch_size - num_uniform) // num_domains
+
+        # Generate uniform scores
+        uniform_scores = torch.rand(num_uniform, num_domains)
+
+        # Apply softmax with temperature to uniform scores
+        softmax_scores = torch.softmax(uniform_scores / self.temperature, dim=1)
+
+        # Generate binary scores
+        binary_scores = torch.cat([
+            torch.cat([
+                torch.zeros(num_binary_per_domain, i),
+                torch.ones(num_binary_per_domain, 1),
+                torch.zeros(num_binary_per_domain, num_domains - i - 1)
+            ], dim=1) for i in range(num_domains)
+        ], dim=0)
+
+        # Concatenate the scores
+        all_scores = torch.cat([softmax_scores, binary_scores], dim=0)
+
+        # Ensure the scores shape matches the expected output (batch_size, num_domains)
+        if all_scores.shape[0] < batch_size:
+            # If there are missing scores due to division, fill with binary scores for the last domain
+            missing_scores = batch_size - all_scores.shape[0]
+            print("missing scores : ",missing_scores)
+            last_domain_scores = torch.cat([
+                torch.zeros(missing_scores, num_domains - 1),
+                torch.ones(missing_scores, 1)
+            ], dim=1)
+            all_scores = torch.cat([all_scores, last_domain_scores], dim=0)
+
+        # Convert scores to the expected output format: dict[str, torch.Tensor]
+        attention_dict = {domain: all_scores[:, i:i+1] for i, domain in enumerate(domains)}
+
+        return attention_dict
