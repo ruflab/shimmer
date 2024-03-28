@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 import torch
 import torch.nn as nn
 
+import shimmer
 from shimmer.types import LatentsDomainGroupT
 
 
@@ -48,7 +49,7 @@ class SelectionBase(torch.nn.Module, ABC):
         ...
 
 
-class KQAttentionOnePass(SelectionBase):
+class KQSelectionFixedQ(SelectionBase):
     """
     Key-Query attention with a fixed gw vector.
     """
@@ -56,8 +57,8 @@ class KQAttentionOnePass(SelectionBase):
     def __init__(self, domain_dim, head_size):
         """
         Args:
-            domain_dim : dimension of the input dims (assumed to be the same for now)
-            head_size : dimension of the key and query vectors.
+            domain_dim (`int`) : dimension of the input dims (assumed to be the same for now)
+            head_size (`int`) : dimension of the key and query vectors.
         """
         super().__init__()
         self.head_size = head_size
@@ -68,7 +69,7 @@ class KQAttentionOnePass(SelectionBase):
                 "attr": nn.Linear(domain_dim, head_size),
             }
         )
-        self.gw_state = None
+        self.gw_state: torch.Tensor | None = None
 
     def update_gw_state(self, gw_state: torch.Tensor) -> None:
         """
@@ -91,15 +92,15 @@ class KQAttentionOnePass(SelectionBase):
             coefficient for each item in the batch.
         """
 
+        if self.gw_state is None:
+            raise ValueError("GW state has not been initialized.")
+
         keys = {
             domain: self.key_layers[domain](encoding)
             for domain, encoding in domains.items()
         }
 
-        if self.gw_state is None:
-            raise ValueError("GW state has not been initialized.")
-
-        device = next(iter(domains.values())).device
+        device = shimmer.utils.group_device(domains)
         query = self.query_layer(self.gw_state.to(device))
 
         dot_products = {
@@ -127,8 +128,8 @@ class RandomSelection(SelectionBase):
     def __init__(self, binary_proportion, temperature):
         """
         Args:
-            binary_proportion : proportion of binary scaling factors returned by forward(). between 0 and 1.
-            temperature : temperature of the softmax applied to uniform scaling factors.
+            binary_proportion (`float`) : proportion of binary scaling factors returned by forward(). between 0 and 1.
+            temperature (`float`) : temperature of the softmax applied to uniform scaling factors.
         """
         super().__init__()
         self.binary_proportion = binary_proportion
@@ -146,7 +147,7 @@ class RandomSelection(SelectionBase):
             coefficient for each item in the batch.
         """
         num_domains = len(domains)
-        batch_size = next(iter(domains.values())).shape[0]
+        batch_size = shimmer.utils.group_batch_size(domains)
 
         # have to add extra binaries when the division's not integer
         total_binary_scores = int(batch_size * self.binary_proportion)
