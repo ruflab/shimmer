@@ -54,6 +54,11 @@ class KQAttentionOnePass(SelectionBase):
     """
 
     def __init__(self, domain_dim, head_size):
+        """
+        Args:
+            domain_dim : dimension of the input dims (assumed to be the same for now)
+            head_size : dimension of the key and query vectors.
+        """
         super().__init__()
         self.head_size = head_size
         self.query_layer = nn.Linear(domain_dim, head_size)
@@ -114,12 +119,32 @@ class KQAttentionOnePass(SelectionBase):
 
 
 class RandomSelection(SelectionBase):
+    """
+    random attention, not learned, with a proportion of binary scaling factors, and a proportion of uniform-then-softmaxed-across-modalities scores.
+    this class serves to train broadcast with robustness on linear scaling on prefusion representations.
+    """
+
     def __init__(self, binary_proportion, temperature):
+        """
+        Args:
+            binary_proportion : proportion of binary scaling factors returned by forward(). between 0 and 1.
+            temperature : temperature of the softmax applied to uniform scaling factors.
+        """
         super().__init__()
         self.binary_proportion = binary_proportion
         self.temperature = temperature
 
     def forward(self, domains: LatentsDomainGroupT) -> dict[str, torch.Tensor]:
+        """
+        randomly draw binary and uniform-then-domain-wise-softmaxed samples according to self.binary_proportion.
+
+        Args:
+            domains (`LatentsDomainGroupT`): Group of unimodal latent representations. This is not used in the function.
+
+        Returns:
+            `dict[str, torch.Tensor]`: for each domain in the group, the fusion
+            coefficient for each item in the batch.
+        """
         num_domains = len(domains)
         batch_size = next(iter(domains.values())).shape[0]
 
