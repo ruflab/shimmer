@@ -738,11 +738,13 @@ def pretrained_global_workspace(
     """
     domain_mods = freeze_domain_modules(domain_mods)
     gw_mod = GWModule(domain_mods, workspace_dim, gw_encoders, gw_decoders)
-    loss_mod = GWLosses(gw_mod, domain_mods, loss_coefs, contrastive_fn)
+    selection_mod = SingleDomainSelection()
+    loss_mod = GWLosses(gw_mod, selection_mod, domain_mods, loss_coefs, contrastive_fn)
 
     gw = GlobalWorkspace.load_from_checkpoint(
         checkpoint_path,
         gw_mod=gw_mod,
+        selection_mid=selection_mod,
         loss_coefs=loss_coefs,
         loss_mod=loss_mod,
         **kwargs,
