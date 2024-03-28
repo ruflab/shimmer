@@ -48,6 +48,10 @@ class SelectionBase(torch.nn.Module, ABC):
         """
         ...
 
+    # This is just for proper auto-completion...
+    def __call__(self, domains: LatentsDomainGroupT) -> dict[str, torch.Tensor]:
+        return super().__call__(domains)
+
 
 class SingleDomainSelection(SelectionBase):
     """
