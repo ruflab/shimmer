@@ -5,10 +5,8 @@ import torch
 from torch import nn
 
 from shimmer.modules.domain import DomainModule
-from shimmer.modules.selection import SingleDomainSelection
 from shimmer.modules.vae import reparameterize
 from shimmer.types import LatentsDomainGroupDT, LatentsDomainGroupT
-from shimmer.utils import group_batch_size, group_device
 
 
 def get_n_layers(n_layers: int, hidden_dim: int) -> list[nn.Module]:
@@ -457,51 +455,6 @@ class GWModuleWithUncertainty(GWModuleBase):
         }
 
 
-class GWModuleWithSelection(GWModule):
-    """GWModule version that uses the selection module."""
-
-    def __init__(
-        self,
-        domain_modules: Mapping[str, DomainModule],
-        workspace_dim: int,
-        selection_mod: SingleDomainSelection,
-        gw_encoders: Mapping[str, nn.Module],
-        gw_decoders: Mapping[str, nn.Module],
-    ) -> None:
-        """Initializes the GWModule.
-
-        Args:
-            domain_modules (`Mapping[str, DomainModule]`): the domain modules.
-            workspace_dim (`int`): dimension of the GW.
-            selection_mod (`SingleDomainSelection`): selection module that selects
-                only one domain at a time.
-            gw_encoders (`Mapping[str, torch.nn.Module]`): mapping for each domain
-                name to a an torch.nn.Module class that encodes a
-                unimodal latent representations into a GW representation (pre fusion).
-            gw_decoders (`Mapping[str, torch.nn.Module]`): mapping for each domain
-                name to a an torch.nn.Module class that decodes a
-                 GW representation to a unimodal latent representation.
-        """
-        super().__init__(domain_modules, workspace_dim, gw_encoders, gw_decoders)
-
-        self.selection_mod = selection_mod
-        """Selection module"""
-
-    def encode(self, x: LatentsDomainGroupT) -> LatentsDomainGroupT:
-        """Encode the latent representation infos to the pre-fusion GW representation.
-
-        Args:
-            x (`LatentsDomainGroupT`): the input domain representations.
-
-        Returns:
-            `LatentsDomainGroupT`: pre-fusion representations
-        """
-        return {
-            domain_name: self.gw_encoders[domain_name](domain)
-            for domain_name, domain in x.items()
-        }
-
-
 class GWModuleFusion(GWModuleBase):
     """
     GWModule used for fusion.
@@ -549,7 +502,15 @@ class GWModuleFusion(GWModuleBase):
         Returns:
             `torch.Tensor`: The merged representation.
         """
-        return torch.sum(torch.stack(list(x.values())), dim=0)
+        return torch.sum(
+            torch.stack(
+                [
+                    selection_scores[domain] * x[domain]
+                    for domain in selection_scores.keys()
+                ]
+            ),
+            dim=0,
+        )
 
     def encode(self, x: LatentsDomainGroupT) -> LatentsDomainGroupT:
         """Encode the unimodal latent representation `x` into the pre-fusion GW
@@ -561,20 +522,9 @@ class GWModuleFusion(GWModuleBase):
         Returns:
             `torch.Tensor`: encoded and fused GW representation.
         """
-
-        domains = {}
-        bs = group_batch_size(x)
-        device = group_device(x)
-        for domain in self.domain_mods.keys():
-            if domain in x:
-                domains[domain] = x[domain]
-            else:
-                domains[domain] = torch.zeros(
-                    bs, self.domain_mods[domain].latent_dim
-                ).to(device)
         return {
             domain_name: self.gw_encoders[domain_name](domain)
-            for domain_name, domain in domains.items()
+            for domain_name, domain in x.items()
         }
 
     def decode(
