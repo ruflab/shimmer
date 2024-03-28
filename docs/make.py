@@ -9,12 +9,14 @@ modules = [
     "shimmer.modules.global_workspace",
     "shimmer.modules.domain",
     "shimmer.modules.gw_module",
+    "shimmer.modules.selection",
     "shimmer.modules.losses",
     "shimmer.modules.contrastive_loss",
     "shimmer.dataset",
     "shimmer.modules.vae",
     "shimmer.modules.utils",
     "shimmer.utils",
+    "shimmer.cli.ckpt_migration",
 ]
 
 here = Path(__file__).parent
