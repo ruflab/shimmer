@@ -68,20 +68,25 @@ def test_training():
         loss_coefs={},
     )
 
-    train_datalader = torch.utils.data.DataLoader(train_dataset, batch_size=32)
+    batch_size = 32
+    train_datalader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size)
 
     batch = next(iter(train_datalader))
 
     assert batch.keys() == {"v", "t"}
     assert isinstance(batch["v"], DummyData)
 
-    unimodal_latents = {
+    unimodal_latents: dict[str, torch.Tensor] = {
         domain: domains[domain].encode(batch[domain]) for domain in batch
     }
     assert isinstance(unimodal_latents["v"], torch.Tensor)
     assert unimodal_latents["v"].size() == (32, 128)
 
-    workspace_latent = gw.encode_and_fuse(unimodal_latents)
+    selection_scores = {
+        domain: torch.full((batch_size,), 1.0 / len(unimodal_latents))
+        for domain in unimodal_latents.keys()
+    }
+    workspace_latent = gw.encode_and_fuse(unimodal_latents, selection_scores)
 
     assert workspace_latent.size() == (32, 16)
 

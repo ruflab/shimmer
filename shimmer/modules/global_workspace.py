@@ -511,9 +511,15 @@ class GlobalWorkspace(GlobalWorkspaceBase):
             `GWPredictions`: the predictions on the batch.
         """
         return GWPredictions(
-            demi_cycles=batch_demi_cycles(self.gw_mod, latent_domains),
-            cycles=batch_cycles(self.gw_mod, latent_domains, self.domain_mods.keys()),
-            translations=batch_translations(self.gw_mod, latent_domains),
+            demi_cycles=batch_demi_cycles(
+                self.gw_mod, self.selection_mod, latent_domains
+            ),
+            cycles=batch_cycles(
+                self.gw_mod, self.selection_mod, latent_domains, self.domain_mods.keys()
+            ),
+            translations=batch_translations(
+                self.gw_mod, self.selection_mod, latent_domains
+            ),
             **super().forward(latent_domains),
         )
 
@@ -624,12 +630,14 @@ class GlobalWorkspaceWithUncertainty(GlobalWorkspaceBase):
             `GWPredictions`: the predictions on the batch.
         """
         return GWPredictions(
-            demi_cycles=batch_demi_cycles_with_uncertainty(self.gw_mod, latent_domains),
+            demi_cycles=batch_demi_cycles_with_uncertainty(
+                self.gw_mod, self.selection_mod, latent_domains
+            ),
             cycles=batch_cycles_with_uncertainty(
-                self.gw_mod, latent_domains, self.domain_mods.keys()
+                self.gw_mod, self.selection_mod, latent_domains, self.domain_mods.keys()
             ),
             translations=batch_translations_with_uncertainty(
-                self.gw_mod, latent_domains
+                self.gw_mod, self.selection_mod, latent_domains
             ),
             **super().forward(latent_domains),
         )

@@ -422,7 +422,11 @@ class GWModuleWithUncertainty(GWModuleBase):
             log_uncertainties[domain] = log_uncertainty
         return means, log_uncertainties
 
-    def encoded_mean(self, x: LatentsDomainGroupT) -> torch.Tensor:
+    def encoded_mean(
+        self,
+        x: LatentsDomainGroupT,
+        selection_scores: Mapping[str, torch.Tensor] | None = None,
+    ) -> torch.Tensor:
         """Encodes a unimodal latent group into a GW representation (post-fusion)
         using the mean value of the pre-fusion representations.
 
@@ -434,7 +438,7 @@ class GWModuleWithUncertainty(GWModuleBase):
         Returns:
             `torch.Tensor`: GW representation encoded using the mean of pre-fusion GW.
         """
-        return self.fuse(self.encoded_distribution(x)[0])
+        return self.fuse(self.encoded_distribution(x)[0], selection_scores)
 
     def decode(
         self, z: torch.Tensor, domains: Iterable[str] | None = None
