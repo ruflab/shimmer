@@ -20,6 +20,7 @@ def test_single_domain():
         attention_scores["v_latents"], expected_scores
     ), "Attention scores for single domain should be all 1s"
 
+
 def test_multiple_domains_sumis1():
     domain_dim = 12
     head_size = 5
@@ -43,6 +44,7 @@ def test_multiple_domains_sumis1():
         scores_sum, expected_sum
     ), "Sum of attention scores across domains should be 1"
 
+
 def test_attention_backward():
     domain_dim = 12
     head_size = 6
@@ -63,7 +65,11 @@ def test_attention_backward():
 
     assert gw_state.grad is not None, "Gradients should be computed for gw_state"
     for domain, tensor in domains.items():
-        assert tensor.grad is not None, f"Gradients should be computed for domain '{domain}' inputs"
+        assert (
+            tensor.grad is not None
+        ), f"Gradients should be computed for domain '{domain}' inputs"
 
     for name, param in attention.named_parameters():
-        assert param.grad is not None, f"Gradients should be computed for parameter '{name}'"
+        assert (
+            param.grad is not None
+        ), f"Gradients should be computed for parameter '{name}'"
