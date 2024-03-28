@@ -21,6 +21,7 @@ def test_multiple_domains():
     scores_sum = sum(
         selection_scores[domain].squeeze() for domain in multiple_domain_input.keys()
     )
+    assert scores_sum != 0, "should never happen as multiple_domain_input is non empty"
     expected_sum = torch.ones(batch_size)
 
     assert torch.allclose(
@@ -57,6 +58,7 @@ def test_three_domains():
     scores_sum = sum(
         selection_scores[domain].squeeze() for domain in three_domain_input.keys()
     )
+    assert scores_sum != 0, "should never happen as three_domain_input is non empty"
     expected_sum = torch.ones(batch_size)
 
     assert torch.allclose(
