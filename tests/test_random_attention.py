@@ -94,7 +94,3 @@ def test_binary_scores_xor_check_for_multiple_proportions():
         assert (
             num_binary_rows == expected_num_binary_rows
         ), f"Incorrect number of binary score rows for proportion {binary_proportion:.2f}: expected {expected_num_binary_rows}, got {num_binary_rows}"
-
-
-# You can call the function directly to run the tests
-test_binary_scores_xor_check_for_multiple_proportions()
