@@ -1,6 +1,6 @@
 import torch
 
-from shimmer.modules.selection import KQSelectionFixedQ
+from shimmer.modules.selection import KQFixedQSelection
 
 
 def test_single_domain():
@@ -8,7 +8,7 @@ def test_single_domain():
     head_size = 6
     batch_size = 2056
 
-    attention = KQSelectionFixedQ(domain_dim, head_size)
+    attention = KQFixedQSelection(domain_dim, head_size)
     gw_state = torch.rand(batch_size, domain_dim)
     attention.update_gw_state(gw_state)
 
@@ -25,7 +25,7 @@ def test_multiple_domains_sumis1():
     domain_dim = 12
     head_size = 5
     batch_size = 2056
-    attention = KQSelectionFixedQ(domain_dim, head_size)
+    attention = KQFixedQSelection(domain_dim, head_size)
     gw_state = torch.rand(batch_size, domain_dim)
     attention.update_gw_state(gw_state)
 
@@ -50,7 +50,7 @@ def test_attention_backward():
     head_size = 6
     batch_size = 2056
 
-    attention = KQSelectionFixedQ(domain_dim, head_size)
+    attention = KQFixedQSelection(domain_dim, head_size)
     gw_state = torch.rand(batch_size, domain_dim, requires_grad=True)
     attention.update_gw_state(gw_state)
 

@@ -1,9 +1,7 @@
 import numpy as np
 import torch
 
-from shimmer.modules.selection import (
-    RandomSelection,  # Assuming RandomSelection is in 'your_module'
-)
+from shimmer.modules.selection import RandomSelection
 
 
 def test_multiple_domains():

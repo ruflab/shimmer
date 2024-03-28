@@ -3,8 +3,8 @@ from abc import ABC, abstractmethod
 import torch
 import torch.nn as nn
 
-import shimmer
 from shimmer.types import LatentsDomainGroupT
+from shimmer.utils import group_batch_size, group_device
 
 
 class SelectionBase(torch.nn.Module, ABC):
@@ -49,12 +49,12 @@ class SelectionBase(torch.nn.Module, ABC):
         ...
 
 
-class KQSelectionFixedQ(SelectionBase):
+class KQFixedQSelection(SelectionBase):
     """
     Key-Query attention with a fixed gw vector.
     """
 
-    def __init__(self, domain_dim, head_size):
+    def __init__(self, domain_dim: int, head_size: int):
         """
         Args:
             domain_dim (`int`) : dimension of the input dims (assumed to be the same for now)
@@ -100,7 +100,7 @@ class KQSelectionFixedQ(SelectionBase):
             for domain, encoding in domains.items()
         }
 
-        device = shimmer.utils.group_device(domains)
+        device = group_device(domains)
         query = self.query_layer(self.gw_state.to(device))
 
         dot_products = {
@@ -125,7 +125,7 @@ class RandomSelection(SelectionBase):
     this class serves to train broadcast with robustness on linear scaling on prefusion representations.
     """
 
-    def __init__(self, binary_proportion, temperature):
+    def __init__(self, binary_proportion: float, temperature: float):
         """
         Args:
             binary_proportion (`float`) : proportion of binary scaling factors returned by forward(). between 0 and 1.
@@ -147,7 +147,7 @@ class RandomSelection(SelectionBase):
             coefficient for each item in the batch.
         """
         num_domains = len(domains)
-        batch_size = shimmer.utils.group_batch_size(domains)
+        batch_size = group_batch_size(domains)
 
         # have to add extra binaries when the division's not integer
         total_binary_scores = int(batch_size * self.binary_proportion)
