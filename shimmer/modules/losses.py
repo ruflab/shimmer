@@ -16,6 +16,7 @@ from shimmer.modules.gw_module import (
     GWModuleFusion,
     GWModuleWithUncertainty,
 )
+from shimmer.modules.selection import SelectionBase
 from shimmer.types import LatentsDomainGroupsT, ModelModeT
 
 
@@ -46,6 +47,7 @@ class GWLossesBase(torch.nn.Module, ABC):
 
 def demi_cycle_loss(
     gw_mod: GWModuleBase,
+    selection_mod: SelectionBase,
     domain_mods: Mapping[str, DomainModule],
     latent_domains: LatentsDomainGroupsT,
 ) -> dict[str, torch.Tensor]:
@@ -58,9 +60,11 @@ def demi_cycle_loss(
         * `demi_cycles` with the average value of all `demi_cycle_{domain_name}` values.
 
     Args:
-        gw_mod (`GWModuleBase`): The GWModule to use
+        gw_mod (`shimmer.modules.gw_module.GWModuleBase`): The GWModule to use
+        selection_mod (`shimmer.modules.selection.SelectionBase`): Selection mod to use
         domain_mods (`Mapping[str, DomainModule]`): the domain modules
-        latent_domains (`LatentsDomainGroupsT`): the latent unimodal groups
+        latent_domains (`shimmer.types.LatentsDomainGroupsT`): the latent unimodal
+            groups
 
     Returns:
         `dict[str, torch.Tensor]`: a dict of metrics.
@@ -71,9 +75,11 @@ def demi_cycle_loss(
         if len(domains) > 1:
             continue
         domain_name = next(iter(domains))
+
+        selection_scores = selection_mod(latents)
         domain_mod = domain_mods[domain_name]
         x_recons = gw_mod.decode(
-            gw_mod.encode_and_fuse(latents), domains={domain_name}
+            gw_mod.encode_and_fuse(latents, selection_scores), domains={domain_name}
         )[domain_name]
         loss_output = domain_mod.compute_dcy_loss(x_recons, latents[domain_name])
         losses[f"demi_cycle_{domain_name}"] = loss_output.loss
@@ -87,6 +93,7 @@ def demi_cycle_loss(
 
 def cycle_loss(
     gw_mod: GWModuleBase,
+    selection_mod: SelectionBase,
     domain_mods: Mapping[str, DomainModule],
     latent_domains: LatentsDomainGroupsT,
 ) -> dict[str, torch.Tensor]:
@@ -102,6 +109,7 @@ def cycle_loss(
 
     Args:
         gw_mod (`GWModuleBase`): The GWModule to use
+        selection_mod (`shimmer.modules.selection.SelectionBase`): Selection mod to use
         domain_mods (`Mapping[str, DomainModule]`): the domain modules
         latent_domains (`LatentsDomainGroupsT`): the latent unimodal groups
 
@@ -115,15 +123,19 @@ def cycle_loss(
             continue
         domain_name_source = list(domains_source)[0]
 
+        selection_scores_source = selection_mod(latents_source)
         domain_mod = domain_mods[domain_name_source]
-        z = gw_mod.encode_and_fuse(latents_source)
+        z = gw_mod.encode_and_fuse(latents_source, selection_scores_source)
         for domain_name_target in domain_mods.keys():
             if domain_name_target == domain_name_source:
                 continue
 
             x_pred = gw_mod.decode(z, domains={domain_name_target})
+
+            selection_scores_target = selection_mod(x_pred)
             x_recons = gw_mod.decode(
-                gw_mod.encode_and_fuse(x_pred), domains={domain_name_source}
+                gw_mod.encode_and_fuse(x_pred, selection_scores_target),
+                domains={domain_name_source},
             )
 
             loss_name = f"{domain_name_source}_through_{domain_name_target}"
@@ -142,6 +154,7 @@ def cycle_loss(
 
 def translation_loss(
     gw_mod: GWModuleBase,
+    selection_mod: SelectionBase,
     domain_mods: Mapping[str, DomainModule],
     latent_domains: LatentsDomainGroupsT,
 ) -> dict[str, torch.Tensor]:
@@ -176,7 +189,9 @@ def translation_loss(
                 if domain != domain_name_target
             }
 
-            z = gw_mod.encode_and_fuse(domain_sources)
+            selection_scores = selection_mod(domain_sources)
+
+            z = gw_mod.encode_and_fuse(domain_sources, selection_scores)
             mod = domain_mods[domain_name_target]
 
             domain_source_names = "/".join(domain_sources.keys())
@@ -349,6 +364,7 @@ class GWLosses(GWLossesBase):
     def __init__(
         self,
         gw_mod: GWModule,
+        selection_mod: SelectionBase,
         domain_mods: dict[str, DomainModule],
         loss_coefs: LossCoefs,
         contrastive_fn: ContrastiveLossType,
@@ -358,6 +374,7 @@ class GWLosses(GWLossesBase):
 
         Args:
             gw_mod (`GWModule`): the GWModule
+            selection_mod (`SelectionBase`): selection module
             domain_mods (`dict[str, DomainModule]`): a dict where the key is the
                 domain name and value is the DomainModule
             loss_coefs (`LossCoefs`): loss coefficients. LossCoefs object, or a
@@ -368,6 +385,7 @@ class GWLosses(GWLossesBase):
 
         super().__init__()
         self.gw_mod = gw_mod
+        self.selection_mod = selection_mod
         self.domain_mods = domain_mods
         self.loss_coefs = loss_coefs
         self.contrastive_fn = contrastive_fn
@@ -385,7 +403,9 @@ class GWLosses(GWLossesBase):
         Returns:
             `dict[str, torch.Tensor]`: a dict of metrics.
         """
-        return demi_cycle_loss(self.gw_mod, self.domain_mods, latent_domains)
+        return demi_cycle_loss(
+            self.gw_mod, self.selection_mod, self.domain_mods, latent_domains
+        )
 
     def cycle_loss(
         self, latent_domains: LatentsDomainGroupsT
@@ -400,7 +420,9 @@ class GWLosses(GWLossesBase):
         Returns:
             `dict[str, torch.Tensor]`: a dict of metrics.
         """
-        return cycle_loss(self.gw_mod, self.domain_mods, latent_domains)
+        return cycle_loss(
+            self.gw_mod, self.selection_mod, self.domain_mods, latent_domains
+        )
 
     def translation_loss(
         self, latent_domains: LatentsDomainGroupsT
@@ -415,7 +437,9 @@ class GWLosses(GWLossesBase):
         Returns:
             `dict[str, torch.Tensor]`: a dict of metrics.
         """
-        return translation_loss(self.gw_mod, self.domain_mods, latent_domains)
+        return translation_loss(
+            self.gw_mod, self.selection_mod, self.domain_mods, latent_domains
+        )
 
     def contrastive_loss(
         self, latent_domains: LatentsDomainGroupsT
@@ -477,6 +501,7 @@ class GWLossesWithUncertainty(GWLossesBase):
     def __init__(
         self,
         gw_mod: GWModuleWithUncertainty,
+        selection_mod: SelectionBase,
         domain_mods: dict[str, DomainModule],
         loss_coefs: LossCoefs,
         contrastive_fn: ContrastiveLossType | None = None,
@@ -487,6 +512,7 @@ class GWLossesWithUncertainty(GWLossesBase):
 
         Args:
             gw_mod (`GWModuleWithUncertainty`): the GWModule
+            selection_mod (`SelectionBase`): selection module
             domain_mods (`dict[str, DomainModule]`): a dict where the key is the
                 domain name and value is the DomainModule
             loss_coefs (`LossCoefsWithUncertainty`): loss coefficients
@@ -500,6 +526,9 @@ class GWLossesWithUncertainty(GWLossesBase):
 
         self.gw_mod = gw_mod
         """The GWModule."""
+
+        self.selection_mod = selection_mod
+        """Selection module"""
 
         self.domain_mods = domain_mods
         """Domain modules linked to the GW."""
@@ -531,7 +560,9 @@ class GWLossesWithUncertainty(GWLossesBase):
         Returns:
             `dict[str, torch.Tensor]`: a dict of metrics.
         """
-        return demi_cycle_loss(self.gw_mod, self.domain_mods, latent_domains)
+        return demi_cycle_loss(
+            self.gw_mod, self.selection_mod, self.domain_mods, latent_domains
+        )
 
     def cycle_loss(
         self, latent_domains: LatentsDomainGroupsT
@@ -544,7 +575,9 @@ class GWLossesWithUncertainty(GWLossesBase):
         Returns:
             `dict[str, torch.Tensor]`: a dict of metrics.
         """
-        return cycle_loss(self.gw_mod, self.domain_mods, latent_domains)
+        return cycle_loss(
+            self.gw_mod, self.selection_mod, self.domain_mods, latent_domains
+        )
 
     def translation_loss(
         self, latent_domains: LatentsDomainGroupsT
@@ -557,7 +590,9 @@ class GWLossesWithUncertainty(GWLossesBase):
         Returns:
             `dict[str, torch.Tensor]`: a dict of metrics.
         """
-        return translation_loss(self.gw_mod, self.domain_mods, latent_domains)
+        return translation_loss(
+            self.gw_mod, self.selection_mod, self.domain_mods, latent_domains
+        )
 
     def contrastive_loss(
         self, latent_domains: LatentsDomainGroupsT
@@ -677,28 +712,36 @@ class GWLossesFusion(GWLossesBase):
     def __init__(
         self,
         gw_mod: GWModuleFusion,
+        selection_mod: SelectionBase,
         domain_mods: dict[str, DomainModule],
         contrastive_fn: ContrastiveLossType,
     ):
         super().__init__()
         self.gw_mod = gw_mod
+        self.selection_mod = selection_mod
         self.domain_mods = domain_mods
         self.contrastive_fn = contrastive_fn
 
     def demi_cycle_loss(
         self, latent_domains: LatentsDomainGroupsT
     ) -> dict[str, torch.Tensor]:
-        return demi_cycle_loss(self.gw_mod, self.domain_mods, latent_domains)
+        return demi_cycle_loss(
+            self.gw_mod, self.selection_mod, self.domain_mods, latent_domains
+        )
 
     def cycle_loss(
         self, latent_domains: LatentsDomainGroupsT
     ) -> dict[str, torch.Tensor]:
-        return cycle_loss(self.gw_mod, self.domain_mods, latent_domains)
+        return cycle_loss(
+            self.gw_mod, self.selection_mod, self.domain_mods, latent_domains
+        )
 
     def translation_loss(
         self, latent_domains: LatentsDomainGroupsT
     ) -> dict[str, torch.Tensor]:
-        return translation_loss(self.gw_mod, self.domain_mods, latent_domains)
+        return translation_loss(
+            self.gw_mod, self.selection_mod, self.domain_mods, latent_domains
+        )
 
     def contrastive_loss(
         self, latent_domains: LatentsDomainGroupsT
@@ -740,7 +783,12 @@ class GWLossesFusion(GWLossesBase):
 
                     scaled_latents[domain_name] = scaled_latents_subset
 
-                encoded_latents_for_subset = self.gw_mod.encode_and_fuse(scaled_latents)
+                # TODO: better use selection mod
+                selection_scores = self.selection_mod(scaled_latents)
+
+                encoded_latents_for_subset = self.gw_mod.encode_and_fuse(
+                    scaled_latents, selection_scores
+                )
                 encoded_latents_for_subset = torch.tanh(encoded_latents_for_subset)
                 decoded_latents_for_subset = self.gw_mod.decode(
                     encoded_latents_for_subset

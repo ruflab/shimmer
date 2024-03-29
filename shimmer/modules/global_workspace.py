@@ -28,6 +28,7 @@ from shimmer.modules.losses import (
     GWLossesWithUncertainty,
     LossCoefs,
 )
+from shimmer.modules.selection import SelectionBase, SingleDomainSelection
 from shimmer.modules.utils import (
     batch_cycles,
     batch_cycles_with_uncertainty,
@@ -76,6 +77,7 @@ class GlobalWorkspaceBase(LightningModule):
     def __init__(
         self,
         gw_mod: GWModuleBase,
+        selection_mod: SelectionBase,
         loss_mod: GWLossesBase,
         optim_lr: float = 1e-3,
         optim_weight_decay: float = 0.0,
@@ -85,6 +87,7 @@ class GlobalWorkspaceBase(LightningModule):
 
         Args:
             gw_mod (`GWModuleBase`): the GWModule
+            selection_mod (`SelectionBase`): selection module
             loss_mod (`GWLossesBase`): module to compute the GW losses.
             optim_lr (`float`): learning rate
             optim_weight_decay (`float`): weight decay
@@ -95,6 +98,7 @@ class GlobalWorkspaceBase(LightningModule):
         self.save_hyperparameters(
             ignore=[
                 "gw_mod",
+                "selection_mod",
                 "domain_mods",
                 "loss_mod",
                 "domain_descriptions",
@@ -107,6 +111,9 @@ class GlobalWorkspaceBase(LightningModule):
 
         self.gw_mod = gw_mod
         """ a `GWModuleBase` implementation."""
+
+        self.selection_mod = selection_mod
+        """A `SelectionBase` implementation."""
 
         self.loss_mod = loss_mod
         """The module that computes losses of the GW"""
@@ -126,21 +133,24 @@ class GlobalWorkspaceBase(LightningModule):
         """Dimension of the GW."""
         return self.gw_mod.workspace_dim
 
-    def encode_and_fuse(self, x: LatentsDomainGroupT) -> torch.Tensor:
+    def encode_and_fuse(
+        self, x: LatentsDomainGroupT, selection_scores: Mapping[str, torch.Tensor]
+    ) -> torch.Tensor:
         """Encode latent representations into the GW representation.
 
         This directly calls `GWModuleBase.encode_and_fuse` and is a convenient proxy to
         ```python
-        self.gw_mod.encode_and_fuse(x)
+        self.gw_mod.encode_and_fuse(x, selection_scores)
         ```
 
         Args:
             x (`LatentsDomainGroupT`): the input domain representations.
+            selection_scores (`Mapping[str, torch.Tensor]`):
 
         Returns:
             `torch.Tensor`: the GW representations.
         """
-        return self.gw_mod.encode_and_fuse(x)
+        return self.gw_mod.encode_and_fuse(x, selection_scores)
 
     def encode(self, x: LatentsDomainGroupT) -> LatentsDomainGroupT:
         """Encode latent representations into the pre-fusion GW representation.
@@ -208,7 +218,8 @@ class GlobalWorkspaceBase(LightningModule):
             if len(domains) > 1:
                 continue
             domain_name = list(domains)[0]
-            z = self.gw_mod.encode_and_fuse(latents)
+            scores = self.selection_mod(latents)
+            z = self.gw_mod.encode_and_fuse(latents, scores)
             predictions[domain_name] = z
         return predictions
 
@@ -473,9 +484,19 @@ class GlobalWorkspace(GlobalWorkspaceBase):
             contrastive_loss = ContrastiveLoss(
                 torch.tensor([1 / 0.07]).log(), "mean", learn_logit_scale
             )
-        loss_mod = GWLosses(gw_mod, domain_mods, loss_coefs, contrastive_loss)
+        selection_mod = SingleDomainSelection()
+        loss_mod = GWLosses(
+            gw_mod, selection_mod, domain_mods, loss_coefs, contrastive_loss
+        )
 
-        super().__init__(gw_mod, loss_mod, optim_lr, optim_weight_decay, scheduler_args)
+        super().__init__(
+            gw_mod,
+            selection_mod,
+            loss_mod,
+            optim_lr,
+            optim_weight_decay,
+            scheduler_args,
+        )
 
     def forward(  # type: ignore
         self,
@@ -490,9 +511,15 @@ class GlobalWorkspace(GlobalWorkspaceBase):
             `GWPredictions`: the predictions on the batch.
         """
         return GWPredictions(
-            demi_cycles=batch_demi_cycles(self.gw_mod, latent_domains),
-            cycles=batch_cycles(self.gw_mod, latent_domains, self.domain_mods.keys()),
-            translations=batch_translations(self.gw_mod, latent_domains),
+            demi_cycles=batch_demi_cycles(
+                self.gw_mod, self.selection_mod, latent_domains
+            ),
+            cycles=batch_cycles(
+                self.gw_mod, self.selection_mod, latent_domains, self.domain_mods.keys()
+            ),
+            translations=batch_translations(
+                self.gw_mod, self.selection_mod, latent_domains
+            ),
             **super().forward(latent_domains),
         )
 
@@ -505,6 +532,7 @@ class GlobalWorkspaceWithUncertainty(GlobalWorkspaceBase):
     """
 
     gw_mod: GWModuleWithUncertainty
+    selection_mod: SingleDomainSelection
 
     def __init__(
         self,
@@ -555,6 +583,8 @@ class GlobalWorkspaceWithUncertainty(GlobalWorkspaceBase):
             domain_mods, workspace_dim, gw_encoders, gw_decoders
         )
 
+        selection_mod = SingleDomainSelection()
+
         if use_cont_loss_with_uncertainty and cont_loss_with_uncertainty is None:
             cont_loss_with_uncertainty = ContrastiveLossWithUncertainty(
                 torch.tensor([1]).log(), "mean", learn_logit_scale
@@ -571,13 +601,21 @@ class GlobalWorkspaceWithUncertainty(GlobalWorkspaceBase):
 
         loss_mod = GWLossesWithUncertainty(
             gw_mod,
+            selection_mod,
             domain_mods,
             loss_coefs,
             contrastive_loss,
             cont_loss_with_uncertainty,
         )
 
-        super().__init__(gw_mod, loss_mod, optim_lr, optim_weight_decay, scheduler_args)
+        super().__init__(
+            gw_mod,
+            selection_mod,
+            loss_mod,
+            optim_lr,
+            optim_weight_decay,
+            scheduler_args,
+        )
 
     def forward(  # type: ignore
         self,
@@ -592,12 +630,14 @@ class GlobalWorkspaceWithUncertainty(GlobalWorkspaceBase):
             `GWPredictions`: the predictions on the batch.
         """
         return GWPredictions(
-            demi_cycles=batch_demi_cycles_with_uncertainty(self.gw_mod, latent_domains),
+            demi_cycles=batch_demi_cycles_with_uncertainty(
+                self.gw_mod, self.selection_mod, latent_domains
+            ),
             cycles=batch_cycles_with_uncertainty(
-                self.gw_mod, latent_domains, self.domain_mods.keys()
+                self.gw_mod, self.selection_mod, latent_domains, self.domain_mods.keys()
             ),
             translations=batch_translations_with_uncertainty(
-                self.gw_mod, latent_domains
+                self.gw_mod, self.selection_mod, latent_domains
             ),
             **super().forward(latent_domains),
         )
@@ -651,9 +691,19 @@ class GlobalWorkspaceFusion(GlobalWorkspaceBase):
             contrastive_loss = ContrastiveLoss(
                 torch.tensor([1 / 0.07]).log(), "mean", learn_logit_scale
             )
-        loss_mod = GWLossesFusion(gw_mod, domain_mods, contrastive_loss)
 
-        super().__init__(gw_mod, loss_mod, optim_lr, optim_weight_decay, scheduler_args)
+        # TODO: use the correction selection module
+        selection_mod = SingleDomainSelection()
+        loss_mod = GWLossesFusion(gw_mod, selection_mod, domain_mods, contrastive_loss)
+
+        super().__init__(
+            gw_mod,
+            selection_mod,
+            loss_mod,
+            optim_lr,
+            optim_weight_decay,
+            scheduler_args,
+        )
 
 
 def pretrained_global_workspace(
@@ -696,11 +746,13 @@ def pretrained_global_workspace(
     """
     domain_mods = freeze_domain_modules(domain_mods)
     gw_mod = GWModule(domain_mods, workspace_dim, gw_encoders, gw_decoders)
-    loss_mod = GWLosses(gw_mod, domain_mods, loss_coefs, contrastive_fn)
+    selection_mod = SingleDomainSelection()
+    loss_mod = GWLosses(gw_mod, selection_mod, domain_mods, loss_coefs, contrastive_fn)
 
     gw = GlobalWorkspace.load_from_checkpoint(
         checkpoint_path,
         gw_mod=gw_mod,
+        selection_mid=selection_mod,
         loss_coefs=loss_coefs,
         loss_mod=loss_mod,
         **kwargs,
