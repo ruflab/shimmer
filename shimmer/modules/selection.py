@@ -232,8 +232,17 @@ class RandomSelection(SelectionBase):
         return attention_dict
 
 
-class KQAttentionOnePass(nn.Module):
-    def __init__(self, domain_dim, head_size):
+class KQDynamicQSelection(SelectionBase):
+    """
+    Key-Query attention with a dynamic gw vector.
+    """
+
+    def __init__(self, domain_dim: int, head_size: int):
+        """
+        Args:
+            domain_dim (`int`) : dimension of the input dims (assumed to be the same for now)
+            head_size (`int`) : dimension of the key and query vectors.
+        """
         super().__init__()
         self.head_size = head_size
         self.query_layer = nn.Linear(domain_dim, head_size)
@@ -243,18 +252,71 @@ class KQAttentionOnePass(nn.Module):
                 "attr": nn.Linear(domain_dim, head_size),
             }
         )
+        # Start with a initial naive gw state
+        self.gw_state: torch.Tensor | None = None
 
-    def forward(
-        self, domains: dict[str, torch.Tensor], gw_state: torch.Tensor
-    ) -> dict[str, torch.Tensor]:
+    def update_gw_state(self, gw_state: torch.Tensor) -> None:
+        """
+        Update gw state with an initial or updated value.
+
+        Args:
+            gw_state (`torch.Tensor`): the previous GW state
+        """
+        self.gw_state = gw_state
+
+    # TODO: implement this
+    def get_prefusion_encodings(
+        self, domains: LatentsDomainGroupT
+    ) -> dict[str, torch.Tensor]: ...
+
+    # TODO: implement this
+    def apply_fusion(
+        self, domains: LatentsDomainGroupT, attention_dict: dict
+    ) -> dict[str, torch.Tensor]: ...
+
+    def calculate_gw_state_with_attention(self, attention_dict: dict) -> None:
+        """
+        Update the internal copy of the previous GW state with the attention scores.
+
+        Args:
+            gw_state (`torch.Tensor`): the previous GW state
+            attention_dict (`dict`): the attention scores for each domain
+        """
+
+        # Need to check this (need to do something with fusion?)
+        for domain, attention in attention_dict.items():
+            new_state = self.gw_state * attention
+        return new_state
+
+    def forward(self, domains: LatentsDomainGroupT) -> dict[str, torch.Tensor]:
+        """
+        Compute keys and queries, match them with dot product and softmax.
+
+        Args:
+            domains (`LatentsDomainGroupT`): Group of unimodal latent representations.
+
+        Returns:
+            `dict[str, torch.Tensor]`: for each domain in the group, the fusion
+            coefficient for each item in the batch.
+        """
+
+        if self.gw_state is None:
+            raise ValueError("GW state has not been initialized.")
+
+        # how does this encoding work?
         keys = {
             domain: self.key_layers[domain](encoding)
             for domain, encoding in domains.items()
         }
+        print(f"keys: {keys}")
 
-        device = gw_state.device
-        query = self.query_layer(gw_state.to(device))
+        # What does this do?
+        device = group_device(domains)
 
+        # Retrieve query
+        query = self.query_layer(self.gw_state.to(device))
+
+        print(f"query: {query}")
         dot_products = {
             domain: torch.bmm(key.unsqueeze(1), query.unsqueeze(2)).squeeze()
             for domain, key in keys.items()
@@ -268,73 +330,19 @@ class KQAttentionOnePass(nn.Module):
             domain: attention_scores[:, i : i + 1] for i, domain in enumerate(keys)
         }
 
-        return attention_dict
+        # Get the prefusion encodings
+        # encodings = get_prefusion_encodings(domains)
 
+        ## Apply attentionscores on the encodings (maybe this is the same as the fusion?)
+        ## Apply fusion
+        # apply_fusion(encodings)
 
-class BinaryAttention(SelectionBase):
-    def __init__(self, domain_dim, head_size):
-        super().__init__()
+        # Calculate the new gw state
 
-        weights = {}
-
-        # unsure what is meant by "1 if domain is here, 0 otherwise" -- how do we get the domain key if it's not there ?
-        def forward(self, domain_encodings: LatentsDomainGroupT) -> LatentsDomainGroupT:
-            for domain, encoding in domain_encodings.items():
-                weights[domain] = torch.ones(encoding.shape[0])
-
-            return weights
-
-
-class QueryAttention(SelectionBase):
-    def __init__(self, domain_dim, head_size):
-        """
-        Args:
-            domain_dim (`int`): the dimension of the domain encodings.
-            head_size (`int`): the size of the attention heads.
-        """
-        super().__init__()
-        self.head_size = head_size
-        self.query_layer = nn.Linear(
-            domain_dim, head_size
-        )  # This is the naive query to start with
-        self.key_layers = nn.ModuleDict(
-            {
-                "v_latents": nn.Linear(domain_dim, head_size),
-                "attr": nn.Linear(domain_dim, head_size),
-            }
-        )
-
-    def forward(
-        self, domains: dict[str, torch.Tensor], gw_state: torch.Tensor
-    ) -> dict[str, torch.Tensor]:
-        """
-        Args:
-            domains (`Dict[str, torch.Tensor]`): the domain encodings.
-            gw_state (`torch.Tensor`): the global workspace state.
-        """
-        # to be changed
-
-        keys = {
-            domain: self.key_layers[domain](encoding)
-            for domain, encoding in domains.items()
-        }
-
-        device = gw_state.device
-
-        # The query should be the global workspace state
-        query = self.query_layer(gw_state.to(device))
-
-        dot_products = {
-            domain: torch.bmm(key.unsqueeze(1), query.unsqueeze(2)).squeeze()
-            for domain, key in keys.items()
-        }
-
-        dot_products_tensor = torch.stack(list(dot_products.values()), dim=1)
-
-        attention_scores = torch.softmax(dot_products_tensor, dim=1)
-
-        attention_dict = {
-            domain: attention_scores[:, i : i + 1] for i, domain in enumerate(keys)
-        }
+        ## Do this again for dynamic attention
+        # function: set prefusion encodings (sets gw state)
+        # fuse again
+        # update state
+        # again dot products etc..
 
         return attention_dict
