@@ -243,13 +243,13 @@ def translation_loss_with_selection(
     for all inputs.
 
     This return multiple metrics:
-        * `translation_selection_{domain_source}_to_{domain_target}` with the translation
+        * `translation_{domain_source}_to_{domain_target}` with the translation
             from a domain source to a domain target;
-        * `translation_selection_{domain_source}_to_{domain_target}_{metric}` with
+        * `translation_{domain_source}_to_{domain_target}_{metric}` with
             additional metrics provided by the domain_mod's
             `compute_tr_loss` output;
-        * `translations_selection` with the average value of all
-            `translation_selection_{domain_source}_to_{domain_target}` values.
+        * `translations` with the average value of all
+            `translation_{domain_source}_to_{domain_target}` values.
 
     Args:
         gw_mod (`GWModuleBase`): The GWModule to use
@@ -289,14 +289,14 @@ def translation_loss_with_selection(
                     prediction[domain_name_target][mask],
                     latents[domain_name_target][mask],
                 )
-                losses[f"translation_selection_{loss_name}"] = loss_output.loss
+                losses[f"translation_{loss_name}"] = loss_output.loss
                 metrics.update(
                     {
-                        f"translation_selection_{loss_name}_{k}": v
+                        f"translation_{loss_name}_{k}": v
                         for k, v in loss_output.metrics.items()
                     }
                 )
-    losses["translations_selection"] = torch.stack(list(losses.values()), dim=0).mean()
+    losses["translations"] = torch.stack(list(losses.values()), dim=0).mean()
     losses.update(metrics)
     return losses
 
@@ -580,6 +580,29 @@ class GWLosses(GWLossesBase):
         ).mean()
 
         return LossOutput(loss, metrics)
+
+
+class GWLossesWithSelection(GWLosses):
+    """
+    Implementation of `GWLosses` that uses `tranlsation_loss_with_selection`.
+    """
+
+    def translation_loss(
+        self, latent_domains: LatentsDomainGroupsT
+    ) -> dict[str, torch.Tensor]:
+        """Computes the translation loss.
+
+        See `shimmer.modules.losses.translation_loss`.
+
+        Args:
+            latent_domains (`LatentsDomainGroupsT`): the latent unimodal groups
+
+        Returns:
+            `dict[str, torch.Tensor]`: a dict of metrics.
+        """
+        return translation_loss_with_selection(
+            self.gw_mod, self.selection_mod, self.domain_mods, latent_domains
+        )
 
 
 class GWLossesWithUncertainty(GWLossesBase):
