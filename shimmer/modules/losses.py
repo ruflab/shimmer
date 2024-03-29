@@ -163,6 +163,13 @@ def translation_loss(
     """
     Computes the translation loss.
 
+    This loss differs from `translation_loss_with_selection` in that it will compute
+    the translation loss to a domain for all inputs.
+    On the contrary, `translation_loss_with_selection` uses the prediction from
+    the `selection_mod` to determined the target domain. This means that in a batch,
+    the target domain would have been different for all inputs and given by
+    the `selection_mod`.
+
     This return multiple metrics:
         * `translation_{domain_source}_to_{domain_target}` with the translation
             from a domain source to a domain target;
@@ -217,6 +224,79 @@ def translation_loss(
                 }
             )
     losses["translations"] = torch.stack(list(losses.values()), dim=0).mean()
+    losses.update(metrics)
+    return losses
+
+
+def translation_loss_with_selection(
+    gw_mod: GWModuleBase,
+    selection_mod: SelectionBase,
+    domain_mods: Mapping[str, DomainModule],
+    latent_domains: LatentsDomainGroupsT,
+) -> dict[str, torch.Tensor]:
+    """Computes the translation loss.
+
+    This loss differs from `translation_loss` in that it uses the prediction from
+    the `selection_mod` to determined the target domain. This means that in a batch,
+    the target domain is different for all inputs and is given by the `selection_mod`.
+    On the contrary, `translation_loss` will compute the translation loss to a domain
+    for all inputs.
+
+    This return multiple metrics:
+        * `translation_selection_{domain_source}_to_{domain_target}` with the translation
+            from a domain source to a domain target;
+        * `translation_selection_{domain_source}_to_{domain_target}_{metric}` with
+            additional metrics provided by the domain_mod's
+            `compute_tr_loss` output;
+        * `translations_selection` with the average value of all
+            `translation_selection_{domain_source}_to_{domain_target}` values.
+
+    Args:
+        gw_mod (`GWModuleBase`): The GWModule to use
+        domain_mods (`Mapping[str, DomainModule]`): the domain modules
+        latent_domains (`LatentsDomainGroupsT`): the latent unimodal groups
+
+    Returns:
+        `dict[str, torch.Tensor]`: a dict of metrics.
+    """
+    losses: dict[str, torch.Tensor] = {}
+    metrics: dict[str, torch.Tensor] = {}
+    for domains, latents in latent_domains.items():
+        if len(domains) < 2:
+            continue
+
+        selection_scores = selection_mod(latents)
+        z = gw_mod.encode_and_fuse(latents, selection_scores)
+        prediction = gw_mod.decode(z, domains=latents.keys())
+
+        for domain_name_target in prediction:
+            mask = selection_scores[domain_name_target] == 0.0
+            if mask.sum() > 0:
+                domain_sources = {
+                    domain: latents[domain]
+                    for domain in domains
+                    if domain != domain_name_target
+                }
+
+                mod = domain_mods[domain_name_target]
+
+                domain_source_names = "/".join(domain_sources.keys())
+                loss_name = f"{domain_source_names}_to_{domain_name_target}"
+                if loss_name in losses.keys():
+                    raise ValueError(f"{loss_name} is already computed.")
+
+                loss_output = mod.compute_tr_loss(
+                    prediction[domain_name_target][mask],
+                    latents[domain_name_target][mask],
+                )
+                losses[f"translation_selection_{loss_name}"] = loss_output.loss
+                metrics.update(
+                    {
+                        f"translation_selection_{loss_name}_{k}": v
+                        for k, v in loss_output.metrics.items()
+                    }
+                )
+    losses["translations_selection"] = torch.stack(list(losses.values()), dim=0).mean()
     losses.update(metrics)
     return losses
 
