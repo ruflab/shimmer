@@ -19,7 +19,7 @@ def test_multiple_domains():
 
     # Ensure the sum of attention scores across domains equals 1
     scores_sum = sum(
-        selection_scores[domain].squeeze() for domain in multiple_domain_input.keys()
+        selection_scores[domain].squeeze() for domain in multiple_domain_input
     )
     assert isinstance(scores_sum, torch.Tensor)
 
@@ -45,7 +45,7 @@ def test_three_domains():
     selection_scores = selection(three_domain_input)
 
     # Ensure that the shape of the selection scores matches the input domains
-    for domain in three_domain_input.keys():
+    for domain in three_domain_input:
         assert selection_scores[domain].shape == (
             batch_size,
             1,
@@ -57,7 +57,7 @@ def test_three_domains():
 
     # Check if the sum of selection scores across domains equals 1
     scores_sum = sum(
-        selection_scores[domain].squeeze() for domain in three_domain_input.keys()
+        selection_scores[domain].squeeze() for domain in three_domain_input
     )
     assert isinstance(scores_sum, torch.Tensor)
 
@@ -86,7 +86,7 @@ def test_binary_scores_xor_check_for_multiple_proportions():
         selection_scores = selection(domains_input)
 
         scores_matrix = torch.cat(
-            [selection_scores[domain] for domain in domains_input.keys()], dim=1
+            [selection_scores[domain] for domain in domains_input], dim=1
         )
         binary_scores_mask = scores_matrix == 1
         xor_binary_check = binary_scores_mask.sum(dim=1) == 1

@@ -36,7 +36,7 @@ def test_multiple_domains_sumis1():
     attention_scores = attention(multiple_domain_input)
 
     scores_sum = sum(
-        attention_scores[domain].squeeze() for domain in multiple_domain_input.keys()
+        attention_scores[domain].squeeze() for domain in multiple_domain_input
     )
     assert isinstance(scores_sum, torch.Tensor)
 

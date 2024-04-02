@@ -84,7 +84,7 @@ def test_training():
 
     selection_scores = {
         domain: torch.full((batch_size,), 1.0 / len(unimodal_latents))
-        for domain in unimodal_latents.keys()
+        for domain in unimodal_latents
     }
     workspace_latent = gw.encode_and_fuse(unimodal_latents, selection_scores)
 

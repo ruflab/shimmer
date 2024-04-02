@@ -196,7 +196,7 @@ def translation_loss(
 
             domain_source_names = "/".join(domain_sources.keys())
             loss_name = f"{domain_source_names}_to_{domain_name_target}"
-            if loss_name in losses.keys():
+            if loss_name in losses:
                 raise ValueError(f"{loss_name} is already computed.")
 
             prediction = gw_mod.decode(z, domains={domain_name_target})[
