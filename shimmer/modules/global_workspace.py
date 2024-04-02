@@ -226,8 +226,9 @@ class GlobalWorkspaceBase(LightningModule):
             if len(domains) > 1:
                 continue
             domain_name = list(domains)[0]
-            scores = self.selection_mod(latents)
-            z = self.gw_mod.encode_and_fuse(latents, scores)
+            z = self.gw_mod.encode_and_fuse(
+                latents, selection_module=self.selection_mod
+            )
             predictions[domain_name] = z
         return predictions
 
