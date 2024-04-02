@@ -38,7 +38,7 @@ Keys of the mapping are domains names and values are the domain data.
 
 Example:
     ```python
-    def fun() -> RawDomainGroupDT: 
+    def fun() -> RawDomainGroupDT:
         return {
             "vision": PIL.Image.Image("path/to/dog/picture.png"),
             "language": "This is a picture of a dog.",
@@ -55,7 +55,7 @@ Note:
 LatentsDomainGroupT = Mapping[str, torch.Tensor]
 """
 Matched unimodal latent representations from multiple domains.
-Keys of the mapping are domains names and values are `torch.Tensor` latent 
+Keys of the mapping are domains names and values are `torch.Tensor` latent
 representation of the domain.
 
 Example:
@@ -86,7 +86,7 @@ representation of the domain.
 
 Example:
     ```python
-    def fun() -> LatentsDomainGroupDT: 
+    def fun() -> LatentsDomainGroupDT:
         return {
             "vision": torch.Tensor([0.0, 1.0, 0.0, ...]),
             "language": torch.Tensor([0.0, 0.3, 0.2, ...]),
@@ -106,7 +106,7 @@ Each group is independent and contains different data (unpaired).
 
 Example:
     ```python
-    def fun() -> RawDomainGroupsDT: 
+    def fun() -> RawDomainGroupsDT:
         return {
             frozenset(["vision"]): {
                 "vision": PIL.Image.Image("path/to/cat/picture.png"),
@@ -134,7 +134,7 @@ Each group is independent and contains different data (unpaired).
 
 Example:
     ```python
-    def fun() -> RawDomainGroupsDT: 
+    def fun() -> RawDomainGroupsDT:
         return {
             frozenset(["vision"]): {
                 "vision": PIL.Image.Image("path/to/cat/picture.png"),
@@ -185,7 +185,7 @@ Note:
     Use `LatentsDomainGroupsDT` for functions' outputs.
 
     This allows to be more generic and allow passing other mappings.
-    
+
 """
 
 LatentsDomainGroupsDT = dict[frozenset[str], LatentsDomainGroupDT]
@@ -196,7 +196,7 @@ Each group is independent and contains different data (unpaired).
 
 Example:
     ```python
-    def fun() -> LatentsDomainGroupsDT: 
+    def fun() -> LatentsDomainGroupsDT:
         return {
             frozenset(["vision"]): {
                 "vision": torch.Tensor([1.0, 0.0, 0.3, ...]),

@@ -7,7 +7,8 @@ import torch
 
 @dataclass
 class LossOutput:
-    """This is a python dataclass use as a returned value for losses.
+    """
+    This is a python dataclass use as a returned value for losses.
     It keeps track of what is used for training (`loss`) and what is used
     only for logging (`metrics`).
     """
@@ -19,7 +20,7 @@ class LossOutput:
     """Some additional metrics to log (not used during training)."""
 
     def __post_init__(self):
-        if "loss" in self.metrics.keys():
+        if "loss" in self.metrics:
             raise ValueError("'loss' cannot be a key of metrics.")
 
     @property
@@ -73,7 +74,8 @@ class DomainModule(pl.LightningModule):
         raise NotImplementedError
 
     def compute_loss(self, pred: torch.Tensor, target: torch.Tensor) -> LossOutput:
-        """Generic loss computation  the modality.
+        """
+        Generic loss computation  the modality.
 
         Args:
             pred (`torch.Tensor`): prediction of the model

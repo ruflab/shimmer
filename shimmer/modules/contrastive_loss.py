@@ -9,7 +9,8 @@ from torch.nn.functional import cross_entropy, normalize
 from shimmer.modules.domain import LossOutput
 
 ContrastiveLossType = Callable[[torch.Tensor, torch.Tensor], LossOutput]
-"""Contrastive loss function type.
+"""
+Contrastive loss function type.
 
 A function taking the prediction and targets and returning a LossOutput.
 """
@@ -17,7 +18,8 @@ A function taking the prediction and targets and returning a LossOutput.
 ContrastiveLossWithUncertaintyType = Callable[
     [torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor], LossOutput
 ]
-"""Contrastive loss function type for GlobalWorkspaceWithUncertainty.
+"""
+Contrastive loss function type for GlobalWorkspaceWithUncertainty.
 
 A function taking the prediction mean, prediction std, target mean and target std and
     returns a LossOutput.
@@ -30,7 +32,8 @@ def info_nce(
     logit_scale: torch.Tensor,
     reduction: Literal["mean", "sum", "none"] = "mean",
 ) -> torch.Tensor:
-    """InfoNCE loss
+    """
+    InfoNCE loss
 
     Args:
         x (`torch.Tensor`): prediction
@@ -53,7 +56,8 @@ def contrastive_loss(
     logit_scale: torch.Tensor,
     reduction: Literal["mean", "sum", "none"] = "mean",
 ) -> torch.Tensor:
-    """CLIP-like contrastive loss
+    """
+    CLIP-like contrastive loss
 
     Args:
         x (`torch.Tensor`): prediction
@@ -80,7 +84,8 @@ def contrastive_loss_with_uncertainty(
     logit_scale: torch.Tensor,
     reduction: Literal["mean", "sum", "none"] = "mean",
 ) -> torch.Tensor:
-    """CLIP-like contrastive loss with uncertainty.
+    """
+    CLIP-like contrastive loss with uncertainty.
     This is used in Global Workspaces with uncertainty.
 
     Args:
@@ -114,7 +119,8 @@ class ContrastiveLoss(torch.nn.Module):
         reduction: Literal["mean", "sum", "none"] = "mean",
         learn_logit_scale: bool = False,
     ) -> None:
-        """Initializes a contrastive loss.
+        """
+        Initializes a contrastive loss.
 
         Args:
             logit_scale (`torch.Tensor`): logit_scale tensor.
@@ -133,7 +139,8 @@ class ContrastiveLoss(torch.nn.Module):
         self.reduction: Literal["mean", "sum", "none"] = reduction
 
     def forward(self, x: torch.Tensor, y: torch.Tensor) -> LossOutput:
-        """Computes the loss.
+        """
+        Computes the loss.
 
         Args:
             x (`torch.Tensor`): prediction
@@ -149,7 +156,8 @@ class ContrastiveLoss(torch.nn.Module):
 
 
 class ContrastiveLossWithUncertainty(torch.nn.Module):
-    """CLIP-like contrastive loss with uncertainty module.
+    """
+    CLIP-like contrastive loss with uncertainty module.
 
     This is used in Global Workspaces with uncertainty.
     """
@@ -186,7 +194,8 @@ class ContrastiveLossWithUncertainty(torch.nn.Module):
         y: torch.Tensor,
         y_log_uncertainty: torch.Tensor,
     ) -> LossOutput:
-        """Computes the loss
+        """
+        Computes the loss
         Args:
             x: prediction
             x_log_uncertainty: prediction logvar

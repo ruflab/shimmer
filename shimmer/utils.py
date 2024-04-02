@@ -22,7 +22,8 @@ def group_batch_size(x: LatentsDomainGroupT) -> int:
 
 
 def groups_batch_size(domain_latents: LatentsDomainGroupsT) -> int:
-    """Get the batch size of the batch.
+    """
+    Get the batch size of the batch.
 
     Args:
         domain_latents (`LatentsDomainGroupsT`): the batch of groups.
@@ -43,7 +44,8 @@ def group_device(x: LatentsDomainGroupT) -> torch.device:
 
 
 def migrate_model(ckpt_path: str | PathLike, **torch_load_kwargs):
-    """Migrates a model checkpoint
+    """
+    Migrates a model checkpoint
 
     After the migration, the given checkpoint will be migrated.
     Other versions of the checkpoint will be saved under the stem-version.suffix.

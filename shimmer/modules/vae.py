@@ -7,7 +7,8 @@ from torch import nn
 
 
 def reparameterize(mean: torch.Tensor, logvar: torch.Tensor) -> torch.Tensor:
-    """Reparameterization trick for VAE
+    """
+    Reparameterization trick for VAE
 
     Args:
         mean (`torch.Tensor`): predicted means
@@ -23,7 +24,8 @@ def reparameterize(mean: torch.Tensor, logvar: torch.Tensor) -> torch.Tensor:
 
 
 def kl_divergence_loss(mean: torch.Tensor, logvar: torch.Tensor) -> torch.Tensor:
-    """Computes the KL divergence loss used in VAE.
+    """
+    Computes the KL divergence loss used in VAE.
 
     Args:
         mean (`torch.Tensor`): predicted means
@@ -39,7 +41,8 @@ def kl_divergence_loss(mean: torch.Tensor, logvar: torch.Tensor) -> torch.Tensor
 def gaussian_nll(
     mu: torch.Tensor, log_sigma: torch.Tensor, x: torch.Tensor
 ) -> torch.Tensor:
-    """Computes gaussian nll loss used in VAE.
+    """
+    Computes gaussian nll loss used in VAE.
 
     Args:
         mu (`torch.Tensor`): predictions
@@ -104,7 +107,8 @@ class VAE(nn.Module):
         decoder: VAEDecoder,
         beta: float = 1,
     ):
-        """Initializes a VAE.
+        """
+        Initializes a VAE.
 
         Args:
             encoder (`VAEEncoder`): VAE encode
@@ -125,7 +129,8 @@ class VAE(nn.Module):
         """The decoder"""
 
     def encode(self, x: Any) -> torch.Tensor:
-        """Encode the representation and returns the mean prediction of VAE.
+        """
+        Encode the representation and returns the mean prediction of VAE.
 
         Args:
             x (`Any`): Some input value
@@ -137,7 +142,8 @@ class VAE(nn.Module):
         return mean_z
 
     def decode(self, z: torch.Tensor) -> Any:
-        """Decode the VAE latent representation into input value.
+        """
+        Decode the VAE latent representation into input value.
 
         Args:
             z (`torch.Tensor`): the VAE latent representation.
@@ -148,7 +154,8 @@ class VAE(nn.Module):
         return self.decoder(z)
 
     def forward(self, x: Any) -> tuple[tuple[torch.Tensor, torch.Tensor], Any]:
-        """Encode and decodes from x.
+        """
+        Encode and decodes from x.
 
         Args:
             x (`Any`): the input data

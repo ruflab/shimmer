@@ -90,7 +90,8 @@ class KQFixedQSelection(SelectionBase):
     def __init__(self, domain_dim: int, head_size: int):
         """
         Args:
-            domain_dim (`int`) : dimension of the input dims (assumed to be the same for now)
+            domain_dim (`int`) : dimension of the input dims
+                (assumed to be the same for now)
             head_size (`int`) : dimension of the key and query vectors.
         """
         super().__init__()
@@ -154,15 +155,19 @@ class KQFixedQSelection(SelectionBase):
 
 class RandomSelection(SelectionBase):
     """
-    random attention, not learned, with a proportion of binary scaling factors, and a proportion of uniform-then-softmaxed-across-modalities scores.
-    this class serves to train broadcast with robustness on linear scaling on prefusion representations.
+    random attention, not learned, with a proportion of binary scaling factors,
+    and a proportion of uniform-then-softmaxed-across-modalities scores.
+    this class serves to train broadcast with robustness on linear scaling on
+    prefusion representations.
     """
 
     def __init__(self, binary_proportion: float, temperature: float):
         """
         Args:
-            binary_proportion (`float`) : proportion of binary scaling factors returned by forward(). between 0 and 1.
-            temperature (`float`) : temperature of the softmax applied to uniform scaling factors.
+            binary_proportion (`float`) : proportion of binary scaling factors
+                returned by forward(). between 0 and 1.
+            temperature (`float`) : temperature of the softmax applied to uniform
+                scaling factors.
         """
         super().__init__()
         self.binary_proportion = binary_proportion
@@ -170,10 +175,12 @@ class RandomSelection(SelectionBase):
 
     def forward(self, domains: LatentsDomainGroupT) -> dict[str, torch.Tensor]:
         """
-        randomly draw binary and uniform-then-domain-wise-softmaxed samples according to self.binary_proportion.
+        randomly draw binary and uniform-then-domain-wise-softmaxed samples according
+        to self.binary_proportion.
 
         Args:
-            domains (`LatentsDomainGroupT`): Group of unimodal latent representations. This is not used in the function.
+            domains (`LatentsDomainGroupT`): Group of unimodal latent representations.
+                This is not used in the function.
 
         Returns:
             `dict[str, torch.Tensor]`: for each domain in the group, the fusion

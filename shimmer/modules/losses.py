@@ -51,7 +51,8 @@ def demi_cycle_loss(
     domain_mods: Mapping[str, DomainModule],
     latent_domains: LatentsDomainGroupsT,
 ) -> dict[str, torch.Tensor]:
-    """Computes the demi-cycle loss.
+    """
+    Computes the demi-cycle loss.
 
     This return multiple metrics:
         * `demi_cycle_{domain_name}` with the demi-cycle of a particular domain;
@@ -97,7 +98,8 @@ def cycle_loss(
     domain_mods: Mapping[str, DomainModule],
     latent_domains: LatentsDomainGroupsT,
 ) -> dict[str, torch.Tensor]:
-    """Computes the cycle loss.
+    """
+    Computes the cycle loss.
 
     This return multiple metrics:
         * `cycle_{domain_source}_through_{domain_target}` with the cycle of
@@ -126,7 +128,7 @@ def cycle_loss(
         selection_scores_source = selection_mod(latents_source)
         domain_mod = domain_mods[domain_name_source]
         z = gw_mod.encode_and_fuse(latents_source, selection_scores_source)
-        for domain_name_target in domain_mods.keys():
+        for domain_name_target in domain_mods:
             if domain_name_target == domain_name_source:
                 continue
 
@@ -158,7 +160,8 @@ def translation_loss(
     domain_mods: Mapping[str, DomainModule],
     latent_domains: LatentsDomainGroupsT,
 ) -> dict[str, torch.Tensor]:
-    """Computes the translation loss.
+    """
+    Computes the translation loss.
 
     This return multiple metrics:
         * `translation_{domain_source}_to_{domain_target}` with the translation
@@ -223,7 +226,8 @@ def contrastive_loss(
     latent_domains: LatentsDomainGroupsT,
     contrastive_fn: ContrastiveLossType,
 ) -> dict[str, torch.Tensor]:
-    """Computes the contrastive loss.
+    """
+    Computes the contrastive loss.
 
     This return multiple metrics:
         * `contrastive_{domain_1}_and_{domain_2}` with the contrastive
@@ -276,7 +280,8 @@ def contrastive_loss_with_uncertainty(
     latent_domains: LatentsDomainGroupsT,
     contrastive_fn: ContrastiveLossWithUncertaintyType,
 ) -> dict[str, torch.Tensor]:
-    """Computes the contrastive loss with uncertainty.
+    """
+    Computes the contrastive loss with uncertainty.
 
     This return multiple metrics:
         * `contrastive_{domain_1}_and_{domain_2}` with the contrastive
@@ -393,7 +398,8 @@ class GWLosses(GWLossesBase):
     def demi_cycle_loss(
         self, latent_domains: LatentsDomainGroupsT
     ) -> dict[str, torch.Tensor]:
-        """Computes the demi-cycle loss.
+        """
+        Computes the demi-cycle loss.
 
         See `shimmer.modules.losses.demi_cycle_loss`.
 
@@ -410,7 +416,8 @@ class GWLosses(GWLossesBase):
     def cycle_loss(
         self, latent_domains: LatentsDomainGroupsT
     ) -> dict[str, torch.Tensor]:
-        """Computes the cycle loss.
+        """
+        Computes the cycle loss.
 
         See `shimmer.modules.losses.cycle_loss`.
 
@@ -427,7 +434,8 @@ class GWLosses(GWLossesBase):
     def translation_loss(
         self, latent_domains: LatentsDomainGroupsT
     ) -> dict[str, torch.Tensor]:
-        """Computes the translation loss.
+        """
+        Computes the translation loss.
 
         See `shimmer.modules.losses.translation_loss`.
 
@@ -444,7 +452,8 @@ class GWLosses(GWLossesBase):
     def contrastive_loss(
         self, latent_domains: LatentsDomainGroupsT
     ) -> dict[str, torch.Tensor]:
-        """Computes the contrastive loss.
+        """
+        Computes the contrastive loss.
 
         See `shimmer.modules.losses.contrastive_loss`.
 
@@ -518,8 +527,8 @@ class GWLossesWithUncertainty(GWLossesBase):
             loss_coefs (`LossCoefsWithUncertainty`): loss coefficients
             contrastive_fn (`ContrastiveLossType | None`): the contrastive function
                 to use in contrastive loss
-            cont_fn_with_uncertainty (`ContrastiveLossWithUncertaintyType | None`): a contrastive
-                function that uses uncertainty
+            cont_fn_with_uncertainty (`ContrastiveLossWithUncertaintyType | None`):
+                a contrastive function that uses uncertainty
         """
 
         super().__init__()
@@ -541,8 +550,9 @@ class GWLossesWithUncertainty(GWLossesBase):
         ), "Should either have contrastive_fn or cont_fn_with_uncertainty"
 
         self.contrastive_fn = contrastive_fn
-        """Contrastive loss to use without the use of uncertainty. This is only
-        used in `GWLossesWithUncertainty.step` if 
+        """
+        Contrastive loss to use without the use of uncertainty. This is only
+        used in `GWLossesWithUncertainty.step` if
         `GWLossesWithUncertainty.cont_fn_with_uncertainty` is not set.
         """
 
@@ -552,7 +562,8 @@ class GWLossesWithUncertainty(GWLossesBase):
     def demi_cycle_loss(
         self, latent_domains: LatentsDomainGroupsT
     ) -> dict[str, torch.Tensor]:
-        """Demi-cycle loss. See `GWLosses.demi_cycle_loss`.
+        """
+        Demi-cycle loss. See `GWLosses.demi_cycle_loss`.
 
         Args:
             latent_domains (`LatentsDomainGroupsT`): the latent unimodal groups
@@ -567,7 +578,8 @@ class GWLossesWithUncertainty(GWLossesBase):
     def cycle_loss(
         self, latent_domains: LatentsDomainGroupsT
     ) -> dict[str, torch.Tensor]:
-        """Cycle loss. See `GWLosses.cycle_loss`.
+        """
+        Cycle loss. See `GWLosses.cycle_loss`.
 
         Args:
             latent_domains (`LatentsDomainGroupsT`): the latent unimodal groups
@@ -582,7 +594,8 @@ class GWLossesWithUncertainty(GWLossesBase):
     def translation_loss(
         self, latent_domains: LatentsDomainGroupsT
     ) -> dict[str, torch.Tensor]:
-        """Translation loss. See `GWLosses.translation_loss`.
+        """
+        Translation loss. See `GWLosses.translation_loss`.
 
         Args:
             latent_domains (`LatentsDomainGroupsT`): the latent unimodal groups
@@ -597,7 +610,8 @@ class GWLossesWithUncertainty(GWLossesBase):
     def contrastive_loss(
         self, latent_domains: LatentsDomainGroupsT
     ) -> dict[str, torch.Tensor]:
-        """Contrastive loss.
+        """
+        Contrastive loss.
 
         If `GWLossesWithUncertainty.cont_fn_with_uncertainty` is set, will use the
         contrastive loss with uncertainty. Otherwise, use the traditional
@@ -760,7 +774,8 @@ class GWLossesFusion(GWLossesBase):
             batch_size = latents[next(iter(latents))].size(0)
             device = latents[next(iter(latents))].device
 
-            # TODO: don't hardcode the proportions (first param of the sample_scaling_factors function)
+            # TODO: don't hardcode the proportions
+            # (first param of the sample_scaling_factors function)
 
             if mode == "val":
                 scaling_factors = sample_scaling_factors(0.5, batch_size, 5.0, device)
@@ -794,7 +809,7 @@ class GWLossesFusion(GWLossesBase):
                     encoded_latents_for_subset
                 )
 
-                for domain_name, latent in latents.items():
+                for domain_name in latents:
                     domain_mod = self.domain_mods[domain_name]
                     decoded_latent_for_domain_subset = decoded_latents_for_subset[
                         domain_name
@@ -818,7 +833,7 @@ class GWLossesFusion(GWLossesBase):
             softmax_count = scaling_factors["softmax"][2].size(0)
             total_count = binary_count + softmax_count
 
-            for domain_name, latent in latents.items():
+            for domain_name in latents:
                 full_loss_key = f"{domain_name}_full_loss"
 
                 binary_loss_key = f"{domain_name}_loss_binary"

@@ -17,7 +17,8 @@ def translation(
     x: LatentsDomainGroupT,
     to: str,
 ) -> torch.Tensor:
-    """Translate from multiple domains to one domain.
+    """
+    Translate from multiple domains to one domain.
 
     Args:
         gw_module (`GWModuleBase`): GWModule to perform the translation over
@@ -41,7 +42,8 @@ def translation_with_uncertainty(
     x: LatentsDomainGroupT,
     to: str,
 ) -> torch.Tensor:
-    """Translate a latent representation to a specified domain.
+    """
+    Translate a latent representation to a specified domain.
 
     Args:
         gw_module (`GWModuleWithUncertainty`): GWModule with uncertainty to use for
@@ -65,7 +67,8 @@ def cycle(
     x: LatentsDomainGroupT,
     through: str,
 ) -> LatentsDomainGroupDT:
-    """Do a full cycle from a group of representation through one domain.
+    """
+    Do a full cycle from a group of representation through one domain.
 
     [Original domains] -> [GW] -> [through] -> [GW] -> [Original domains]
 
@@ -85,7 +88,7 @@ def cycle(
             {through: translation(gw_module, selection_mod, x, through)},
             domain,
         )
-        for domain in x.keys()
+        for domain in x
     }
 
 
@@ -95,7 +98,8 @@ def cycle_with_uncertainty(
     x: LatentsDomainGroupT,
     through: str,
 ) -> LatentsDomainGroupDT:
-    """Do a full cycle from a group of representation through one domain.
+    """
+    Do a full cycle from a group of representation through one domain.
 
     [Original domains] -> [GW] -> [through] -> [GW] -> [Original domains]
 
@@ -120,7 +124,7 @@ def cycle_with_uncertainty(
             },
             domain,
         )
-        for domain in x.keys()
+        for domain in x
     }
 
 
@@ -129,7 +133,8 @@ def batch_demi_cycles(
     selection_mod: SelectionBase,
     latent_domains: LatentsDomainGroupsT,
 ) -> dict[str, torch.Tensor]:
-    """Computes demi-cycles of a batch of groups of domains.
+    """
+    Computes demi-cycles of a batch of groups of domains.
 
     Args:
         gw_mod (`GWModuleBase`): the GWModuleBase
@@ -154,7 +159,8 @@ def batch_demi_cycles_with_uncertainty(
     selection_mod: SelectionBase,
     latent_domains: LatentsDomainGroupsT,
 ) -> dict[str, torch.Tensor]:
-    """Computes demi-cycles of a batch of groups of domains. With uncertainty version.
+    """
+    Computes demi-cycles of a batch of groups of domains. With uncertainty version.
 
     Args:
         gw_mod (`GWModuleWithUncertainty`): the GWModule with uncertainty
@@ -180,7 +186,8 @@ def batch_cycles(
     latent_domains: LatentsDomainGroupsT,
     through_domains: Iterable[str],
 ) -> dict[tuple[str, str], torch.Tensor]:
-    """Computes cycles of a batch of groups of domains.
+    """
+    Computes cycles of a batch of groups of domains.
 
     Args:
         gw_mod (`GWModuleBase`): GWModule to use for the cycle
@@ -215,7 +222,8 @@ def batch_cycles_with_uncertainty(
     latent_domains: LatentsDomainGroupsT,
     through_domains: Iterable[str],
 ) -> dict[tuple[str, str], torch.Tensor]:
-    """Computes cycles of a batch of groups of domains.
+    """
+    Computes cycles of a batch of groups of domains.
 
     Args:
         gw_mod (`GWModuleWithUncertainty`): GWModule with uncertainty to use
@@ -250,7 +258,8 @@ def batch_translations(
     selection_mod: SelectionBase,
     latent_domains: LatentsDomainGroupsT,
 ) -> dict[tuple[str, str], torch.Tensor]:
-    """Computes translations of a batch of groups of domains.
+    """
+    Computes translations of a batch of groups of domains.
 
     Args:
         gw_mod (`GWModuleBase`): GWModule to do the translation
@@ -284,7 +293,8 @@ def batch_translations_with_uncertainty(
     selection_mod: SelectionBase,
     latent_domains: LatentsDomainGroupsT,
 ) -> dict[tuple[str, str], torch.Tensor]:
-    """Computes translations of a batch of groups of domains.
+    """
+    Computes translations of a batch of groups of domains.
 
     Args:
         gw_mod (`GWModuleWithUncertainty`): GWModule with uncertainty

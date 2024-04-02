@@ -10,7 +10,8 @@ from shimmer.types import LatentsDomainGroupDT, LatentsDomainGroupT
 
 
 def get_n_layers(n_layers: int, hidden_dim: int) -> list[nn.Module]:
-    """Makes a list of `n_layers` `nn.Linear` layers with `nn.ReLU`.
+    """
+    Makes a list of `n_layers` `nn.Linear` layers with `nn.ReLU`.
 
     Args:
         n_layers (`int`): number of layers
@@ -35,7 +36,8 @@ class GWDecoder(nn.Sequential):
         out_dim: int,
         n_layers: int,
     ):
-        """Initializes the decoder.
+        """
+        Initializes the decoder.
 
         Args:
             in_dim (`int`): input dimension
@@ -55,7 +57,8 @@ class GWDecoder(nn.Sequential):
         """output dimension"""
 
         self.n_layers = n_layers
-        """number of hidden layers. The total number of layers
+        """
+        number of hidden layers. The total number of layers
                 will be `n_layers` + 2 (one before, one after)."""
 
         super().__init__(
@@ -67,7 +70,8 @@ class GWDecoder(nn.Sequential):
 
 
 class GWEncoder(GWDecoder):
-    """An Encoder network used in GWModules.
+    """
+    An Encoder network used in GWModules.
 
     This is similar to the decoder, but adds a tanh non-linearity at the end.
     """
@@ -79,7 +83,8 @@ class GWEncoder(GWDecoder):
         out_dim: int,
         n_layers: int,
     ):
-        """Initializes the encoder.
+        """
+        Initializes the encoder.
 
         Args:
             in_dim (`int`): input dimension
@@ -111,7 +116,8 @@ class GWEncoderWithUncertainty(nn.Module):
         out_dim: int,
         n_layers: int,
     ):
-        """Initializes the encoder.
+        """
+        Initializes the encoder.
 
         Args:
             in_dim (`int`): input dimension
@@ -132,7 +138,8 @@ class GWEncoderWithUncertainty(nn.Module):
         """Output dimension"""
 
         self.n_layers = n_layers
-        """Number of hidden layers. The total number of layers
+        """
+        Number of hidden layers. The total number of layers
                 will be `n_layers` + 2 (one before, one after)."""
 
         self.layers = GWEncoder(
@@ -143,7 +150,8 @@ class GWEncoderWithUncertainty(nn.Module):
         """Log of the uncertainty level of the model."""
 
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        """Encodes the latent unimodal representation into the pre-fusion
+        """
+        Encodes the latent unimodal representation into the pre-fusion
         GW representation.
 
         Args:
@@ -157,7 +165,8 @@ class GWEncoderWithUncertainty(nn.Module):
 
 
 class GWModuleBase(nn.Module, ABC):
-    """Base class for GWModule.
+    """
+    Base class for GWModule.
 
     GWModule handles encoding, decoding the unimodal representations
     using the `gw_encoders` and`gw_decoders`, and define
@@ -174,7 +183,8 @@ class GWModuleBase(nn.Module, ABC):
         *args,
         **kwargs,
     ) -> None:
-        """Initializes the GWModule.
+        """
+        Initializes the GWModule.
 
         Args:
             domain_modules (`Mapping[str, DomainModule]`): the domain modules.
@@ -206,7 +216,8 @@ class GWModuleBase(nn.Module, ABC):
 
     @abstractmethod
     def encode(self, x: LatentsDomainGroupT) -> LatentsDomainGroupT:
-        """Encode the latent representation infos to the pre-fusion GW representation.
+        """
+        Encode the latent representation infos to the pre-fusion GW representation.
 
         Args:
             x (`LatentsDomainGroupT`): the input domain representations
@@ -219,7 +230,8 @@ class GWModuleBase(nn.Module, ABC):
     def encode_and_fuse(
         self, x: LatentsDomainGroupT, selection_scores: Mapping[str, torch.Tensor]
     ) -> torch.Tensor:
-        """Encode the latent representation infos to the final GW representation.
+        """
+        Encode the latent representation infos to the final GW representation.
         It combines the encode and fuse methods.
 
         Args:
@@ -236,7 +248,8 @@ class GWModuleBase(nn.Module, ABC):
     def decode(
         self, z: torch.Tensor, domains: Iterable[str] | None = None
     ) -> LatentsDomainGroupDT:
-        """Decode the GW representation into given `domains`.
+        """
+        Decode the GW representation into given `domains`.
 
         Args:
             z (`torch.Tensor`): the GW representation.
@@ -258,7 +271,8 @@ class GWModule(GWModuleBase):
         gw_encoders: Mapping[str, nn.Module],
         gw_decoders: Mapping[str, nn.Module],
     ) -> None:
-        """Initializes the GWModule.
+        """
+        Initializes the GWModule.
 
         Args:
             domain_modules (`Mapping[str, DomainModule]`): the domain modules.
@@ -303,7 +317,8 @@ class GWModule(GWModuleBase):
         return self.fuse(self.encode(x), selection_scores)
 
     def encode(self, x: LatentsDomainGroupT) -> LatentsDomainGroupT:
-        """Encode the latent representation infos to the pre-fusion GW representation.
+        """
+        Encode the latent representation infos to the pre-fusion GW representation.
 
         Args:
             x (`LatentsDomainGroupT`): the input domain representations.
@@ -319,7 +334,8 @@ class GWModule(GWModuleBase):
     def decode(
         self, z: torch.Tensor, domains: Iterable[str] | None = None
     ) -> LatentsDomainGroupDT:
-        """Decodes a GW representation to multiple domains.
+        """
+        Decodes a GW representation to multiple domains.
 
         Args:
             z (`torch.Tensor`): the GW representation
@@ -344,7 +360,8 @@ class GWModuleWithUncertainty(GWModuleBase):
         gw_encoders: Mapping[str, nn.Module],
         gw_decoders: Mapping[str, nn.Module],
     ) -> None:
-        """Initializes the GWModuleWithUncertainty.
+        """
+        Initializes the GWModuleWithUncertainty.
 
         Args:
             domain_modules (`Mapping[str, DomainModule]`): the domain modules.
@@ -369,7 +386,8 @@ class GWModuleWithUncertainty(GWModuleBase):
         x: LatentsDomainGroupT,
         selection_scores: Mapping[str, torch.Tensor] | None = None,
     ) -> torch.Tensor:
-        """Fusion of the pre-fusion GW representations.
+        """
+        Fusion of the pre-fusion GW representations.
 
         Args:
             x (`LatentsDomainGroupT`): pre-fusion GW representations.
@@ -381,7 +399,8 @@ class GWModuleWithUncertainty(GWModuleBase):
         return torch.sum(torch.stack(list(x.values())), dim=0)
 
     def encode(self, x: LatentsDomainGroupT) -> LatentsDomainGroupT:
-        """Encode the latent representation infos to the pre-fusion GW representation.
+        """
+        Encode the latent representation infos to the pre-fusion GW representation.
 
         Args:
             x (`LatentsDomainGroupT`): the input domain representations.
@@ -404,7 +423,8 @@ class GWModuleWithUncertainty(GWModuleBase):
     def encoded_distribution(
         self, x: LatentsDomainGroupT
     ) -> tuple[LatentsDomainGroupDT, LatentsDomainGroupDT]:
-        """Encode a unimodal latent group into a pre-fusion GW distributions.
+        """
+        Encode a unimodal latent group into a pre-fusion GW distributions.
         The pre-fusion GW representation are the mean of the predicted distribution.
 
         Args:
@@ -416,7 +436,7 @@ class GWModuleWithUncertainty(GWModuleBase):
         """
         means: LatentsDomainGroupDT = {}
         log_uncertainties: LatentsDomainGroupDT = {}
-        for domain in x.keys():
+        for domain in x:
             mean, log_uncertainty = self.gw_encoders[domain](x[domain])
             means[domain] = mean
             log_uncertainties[domain] = log_uncertainty
@@ -443,7 +463,8 @@ class GWModuleWithUncertainty(GWModuleBase):
     def decode(
         self, z: torch.Tensor, domains: Iterable[str] | None = None
     ) -> LatentsDomainGroupDT:
-        """Decodes a GW representation into specified unimodal latent representation.
+        """
+        Decodes a GW representation into specified unimodal latent representation.
 
         Args:
             z (`torch.Tensor`): the GW representation.
@@ -471,7 +492,8 @@ class GWModuleFusion(GWModuleBase):
         gw_encoders: Mapping[str, nn.Module],
         gw_decoders: Mapping[str, nn.Module],
     ) -> None:
-        """Initializes the GWModule Fusion.
+        """
+        Initializes the GWModule Fusion.
 
         Args:
             domain_modules (`Mapping[str, DomainModule]`): the domain modules.
@@ -508,16 +530,14 @@ class GWModuleFusion(GWModuleBase):
         """
         return torch.sum(
             torch.stack(
-                [
-                    selection_scores[domain] * x[domain]
-                    for domain in selection_scores.keys()
-                ]
+                [selection_scores[domain] * x[domain] for domain in selection_scores]
             ),
             dim=0,
         )
 
     def encode(self, x: LatentsDomainGroupT) -> LatentsDomainGroupT:
-        """Encode the unimodal latent representation `x` into the pre-fusion GW
+        """
+        Encode the unimodal latent representation `x` into the pre-fusion GW
         representations.
 
         Args:
@@ -534,7 +554,8 @@ class GWModuleFusion(GWModuleBase):
     def decode(
         self, z: torch.Tensor, domains: Iterable[str] | None = None
     ) -> LatentsDomainGroupDT:
-        """Decodes a GW representation to multiple domains.
+        """
+        Decodes a GW representation to multiple domains.
 
         Args:
             z (`torch.Tensor`): the GW representation

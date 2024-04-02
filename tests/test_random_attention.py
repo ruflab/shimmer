@@ -93,6 +93,8 @@ def test_binary_scores_xor_check_for_multiple_proportions():
         num_binary_rows = xor_binary_check.sum().item()
         expected_num_binary_rows = int(batch_size * binary_proportion)
 
-        assert (
-            num_binary_rows == expected_num_binary_rows
-        ), f"Incorrect number of binary score rows for proportion {binary_proportion:.2f}: expected {expected_num_binary_rows}, got {num_binary_rows}"
+        assert num_binary_rows == expected_num_binary_rows, (
+            "Incorrect number of binary score rows for proportion"
+            f"{binary_proportion:.2f}: expected {expected_num_binary_rows}, "
+            "got {num_binary_rows}"
+        )
