@@ -137,9 +137,6 @@ class KQFixedQSelection(SelectionBase):
         if self.gw_state is None:
             raise ValueError("GW state has not been initialized.")
 
-    def forward(
-        self, domains: dict[str, torch.Tensor], gw_state: torch.Tensor
-    ) -> dict[str, torch.Tensor]:
         keys = {
             domain: self.key_layers[domain](encoding)
             for domain, encoding in domains.items()
@@ -355,7 +352,7 @@ class KQDynamicQSelection(SelectionBase):
         Returns:
             `torch.Tensor`: encoded and fused GW representation.
         """
-    
+
         domains = {}
         bs = group_batch_size(x)
         device = group_device(x)
