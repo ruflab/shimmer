@@ -137,7 +137,7 @@ class GlobalWorkspaceBase(LightningModule):
         return self.gw_mod.workspace_dim
 
     def encode_and_fuse(
-        self, x: LatentsDomainGroupT, selection_scores: Mapping[str, torch.Tensor]
+        self, x: LatentsDomainGroupT, selection_module: SelectionBase
     ) -> torch.Tensor:
         """
         Encode latent representations into the GW representation.
@@ -154,7 +154,7 @@ class GlobalWorkspaceBase(LightningModule):
         Returns:
             `torch.Tensor`: the GW representations.
         """
-        return self.gw_mod.encode_and_fuse(x, selection_scores)
+        return self.gw_mod.encode_and_fuse(x, selection_module)
 
     def encode(self, x: LatentsDomainGroupT) -> LatentsDomainGroupT:
         """

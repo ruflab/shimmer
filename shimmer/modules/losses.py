@@ -77,10 +77,9 @@ def demi_cycle_loss(
             continue
         domain_name = next(iter(domains))
 
-        selection_scores = selection_mod(latents)
         domain_mod = domain_mods[domain_name]
         x_recons = gw_mod.decode(
-            gw_mod.encode_and_fuse(latents, selection_scores), domains={domain_name}
+            gw_mod.encode_and_fuse(latents, selection_mod), domains={domain_name}
         )[domain_name]
         loss_output = domain_mod.compute_dcy_loss(x_recons, latents[domain_name])
         losses[f"demi_cycle_{domain_name}"] = loss_output.loss
@@ -125,18 +124,16 @@ def cycle_loss(
             continue
         domain_name_source = list(domains_source)[0]
 
-        selection_scores_source = selection_mod(latents_source)
         domain_mod = domain_mods[domain_name_source]
-        z = gw_mod.encode_and_fuse(latents_source, selection_scores_source)
+        z = gw_mod.encode_and_fuse(latents_source, selection_mod)
         for domain_name_target in domain_mods:
             if domain_name_target == domain_name_source:
                 continue
 
             x_pred = gw_mod.decode(z, domains={domain_name_target})
 
-            selection_scores_target = selection_mod(x_pred)
             x_recons = gw_mod.decode(
-                gw_mod.encode_and_fuse(x_pred, selection_scores_target),
+                gw_mod.encode_and_fuse(x_pred, selection_mod),
                 domains={domain_name_source},
             )
 
@@ -192,9 +189,7 @@ def translation_loss(
                 if domain != domain_name_target
             }
 
-            selection_scores = selection_mod(domain_sources)
-
-            z = gw_mod.encode_and_fuse(domain_sources, selection_scores)
+            z = gw_mod.encode_and_fuse(domain_sources, selection_mod)
             mod = domain_mods[domain_name_target]
 
             domain_source_names = "/".join(domain_sources.keys())
@@ -802,7 +797,7 @@ class GWLossesFusion(GWLossesBase):
                 selection_scores = self.selection_mod(scaled_latents)
 
                 encoded_latents_for_subset = self.gw_mod.encode_and_fuse(
-                    scaled_latents, selection_scores
+                    scaled_latents, self.selection_mod
                 )
                 encoded_latents_for_subset = torch.tanh(encoded_latents_for_subset)
                 decoded_latents_for_subset = self.gw_mod.decode(

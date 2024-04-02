@@ -13,7 +13,8 @@ def test_single_domain():
     attention.update_gw_state(gw_state)
 
     single_domain_input = {"v_latents": torch.rand(batch_size, domain_dim)}
-    attention_scores = attention(single_domain_input)
+    encodings_pre_fusion = {"v_latents": torch.rand(batch_size, domain_dim)}
+    attention_scores = attention(single_domain_input, encodings_pre_fusion)
 
     expected_scores = torch.ones(batch_size, 1)
     assert torch.allclose(
@@ -33,7 +34,12 @@ def test_multiple_domains_sumis1():
         "v_latents": torch.rand(batch_size, domain_dim),
         "attr": torch.rand(batch_size, domain_dim),
     }
-    attention_scores = attention(multiple_domain_input)
+    encodings_pre_fusion = {
+        "v_latents": torch.rand(batch_size, domain_dim),
+        "attr": torch.rand(batch_size, domain_dim),
+    }
+
+    attention_scores = attention(multiple_domain_input, encodings_pre_fusion)
 
     scores_sum = sum(
         attention_scores[domain].squeeze() for domain in multiple_domain_input
@@ -61,7 +67,11 @@ def test_attention_backward():
         "attr": torch.rand(batch_size, domain_dim, requires_grad=True),
     }
 
-    attention_scores = attention(domains)
+    encodings_pre_fusion = {
+        "v_latents": torch.rand(batch_size, domain_dim, requires_grad=True),
+        "attr": torch.rand(batch_size, domain_dim, requires_grad=True),
+    }
+    attention_scores = attention(domains, encodings_pre_fusion)
     loss = sum(score.mean() for score in attention_scores.values())
     assert isinstance(loss, torch.Tensor)
     loss.backward()
