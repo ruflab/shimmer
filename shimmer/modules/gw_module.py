@@ -5,6 +5,7 @@ import torch
 from torch import nn
 
 from shimmer.modules.domain import DomainModule
+from shimmer.modules.selection import SelectionBase
 from shimmer.modules.vae import reparameterize
 from shimmer.types import LatentsDomainGroupDT, LatentsDomainGroupT
 
@@ -228,7 +229,7 @@ class GWModuleBase(nn.Module, ABC):
         ...
 
     def encode_and_fuse(
-        self, x: LatentsDomainGroupT, selection_scores: Mapping[str, torch.Tensor]
+        self, x: LatentsDomainGroupT, selection_module: SelectionBase
     ) -> torch.Tensor:
         """
         Encode the latent representation infos to the final GW representation.
@@ -242,7 +243,9 @@ class GWModuleBase(nn.Module, ABC):
         Returns:
             `torch.Tensor`: The merged representation.
         """
-        return self.fuse(self.encode(x), selection_scores)
+        encodings = self.encode(x)
+        selection_scores = selection_module(x, encodings)
+        return self.fuse(encodings, selection_scores)
 
     @abstractmethod
     def decode(
@@ -312,9 +315,11 @@ class GWModule(GWModuleBase):
     def encode_and_fuse(
         self,
         x: LatentsDomainGroupT,
-        selection_scores: Mapping[str, torch.Tensor] | None = None,
+        selection_module: SelectionBase | None = None,
     ) -> torch.Tensor:
-        return self.fuse(self.encode(x), selection_scores)
+        encodings = self.encode(x)
+        selection_scores = selection_module(x, encodings)
+        return self.fuse(encodings, selection_scores)
 
     def encode(self, x: LatentsDomainGroupT) -> LatentsDomainGroupT:
         """
@@ -414,11 +419,11 @@ class GWModuleWithUncertainty(GWModuleBase):
         }
 
     def encode_and_fuse(
-        self,
-        x: LatentsDomainGroupT,
-        selection_scores: Mapping[str, torch.Tensor] | None = None,
+        self, x: LatentsDomainGroupT, selection_module=SelectionBase
     ) -> torch.Tensor:
-        return self.fuse(self.encode(x), selection_scores)
+        encodings = self.encode(x)
+        selection_scores = selection_module(x, encodings)
+        return self.fuse(encodings, selection_scores)
 
     def encoded_distribution(
         self, x: LatentsDomainGroupT

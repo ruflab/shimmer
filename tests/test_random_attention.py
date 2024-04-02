@@ -15,7 +15,13 @@ def test_multiple_domains():
         "v_latents": torch.rand(batch_size, domain_dim),
         "attr": torch.rand(batch_size, domain_dim),
     }
-    selection_scores = selection(multiple_domain_input)
+
+    prefusion_encodings = {
+        "v_latents": torch.rand(batch_size, domain_dim),
+        "attr": torch.rand(batch_size, domain_dim),
+    }
+
+    selection_scores = selection(multiple_domain_input, prefusion_encodings)
 
     # Ensure the sum of attention scores across domains equals 1
     scores_sum = sum(
@@ -42,7 +48,14 @@ def test_three_domains():
         "attr": torch.rand(batch_size, domain_dim),
         "audio": torch.rand(batch_size, domain_dim),
     }
-    selection_scores = selection(three_domain_input)
+
+    prefusion_encodings = {
+        "v_latents": torch.rand(batch_size, domain_dim),
+        "attr": torch.rand(batch_size, domain_dim),
+        "audio": torch.rand(batch_size, domain_dim),
+    }
+
+    selection_scores = selection(three_domain_input, prefusion_encodings)
 
     # Ensure that the shape of the selection scores matches the input domains
     for domain in three_domain_input:
@@ -83,7 +96,14 @@ def test_binary_scores_xor_check_for_multiple_proportions():
             "attr": torch.rand(batch_size, domain_dim),
             "audio": torch.rand(batch_size, domain_dim),
         }
-        selection_scores = selection(domains_input)
+
+        prefusion_encodings = {
+            "v_latents": torch.rand(batch_size, domain_dim),
+            "attr": torch.rand(batch_size, domain_dim),
+            "audio": torch.rand(batch_size, domain_dim),
+        }
+
+        selection_scores = selection(domains_input, prefusion_encodings)
 
         scores_matrix = torch.cat(
             [selection_scores[domain] for domain in domains_input], dim=1

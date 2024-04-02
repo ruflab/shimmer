@@ -29,7 +29,9 @@ class SelectionBase(torch.nn.Module, ABC):
         pass
 
     @abstractmethod
-    def forward(self, domains: LatentsDomainGroupT) -> dict[str, torch.Tensor]:
+    def forward(
+        self, domains: LatentsDomainGroupT, encodings_pre_fusion: LatentsDomainGroupT
+    ) -> dict[str, torch.Tensor]:
         """
         Forward pass of the selection method.
 
@@ -49,8 +51,10 @@ class SelectionBase(torch.nn.Module, ABC):
         ...
 
     # This is just for proper auto-completion...
-    def __call__(self, domains: LatentsDomainGroupT) -> dict[str, torch.Tensor]:
-        return super().__call__(domains)
+    def __call__(
+        self, domains: LatentsDomainGroupT, encodings_pre_fusion: LatentsDomainGroupT
+    ) -> dict[str, torch.Tensor]:
+        return super().__call__(domains, encodings_pre_fusion)
 
 
 class SingleDomainSelection(SelectionBase):
@@ -62,7 +66,9 @@ class SingleDomainSelection(SelectionBase):
     domain.
     """
 
-    def forward(self, domains: LatentsDomainGroupT) -> dict[str, torch.Tensor]:
+    def forward(
+        self, domains: LatentsDomainGroupT, encodings_pre_fusion: LatentsDomainGroupT
+    ) -> dict[str, torch.Tensor]:
         """
         Forward pass of the module.
 
@@ -114,7 +120,9 @@ class KQFixedQSelection(SelectionBase):
         """
         self.gw_state = gw_state
 
-    def forward(self, domains: LatentsDomainGroupT) -> dict[str, torch.Tensor]:
+    def forward(
+        self, domains: LatentsDomainGroupT, encodings_pre_fusion: LatentsDomainGroupT
+    ) -> dict[str, torch.Tensor]:
         """
         Compute keys and queries, match them with dot product and softmax.
 
@@ -173,7 +181,9 @@ class RandomSelection(SelectionBase):
         self.binary_proportion = binary_proportion
         self.temperature = temperature
 
-    def forward(self, domains: LatentsDomainGroupT) -> dict[str, torch.Tensor]:
+    def forward(
+        self, domains: LatentsDomainGroupT, encodings_pre_fusion: LatentsDomainGroupT
+    ) -> dict[str, torch.Tensor]:
         """
         randomly draw binary and uniform-then-domain-wise-softmaxed samples according
         to self.binary_proportion.

@@ -2,6 +2,7 @@ import torch.utils.data
 from utils import DummyData, DummyDataset, DummyDomainModule
 
 from shimmer import GlobalWorkspace, GWDecoder, GWEncoder
+from shimmer.modules.selection import SingleDomainSelection
 
 
 def test_training():
@@ -82,11 +83,8 @@ def test_training():
     assert isinstance(unimodal_latents["v"], torch.Tensor)
     assert unimodal_latents["v"].size() == (32, 128)
 
-    selection_scores = {
-        domain: torch.full((batch_size,), 1.0 / len(unimodal_latents))
-        for domain in unimodal_latents
-    }
-    workspace_latent = gw.encode_and_fuse(unimodal_latents, selection_scores)
+    selection_module = SingleDomainSelection()
+    workspace_latent = gw.encode_and_fuse(unimodal_latents, selection_module)
 
     assert workspace_latent.size() == (32, 16)
 

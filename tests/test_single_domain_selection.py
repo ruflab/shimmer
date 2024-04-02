@@ -8,8 +8,9 @@ def test_selection_1_domain():
 
     bs = 32
     domains = {"v": torch.randn(bs, 8)}
+    prefusion_encodings = {"v": torch.randn(bs, 8)}
 
-    selection: dict[str, torch.Tensor] = selection_mod(domains)
+    selection: dict[str, torch.Tensor] = selection_mod(domains, prefusion_encodings)
 
     assert len(selection) == len(domains)
     assert next(iter(selection.keys())) == "v"
@@ -21,8 +22,9 @@ def test_selection_2_domains():
 
     bs = 32
     domains = {"v": torch.randn(bs, 8), "t": torch.randn(bs, 12)}
+    prefusion_encodings = {"v": torch.randn(bs, 8), "t": torch.randn(bs, 12)}
 
-    selection: dict[str, torch.Tensor] = selection_mod(domains)
+    selection: dict[str, torch.Tensor] = selection_mod(domains, prefusion_encodings)
 
     assert len(selection) == len(domains)
     assert (
@@ -39,8 +41,13 @@ def test_selection_3_domains():
         "t": torch.randn(bs, 12),
         "attr": torch.randn(bs, 4),
     }
+    prefusion_encodings = {
+        "v": torch.randn(bs, 8),
+        "t": torch.randn(bs, 12),
+        "attr": torch.randn(bs, 4),
+    }
 
-    selection: dict[str, torch.Tensor] = selection_mod(domains)
+    selection: dict[str, torch.Tensor] = selection_mod(domains, prefusion_encodings)
 
     assert len(selection) == len(domains)
     assert (
