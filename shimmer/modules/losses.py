@@ -282,7 +282,7 @@ def translation_loss_with_selection(
 
                 domain_source_names = "/".join(domain_sources.keys())
                 loss_name = f"{domain_source_names}_to_{domain_name_target}"
-                if loss_name in losses.keys():
+                if loss_name in losses:
                     raise ValueError(f"{loss_name} is already computed.")
 
                 loss_output = mod.compute_tr_loss(
