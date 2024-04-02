@@ -312,15 +312,6 @@ class GWModule(GWModuleBase):
         """
         return torch.sum(torch.stack(list(x.values())), dim=0)
 
-    def encode_and_fuse(
-        self,
-        x: LatentsDomainGroupT,
-        selection_module: SelectionBase | None = None,
-    ) -> torch.Tensor:
-        encodings = self.encode(x)
-        selection_scores = selection_module(x, encodings)
-        return self.fuse(encodings, selection_scores)
-
     def encode(self, x: LatentsDomainGroupT) -> LatentsDomainGroupT:
         """
         Encode the latent representation infos to the pre-fusion GW representation.
@@ -417,13 +408,6 @@ class GWModuleWithUncertainty(GWModuleBase):
             domain_name: reparameterize(*self.gw_encoders[domain_name](domain))
             for domain_name, domain in x.items()
         }
-
-    def encode_and_fuse(
-        self, x: LatentsDomainGroupT, selection_module=SelectionBase
-    ) -> torch.Tensor:
-        encodings = self.encode(x)
-        selection_scores = selection_module(x, encodings)
-        return self.fuse(encodings, selection_scores)
 
     def encoded_distribution(
         self, x: LatentsDomainGroupT
