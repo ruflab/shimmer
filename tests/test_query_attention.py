@@ -13,14 +13,17 @@ def test_single_domain_simplified():
     gw_state = torch.tensor([[2.0, 2.0], [2.0, 2.0]])
 
     # Initialize the attention module
-    attention = KQDynamicQSelection(domain_dim, head_size)
+    attention = KQDynamicQSelection(batch_size, domain_dim, head_size)
+
     attention.update_gw_state(gw_state)
 
     single_domain_input = {"v_latents": torch.tensor([[4.0, 2.0], [6.0, 2.0]])}
+    print(f"input: {single_domain_input}")
     # print(f"input: {single_domain_input}")
 
     # This is the forward pass
     attention_scores = attention(single_domain_input)
+    return
     # print(f"attention scores: {attention_scores}")
 
     # Calculate the next gw_state

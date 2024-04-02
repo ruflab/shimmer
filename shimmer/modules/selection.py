@@ -237,13 +237,15 @@ class KQDynamicQSelection(SelectionBase):
     Key-Query attention with a dynamic gw vector.
     """
 
-    def __init__(self, domain_dim: int, head_size: int):
+    def __init__(self, batch_size: int, domain_dim: int, head_size: int):
         """
         Args:
+            batch_size (`int`) : size of the batch
             domain_dim (`int`) : dimension of the input dims (assumed to be the same for now)
             head_size (`int`) : dimension of the key and query vectors.
         """
         super().__init__()
+        self.batch_size = batch_size
         self.head_size = head_size
         self.query_layer = nn.Linear(domain_dim, head_size)
         self.key_layers = nn.ModuleDict(
@@ -266,29 +268,125 @@ class KQDynamicQSelection(SelectionBase):
 
     # TODO: implement this
     def get_prefusion_encodings(
-        self, domains: LatentsDomainGroupT
-    ) -> dict[str, torch.Tensor]: ...
-
-    # TODO: implement this
-    def apply_fusion(
-        self, domains: LatentsDomainGroupT, attention_dict: dict
-    ) -> dict[str, torch.Tensor]: ...
-
-    def calculate_gw_state_with_attention(self, attention_dict: dict) -> None:
+        self,
+        domains: LatentsDomainGroupT,
+        random: bool,
+    ) -> dict[str, torch.Tensor]:
         """
-        Update the internal copy of the previous GW state with the attention scores.
+        Get random prefusion encodings for each domain in the group.
 
         Args:
-            gw_state (`torch.Tensor`): the previous GW state
-            attention_dict (`dict`): the attention scores for each domain
+            domains (`LatentsDomainGroupT`): Group of unimodal latent representations.
+
+        Returns:
+            `dict[str, torch.Tensor]`: for each domain in the group, the prefusion
+            encoding for each item in the batch.
         """
+        # get domain nam
+        if random:
+            return {
+                domain: torch.rand_like(encoding)
+                for domain, encoding in domains.items()
+            }
+        else:
+            # do something else
+            pass
 
-        # Need to check this (need to do something with fusion?)
-        for domain, attention in attention_dict.items():
-            new_state = self.gw_state * attention
-        return new_state
+        multiple_domain_input = {
+            "v_latents": torch.rand(batch_size, domain_dim),
+            "attr": torch.rand(batch_size, domain_dim),
+        }
+        return multiple_domain_input
 
-    def forward(self, domains: LatentsDomainGroupT) -> dict[str, torch.Tensor]:
+    def apply_attention_scores(
+        self,
+        prefusion_encodings: dict[str, torch.Tensor],
+        attention_dict: dict[str, torch.Tensor],
+    ) -> dict[str, torch.Tensor]:
+        """
+        Apply the attention scores on the prefusion encodings.
+
+        Args:
+            prefusion_encodings (`dict[str, torch.Tensor]`): the prefusion encodings for each domain.
+            attention_dict (`dict[str, torch.Tensor]`): the attention scores for each domain.
+
+        Returns:
+            `dict[str, torch.Tensor]`: the prefusion encodings with the attention scores applied.
+        """
+        return {
+            domain: attention_dict[domain] * prefusion_encodings[domain]
+            for domain in prefusion_encodings.keys()
+        }
+
+    def apply_fusion(
+        self, domains: LatentsDomainGroupT, attention_dict: dict[str, torch.Tensor]
+    ) -> torch.Tensor:
+        """
+        Merge function to combine domains.
+
+        Args:
+        x (`LatentsDomainGroupT`): the group of latent representation.
+            selection_score (`Mapping[str, torch.Tensor]`): attention scores to
+                use to encode the reprensetation.
+        Returns:
+            `torch.Tensor`: The merged representation.
+        """
+        return torch.sum(
+            torch.stack(
+                [
+                    attention_dict[domain] * domains[domain]
+                    for domain in attention_dict.keys()
+                ]
+            ),
+            dim=0,
+        )
+
+    def encode(
+        self,
+        x: LatentsDomainGroupT,
+        # selection_scores: Mapping[str, torch.Tensor] | None = None,
+    ) -> LatentsDomainGroupT:
+        """Encode the unimodal latent representation `x` into the pre-fusion GW
+        representations.
+
+        Args:
+            x (`LatentsDomainGroupT`): the group of latent representation.
+
+        Returns:
+            `torch.Tensor`: encoded and fused GW representation.
+        """
+    
+        domains = {}
+        bs = group_batch_size(x)
+        device = group_device(x)
+        # domainmodskeys are names of the domains
+        for domain in x.keys():
+            if domain in x:
+                domains[domain] = x[domain]
+            else:
+                domains[domain] = torch.zeros(
+                    bs, self.domain_mods[domain].latent_dim
+                ).to(device)
+        return {
+            domain_name: self.gw_encoders[domain_name](domain)
+            for domain_name, domain in domains.items()
+        }
+
+    # def calculate_gw_state_with_attention(self, attention_dict: dict) -> None:
+    #     """
+    #     Update the internal copy of the previous GW state with the attention scores.
+
+    #     Args:
+    #         gw_state (`torch.Tensor`): the previous GW state
+    #         attention_dict (`dict`): the attention scores for each domain
+    #     """
+
+    #     # Need to check this (need to do something with fusion?)
+    #     for domain, attention in attention_dict.items():
+    #         new_state = self.gw_state * attention
+    #     return new_state
+
+    def forward(self, domains: LatentsDomainGroupT, encodings: ) -> dict[str, torch.Tensor]:
         """
         Compute keys and queries, match them with dot product and softmax.
 
@@ -303,20 +401,19 @@ class KQDynamicQSelection(SelectionBase):
         if self.gw_state is None:
             raise ValueError("GW state has not been initialized.")
 
-        # how does this encoding work?
+        # Encoding with pytorch
         keys = {
             domain: self.key_layers[domain](encoding)
             for domain, encoding in domains.items()
         }
-        print(f"keys: {keys}")
+        # print(f"keys: {keys}")
 
-        # What does this do?
+        # This for training (cpu or gpu)
         device = group_device(domains)
 
         # Retrieve query
         query = self.query_layer(self.gw_state.to(device))
 
-        print(f"query: {query}")
         dot_products = {
             domain: torch.bmm(key.unsqueeze(1), query.unsqueeze(2)).squeeze()
             for domain, key in keys.items()
@@ -331,7 +428,9 @@ class KQDynamicQSelection(SelectionBase):
         }
 
         # Get the prefusion encodings
-        # encodings = get_prefusion_encodings(domains)
+        # encoding = self.get_prefusion_encodings(domains, random=True)
+        encoding = self.encode(domains)
+        print(encoding)
 
         ## Apply attentionscores on the encodings (maybe this is the same as the fusion?)
         ## Apply fusion
