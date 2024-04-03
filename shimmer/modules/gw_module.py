@@ -254,7 +254,10 @@ class GWModule(GWModuleBase):
         """
         return torch.sum(
             torch.stack(
-                [selection_scores[domain] * x[domain] for domain in selection_scores]
+                [
+                    selection_scores[domain].unsqueeze(1) * x[domain]
+                    for domain in selection_scores
+                ]
             ),
             dim=0,
         )
@@ -412,7 +415,10 @@ class GWModuleFusion(GWModuleBase):
         """
         return torch.sum(
             torch.stack(
-                [selection_scores[domain] * x[domain] for domain in selection_scores]
+                [
+                    selection_scores[domain].unsqueeze(1) * x[domain]
+                    for domain in selection_scores
+                ]
             ),
             dim=0,
         )
