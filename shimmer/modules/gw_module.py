@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from collections.abc import Iterable, Mapping
+from typing import cast
 
 import torch
 from torch import nn
@@ -317,8 +318,11 @@ class GWModuleWithUncertainty(GWModule):
         """
         super().__init__(domain_modules, workspace_dim, gw_encoders, gw_decoders)
 
-        self.log_uncertainties = nn.ParameterDict(
-            {domain: torch.randn(workspace_dim) for domain in gw_encoders}
+        self.log_uncertainties = cast(
+            dict[str, torch.Tensor],
+            nn.ParameterDict(
+                {domain: torch.randn(workspace_dim) for domain in gw_encoders}
+            ),
         )
         """Log-uncertainty (logvar) at the neuron level for every domain."""
 

@@ -7,7 +7,6 @@ import torch.nn.functional as F
 
 from shimmer.modules.contrastive_loss import (
     ContrastiveLossType,
-    ContrastiveLossWithUncertaintyType,
 )
 from shimmer.modules.domain import DomainModule, LossOutput
 from shimmer.modules.gw_module import (
@@ -273,7 +272,7 @@ def contrastive_loss(
 def contrastive_loss_with_uncertainty(
     gw_mod: GWModuleWithUncertainty,
     latent_domains: LatentsDomainGroupsT,
-    contrastive_fn: ContrastiveLossWithUncertaintyType,
+    contrastive_fn: ContrastiveLossType,
 ) -> dict[str, torch.Tensor]:
     """
     Computes the contrastive loss with uncertainty.
@@ -304,9 +303,8 @@ def contrastive_loss_with_uncertainty(
         if len(latents) < 2:
             continue
         for domain1_name, domain1 in latents.items():
-            z1_mean, z1_log_uncertainty = gw_mod.encoded_distribution(
-                {domain1_name: domain1}
-            )
+            z1 = gw_mod.encode({domain1_name: domain1})[domain1_name]
+            z1_uncertainty = gw_mod.log_uncertainties[domain1_name]
             for domain2_name, domain2 in latents.items():
                 selected_domains = {domain1_name, domain2_name}
                 if domain1_name == domain2_name or selected_domains in keys:
@@ -315,15 +313,10 @@ def contrastive_loss_with_uncertainty(
                 keys.append(selected_domains)
 
                 loss_name = f"contrastive_{domain1_name}_and_{domain2_name}"
-                z2_mean, z2_log_uncertainty = gw_mod.encoded_distribution(
-                    {domain2_name: domain2}
-                )
-                loss_output = contrastive_fn(
-                    z1_mean[domain1_name],
-                    z1_log_uncertainty[domain1_name],
-                    z2_mean[domain2_name],
-                    z2_log_uncertainty[domain2_name],
-                )
+                z2 = gw_mod.encode({domain2_name: domain2})[domain2_name]
+                z2_uncertainty = gw_mod.log_uncertainties[domain2_name]
+                norm = 1.0 + z1_uncertainty.exp() + z2_uncertainty.exp()
+                loss_output = contrastive_fn(z1 / norm, z2 / norm)
                 losses[loss_name] = loss_output.loss
                 metrics.update(
                     {f"{loss_name}_{k}": v for k, v in loss_output.metrics.items()}
