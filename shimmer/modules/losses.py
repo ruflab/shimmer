@@ -508,8 +508,7 @@ class GWLossesWithUncertainty(GWLossesBase):
         selection_mod: SelectionBase,
         domain_mods: dict[str, DomainModule],
         loss_coefs: LossCoefs,
-        contrastive_fn: ContrastiveLossType | None = None,
-        cont_fn_with_uncertainty: ContrastiveLossWithUncertaintyType | None = None,
+        contrastive_fn: ContrastiveLossType,
     ):
         """
         Loss module with uncertainty to use with the GlobalWorkspaceWithUncertainty
@@ -520,10 +519,8 @@ class GWLossesWithUncertainty(GWLossesBase):
             domain_mods (`dict[str, DomainModule]`): a dict where the key is the
                 domain name and value is the DomainModule
             loss_coefs (`LossCoefsWithUncertainty`): loss coefficients
-            contrastive_fn (`ContrastiveLossType | None`): the contrastive function
+            contrastive_fn (`ContrastiveLossType`): the contrastive function
                 to use in contrastive loss
-            cont_fn_with_uncertainty (`ContrastiveLossWithUncertaintyType | None`):
-                a contrastive function that uses uncertainty
         """
 
         super().__init__()
@@ -540,19 +537,12 @@ class GWLossesWithUncertainty(GWLossesBase):
         self.loss_coefs = loss_coefs
         """The loss coefficients."""
 
-        assert (contrastive_fn is not None) != (
-            cont_fn_with_uncertainty is not None
-        ), "Should either have contrastive_fn or cont_fn_with_uncertainty"
-
         self.contrastive_fn = contrastive_fn
         """
         Contrastive loss to use without the use of uncertainty. This is only
         used in `GWLossesWithUncertainty.step` if
         `GWLossesWithUncertainty.cont_fn_with_uncertainty` is not set.
         """
-
-        self.cont_fn_with_uncertainty = cont_fn_with_uncertainty
-        """Contrastive loss to use with the use of uncertainty."""
 
     def demi_cycle_loss(
         self, latent_domains: LatentsDomainGroupsT
@@ -608,22 +598,12 @@ class GWLossesWithUncertainty(GWLossesBase):
         """
         Contrastive loss.
 
-        If `GWLossesWithUncertainty.cont_fn_with_uncertainty` is set, will use the
-        contrastive loss with uncertainty. Otherwise, use the traditional
-        contrastive loss (see `GWLosses.contrastive_loss`).
-
         Args:
             latent_domains (`LatentsDomainGroupsT`): the latent unimodal groups
 
         Returns:
             `dict[str, torch.Tensor]`: a dict of metrics.
         """
-        if self.cont_fn_with_uncertainty is not None:
-            return contrastive_loss_with_uncertainty(
-                self.gw_mod, latent_domains, self.cont_fn_with_uncertainty
-            )
-
-        assert self.contrastive_fn is not None
         return contrastive_loss(self.gw_mod, latent_domains, self.contrastive_fn)
 
     def step(
@@ -792,9 +772,6 @@ class GWLossesFusion(GWLossesBase):
                     scaled_latents_subset = scaled_latents_subset.to(latent)
 
                     scaled_latents[domain_name] = scaled_latents_subset
-
-                # TODO: better use selection mod
-                selection_scores = self.selection_mod(scaled_latents)
 
                 encoded_latents_for_subset = self.gw_mod.encode_and_fuse(
                     scaled_latents, self.selection_mod
