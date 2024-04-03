@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from collections.abc import Iterable
 
 import torch
 import torch.nn as nn
@@ -234,7 +235,9 @@ class DynamicQueryAttention(SelectionBase):
     Key-Query attention with a dynamic gw vector.
     """
 
-    def __init__(self, batch_size: int, domain_dim: int, head_size: int):
+    def __init__(
+        self, batch_size: int, domain_dim: int, head_size: int, domains: Iterable[str]
+    ):
         """
         Args:
             batch_size (`int`) : size of the batch
@@ -246,10 +249,7 @@ class DynamicQueryAttention(SelectionBase):
         self.head_size = head_size
         self.query_layer = nn.Linear(domain_dim, head_size)
         self.key_layers = nn.ModuleDict(
-            {
-                "v_latents": nn.Linear(domain_dim, head_size),
-                "attr": nn.Linear(domain_dim, head_size),
-            }
+            {domain: nn.Linear(domain_dim, head_size) for domain in domains}
         )
         # Start with a initial naive gw state
         self.gw_state: torch.Tensor | None = None
@@ -280,7 +280,7 @@ class DynamicQueryAttention(SelectionBase):
         }
         return attention_dict
 
-    def get_weighted_encodings(
+    def fuse_weighted_encodings(
         self, encodings: LatentsDomainGroupT, attention_dict: dict[str, torch.Tensor]
     ) -> dict[str, torch.Tensor]:
         # Apply attention scores to the encodings
@@ -289,11 +289,7 @@ class DynamicQueryAttention(SelectionBase):
             if key in encodings:
                 # Perform element-wise multiplication and store the result
                 weighted_encodings[key] = attention_dict[key] * encodings[key]
-        return weighted_encodings
 
-    def fuse_weighted_encodings(
-        self, weighted_encodings: dict[str, torch.Tensor]
-    ) -> torch.Tensor:
         # Stack the tensors along a new dimension (dimension 0)
         stacked_tensors = torch.stack(list(weighted_encodings.values()))
 
@@ -318,7 +314,8 @@ class DynamicQueryAttention(SelectionBase):
         """
 
         if self.gw_state is None:
-            raise ValueError("GW state has not been initialized.")
+            # tensor with only zeros as default (with specified domain and batch size)
+            self.gw_state = torch.zeros(torch.rand(self.batch_size, self.domain_dim))
 
         # Encoding with pytorch
         keys = {
@@ -336,12 +333,7 @@ class DynamicQueryAttention(SelectionBase):
         static_attention_dict = self.calculate_attention_dict(keys, query)
 
         # Apply the attention scores to the encodings
-        weighted_encodings = self.get_weighted_encodings(
-            encodings, static_attention_dict
-        )
-
-        # Fuse the weighted encodings
-        summed_tensor = self.fuse_weighted_encodings(weighted_encodings)
+        summed_tensor = self.fuse_weighted_encodings(encodings, static_attention_dict)
 
         # Update the gw state
         self.update_gw_state(summed_tensor)

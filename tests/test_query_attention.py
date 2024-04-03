@@ -3,38 +3,12 @@ import torch
 from shimmer.modules.selection import DynamicQueryAttention
 
 
-def test_single_domain_simplified():
-    domain_dim = 2
-    head_size = 1
-    batch_size = 2
-
-    # First gw state
-    gw_state = torch.tensor([[2.0, 2.0], [2.0, 2.0]])
-
-    # Initialize the attention module
-    attention = DynamicQueryAttention(batch_size, domain_dim, head_size)
-
-    # The initial inputs
-    single_domain_input = {"v_latents": torch.tensor([[4.0, 2.0], [6.0, 2.0]])}
-    prefusion_encodings = {"v_latents": torch.tensor([[4.0, 2.0], [6.0, 2.0]])}
-
-    # This is the forward pass
-    attention_scores = attention(single_domain_input, prefusion_encodings)
-
-    print(f"attention scores: {attention_scores}")
-
-    expected_scores = torch.ones(batch_size, 1)
-    assert torch.allclose(
-        attention_scores["v_latents"], expected_scores
-    ), "Attention scores for single domain should be all 1s"
-
-
 def test_single_domain():
     domain_dim = 12
     head_size = 6
     batch_size = 2056
-
-    attention = DynamicQueryAttention(batch_size, domain_dim, head_size)
+    domains = ["v_latents"]
+    attention = DynamicQueryAttention(batch_size, domain_dim, head_size, domains)
     gw_state = torch.rand(batch_size, domain_dim)
     attention.update_gw_state(gw_state)
 
@@ -53,7 +27,9 @@ def test_multiple_domains_sumis1():
     domain_dim = 12
     head_size = 5
     batch_size = 2056
-    attention = DynamicQueryAttention(batch_size, domain_dim, head_size)
+    domains = ["v_latents", "attr"]
+
+    attention = DynamicQueryAttention(batch_size, domain_dim, head_size, domains)
     gw_state = torch.rand(batch_size, domain_dim)
     attention.update_gw_state(gw_state)
 
@@ -81,8 +57,9 @@ def test_attention_backward():
     domain_dim = 12
     head_size = 6
     batch_size = 2056
+    domains = ["v_latents", "attr"]
 
-    attention = DynamicQueryAttention(batch_size, domain_dim, head_size)
+    attention = DynamicQueryAttention(batch_size, domain_dim, head_size, domains)
     gw_state = torch.rand(batch_size, domain_dim, requires_grad=True)
     attention.update_gw_state(gw_state)
 
