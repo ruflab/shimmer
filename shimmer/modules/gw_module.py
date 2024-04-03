@@ -298,28 +298,24 @@ class GWModule(GWModuleBase):
     def fuse(
         self,
         x: LatentsDomainGroupT,
-        selection_scores: Mapping[str, torch.Tensor] | None = None,
+        selection_scores: Mapping[str, torch.Tensor],
     ) -> torch.Tensor:
         """
         Merge function used to combine domains.
 
         Args:
             x (`LatentsDomainGroupT`): the group of latent representation.
-            selection_score (`Mapping[str, torch.Tensor] | None`): attention scores to
+            selection_score (`Mapping[str, torch.Tensor]`): attention scores to
                 use to encode the reprensetation.
         Returns:
             `torch.Tensor`: The merged representation.
         """
-        return torch.sum(torch.stack(list(x.values())), dim=0)
-
-    def encode_and_fuse(
-        self,
-        x: LatentsDomainGroupT,
-        selection_module: SelectionBase | None = None,
-    ) -> torch.Tensor:
-        encodings = self.encode(x)
-        selection_scores = selection_module(x, encodings)
-        return self.fuse(encodings, selection_scores)
+        return torch.sum(
+            torch.stack(
+                [selection_scores[domain] * x[domain] for domain in selection_scores]
+            ),
+            dim=0,
+        )
 
     def encode(self, x: LatentsDomainGroupT) -> LatentsDomainGroupT:
         """
@@ -389,19 +385,24 @@ class GWModuleWithUncertainty(GWModuleBase):
     def fuse(
         self,
         x: LatentsDomainGroupT,
-        selection_scores: Mapping[str, torch.Tensor] | None = None,
+        selection_scores: Mapping[str, torch.Tensor],
     ) -> torch.Tensor:
         """
-        Fusion of the pre-fusion GW representations.
+        Merge function used to combine domains.
 
         Args:
-            x (`LatentsDomainGroupT`): pre-fusion GW representations.
-            selection_score (`Mapping[str, torch.Tensor] | None`): attention scores to
+            x (`LatentsDomainGroupT`): the group of latent representation.
+            selection_score (`Mapping[str, torch.Tensor]`): attention scores to
                 use to encode the reprensetation.
         Returns:
-            `torch.Tensor`: the merged GW representation.
+            `torch.Tensor`: The merged representation.
         """
-        return torch.sum(torch.stack(list(x.values())), dim=0)
+        return torch.sum(
+            torch.stack(
+                [selection_scores[domain] * x[domain] for domain in selection_scores]
+            ),
+            dim=0,
+        )
 
     def encode(self, x: LatentsDomainGroupT) -> LatentsDomainGroupT:
         """
@@ -417,13 +418,6 @@ class GWModuleWithUncertainty(GWModuleBase):
             domain_name: reparameterize(*self.gw_encoders[domain_name](domain))
             for domain_name, domain in x.items()
         }
-
-    def encode_and_fuse(
-        self, x: LatentsDomainGroupT, selection_module=SelectionBase
-    ) -> torch.Tensor:
-        encodings = self.encode(x)
-        selection_scores = selection_module(x, encodings)
-        return self.fuse(encodings, selection_scores)
 
     def encoded_distribution(
         self, x: LatentsDomainGroupT
