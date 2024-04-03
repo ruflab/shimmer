@@ -30,17 +30,17 @@ from shimmer.modules.losses import (
     GWLossesWithUncertainty,
     LossCoefs,
 )
+from shimmer.modules.selection import (
+    RandomSelection,
+    SelectionBase,
+    SingleDomainSelection,
+)
 from shimmer.modules.utils import (
     batch_cycles,
-    batch_cycles_with_uncertainty,
     batch_demi_cycles,
-    batch_demi_cycles_with_uncertainty,
     batch_translations,
-    batch_translations_with_uncertainty,
     cycle,
-    cycle_with_uncertainty,
     translation,
-    translation_with_uncertainty,
 )
 from shimmer.modules.vae import (
     VAE,
@@ -88,9 +88,7 @@ __all__ = [
     "batch_translations",
     "cycle",
     "translation",
-    "cycle_with_uncertainty",
-    "translation_with_uncertainty",
-    "batch_translations_with_uncertainty",
-    "batch_demi_cycles_with_uncertainty",
-    "batch_cycles_with_uncertainty",
+    "RandomSelection",
+    "SelectionBase",
+    "SingleDomainSelection",
 ]

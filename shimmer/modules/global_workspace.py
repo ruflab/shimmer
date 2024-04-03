@@ -8,12 +8,7 @@ from lightning.pytorch.utilities.types import OptimizerLRSchedulerConfig
 from torch.nn import Module, ModuleDict
 from torch.optim.lr_scheduler import OneCycleLR
 
-from shimmer.modules.contrastive_loss import (
-    ContrastiveLoss,
-    ContrastiveLossType,
-    ContrastiveLossWithUncertainty,
-    ContrastiveLossWithUncertaintyType,
-)
+from shimmer.modules.contrastive_loss import ContrastiveLoss, ContrastiveLossType
 from shimmer.modules.domain import DomainModule
 from shimmer.modules.gw_module import (
     GWModule,
@@ -29,14 +24,7 @@ from shimmer.modules.losses import (
     LossCoefs,
 )
 from shimmer.modules.selection import SelectionBase, SingleDomainSelection
-from shimmer.modules.utils import (
-    batch_cycles,
-    batch_cycles_with_uncertainty,
-    batch_demi_cycles,
-    batch_demi_cycles_with_uncertainty,
-    batch_translations,
-    batch_translations_with_uncertainty,
-)
+from shimmer.modules.utils import batch_cycles, batch_demi_cycles, batch_translations
 from shimmer.types import (
     LatentsDomainGroupsDT,
     LatentsDomainGroupsT,
@@ -564,13 +552,11 @@ class GlobalWorkspaceWithUncertainty(GlobalWorkspaceBase):
         gw_decoders: Mapping[str, Module],
         workspace_dim: int,
         loss_coefs: LossCoefs,
-        use_cont_loss_with_uncertainty: bool = False,
         optim_lr: float = 1e-3,
         optim_weight_decay: float = 0.0,
         scheduler_args: SchedulerArgs | None = None,
         learn_logit_scale: bool = False,
         contrastive_loss: ContrastiveLossType | None = None,
-        cont_loss_with_uncertainty: ContrastiveLossWithUncertaintyType | None = None,
     ) -> None:
         """
         Initializes a Global Workspace
@@ -587,9 +573,6 @@ class GlobalWorkspaceWithUncertainty(GlobalWorkspaceBase):
                 GW representation into a unimodal latent representations.
             workspace_dim (`int`): dimension of the GW.
             loss_coefs (`LossCoefs`): loss coefficients
-            use_cont_loss_with_uncertainty (`bool`): whether to use the contrastive
-                loss with uncertainty which uses means and log variance for
-                computations.
             optim_lr (`float`): learning rate
             optim_weight_decay (`float`): weight decay
             scheduler_args (`SchedulerArgs | None`): optimization scheduler's arguments
@@ -598,9 +581,6 @@ class GlobalWorkspaceWithUncertainty(GlobalWorkspaceBase):
             contrastive_loss (`ContrastiveLossType | None`): a contrastive loss
                 function used for alignment. `learn_logit_scale` will not affect custom
                 contrastive losses.
-            cont_loss_with_uncertainty (`ContrastiveLossWithUncertaintyType | None`): a
-                contrastive loss with uncertainty.
-                Only used if `use_cont_loss_with_uncertainty` is set to `True`.
         """
         domain_mods = freeze_domain_modules(domain_mods)
 
@@ -610,19 +590,9 @@ class GlobalWorkspaceWithUncertainty(GlobalWorkspaceBase):
 
         selection_mod = SingleDomainSelection()
 
-        if use_cont_loss_with_uncertainty and cont_loss_with_uncertainty is None:
-            cont_loss_with_uncertainty = ContrastiveLossWithUncertainty(
-                torch.tensor([1]).log(), "mean", learn_logit_scale
-            )
-        elif not use_cont_loss_with_uncertainty and contrastive_loss is None:
-            contrastive_loss = ContrastiveLoss(
-                torch.tensor([1]).log(), "mean", learn_logit_scale
-            )
-
-        if use_cont_loss_with_uncertainty:
-            contrastive_loss = None
-        else:
-            cont_loss_with_uncertainty = None
+        contrastive_loss = ContrastiveLoss(
+            torch.tensor([1]).log(), "mean", learn_logit_scale
+        )
 
         loss_mod = GWLossesWithUncertainty(
             gw_mod,
@@ -630,7 +600,6 @@ class GlobalWorkspaceWithUncertainty(GlobalWorkspaceBase):
             domain_mods,
             loss_coefs,
             contrastive_loss,
-            cont_loss_with_uncertainty,
         )
 
         super().__init__(
@@ -656,13 +625,13 @@ class GlobalWorkspaceWithUncertainty(GlobalWorkspaceBase):
             `GWPredictions`: the predictions on the batch.
         """
         return GWPredictions(
-            demi_cycles=batch_demi_cycles_with_uncertainty(
+            demi_cycles=batch_demi_cycles(
                 self.gw_mod, self.selection_mod, latent_domains
             ),
-            cycles=batch_cycles_with_uncertainty(
+            cycles=batch_cycles(
                 self.gw_mod, self.selection_mod, latent_domains, self.domain_mods.keys()
             ),
-            translations=batch_translations_with_uncertainty(
+            translations=batch_translations(
                 self.gw_mod, self.selection_mod, latent_domains
             ),
             **super().forward(latent_domains),
