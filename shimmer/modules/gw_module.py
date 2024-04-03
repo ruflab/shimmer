@@ -317,10 +317,10 @@ class GWModuleWithUncertainty(GWModule):
         """
         super().__init__(domain_modules, workspace_dim, gw_encoders, gw_decoders)
 
-        self.uncertainties = nn.ParameterDict(
-            {domain: torch.zeros(workspace_dim) for domain in gw_encoders}
+        self.log_uncertainties = nn.ParameterDict(
+            {domain: torch.randn(workspace_dim) for domain in gw_encoders}
         )
-        """Uncertainty at the neuron level for every domain."""
+        """Log-uncertainty (logvar) at the neuron level for every domain."""
 
 
 class GWModuleFusion(GWModuleBase):
