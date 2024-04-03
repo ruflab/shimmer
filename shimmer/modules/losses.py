@@ -597,7 +597,9 @@ class GWLossesWithUncertainty(GWLossesBase):
         Returns:
             `dict[str, torch.Tensor]`: a dict of metrics.
         """
-        return contrastive_loss(self.gw_mod, latent_domains, self.contrastive_fn)
+        return contrastive_loss_with_uncertainty(
+            self.gw_mod, latent_domains, self.contrastive_fn
+        )
 
     def step(
         self, domain_latents: LatentsDomainGroupsT, mode: ModelModeT
