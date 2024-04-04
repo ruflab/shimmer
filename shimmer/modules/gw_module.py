@@ -329,13 +329,14 @@ class GWModuleWithUncertainty(GWModule):
         )
         """Log-uncertainty (logvar) at the neuron level for every domain."""
 
-    def fuse_and_scores(
+    def _fuse_and_scores(
         self,
         x: LatentsDomainGroupT,
         selection_scores: Mapping[str, torch.Tensor],
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Merge function used to combine domains and return fusion scores.
+
         This is used for testing purposes.
 
         Args:
@@ -373,6 +374,30 @@ class GWModuleWithUncertainty(GWModule):
         """
         Merge function used to combine domains.
 
+        In the following, $D$ is the number of domains, $N$ the batch size, and $d$ the
+        dimension of the Global Workspace.
+
+        This function needs to merge two kind of scores:
+        * the selection scores $s\\in [0,1]^{D\\times N \\times 1}$;
+        * the uncertainty scores $\\sigma \\in R_+^{D\\times 1 \\times d}$.
+
+        The uncertainty scores are computed from the
+        log-variances $\\log(\\sigma)$ with:
+        $$\\mu = \\text{softmax}(\\text{sigmoid}(-\\log(\\sigma)))$$
+
+        To combine this score with the selection scores, we batch multiply the two
+        scores:
+        $$S = \\frac{s @ \\mu}{N} \\in [0,1]^{D \\times N \\times d}$$
+
+        And for domain $k$, batch element $i$ and workspace neuron $j$:
+        $$S_{k,i,j} = \\frac{s_{k,i} \\mu_{k,j}}{N}$$
+
+        To select the normalization coef $N$, we use the following requirement:
+        $$\\sum_k S_{k,i,j} = 1$$
+        which yields:
+        $$N = \\sum_k s_{k,i}\\mu_{k,j}$$
+
+
         Args:
             x (`LatentsDomainGroupT`): the group of latent representation.
             selection_score (`Mapping[str, torch.Tensor]`): attention scores to
@@ -380,7 +405,7 @@ class GWModuleWithUncertainty(GWModule):
         Returns:
             `torch.Tensor`: The merged representation.
         """
-        return self.fuse_and_scores(x, selection_scores)[0]
+        return self._fuse_and_scores(x, selection_scores)[0]
 
 
 class GWModuleFusion(GWModuleBase):
