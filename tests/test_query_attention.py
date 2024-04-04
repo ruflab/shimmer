@@ -42,6 +42,8 @@ def test_multiple_domains_sumis1():
     scores_sum = sum(
         attention_scores[domain].squeeze() for domain in multiple_domain_input
     )
+    assert isinstance(scores_sum, torch.Tensor)
+
     expected_sum = torch.ones(batch_size)
 
     assert torch.allclose(
@@ -53,9 +55,9 @@ def test_attention_backward():
     domain_dim = 12
     head_size = 6
     batch_size = 2056
-    domains = ["v_latents", "attr"]
+    domain_names = ["v_latents", "attr"]
 
-    attention = DynamicQueryAttention(batch_size, domain_dim, head_size, domains)
+    attention = DynamicQueryAttention(batch_size, domain_dim, head_size, domain_names)
 
     domains = {
         "v_latents": torch.rand(batch_size, domain_dim, requires_grad=True),
@@ -69,6 +71,9 @@ def test_attention_backward():
     attention_scores = attention(domains, prefusion_encodings)
 
     loss = sum(score.mean() for score in attention_scores.values())
+
+    assert isinstance(loss, torch.Tensor)
+
     loss.backward()
 
     for name, param in attention.named_parameters():

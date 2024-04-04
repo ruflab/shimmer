@@ -274,7 +274,7 @@ class DynamicQueryAttention(SelectionBase):
 
     def fuse_weighted_encodings(
         self, encodings: LatentsDomainGroupT, attention_dict: dict[str, torch.Tensor]
-    ) -> dict[str, torch.Tensor]:
+    ) -> torch.Tensor:
         # Apply attention scores to the encodings
         weighted_encodings = {}
         for key in attention_dict:
