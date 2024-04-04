@@ -731,7 +731,7 @@ class GWLossesFusion(GWLossesBase):
 
                     if sum(permutation) == 1 and domain in selected_latents:
                         demi_cycle_losses.append(loss_output.loss)
-                    elif sum(permutation) == 1 and domain not in selected_latents:
+                    if sum(permutation) == 1 and domain not in selected_latents:
                         translation_losses.append(loss_output.loss)
 
                 if sum(permutation) < len(permutation):
