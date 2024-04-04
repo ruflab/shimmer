@@ -20,8 +20,7 @@ jobs:
         uses: snok/install-poetry@v1
       - name: Install dependencies
         run: |
-          poetry install --with test --with dev
-          poetry run pip install --upgrade pip
+          poetry install --with test,dev --without torch,docs
           poetry run pip install torch --index-url https://download.pytorch.org/whl/cpu
           poetry run pip install lightning
       - name: Ruff checks
