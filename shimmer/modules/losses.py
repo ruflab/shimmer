@@ -666,27 +666,6 @@ class GWLossesFusion(GWLossesBase):
         self.domain_mods = domain_mods
         self.contrastive_fn = contrastive_fn
 
-    def demi_cycle_loss(
-        self, latent_domains: LatentsDomainGroupsT
-    ) -> dict[str, torch.Tensor]:
-        return demi_cycle_loss(
-            self.gw_mod, self.selection_mod, self.domain_mods, latent_domains
-        )
-
-    def cycle_loss(
-        self, latent_domains: LatentsDomainGroupsT
-    ) -> dict[str, torch.Tensor]:
-        return cycle_loss(
-            self.gw_mod, self.selection_mod, self.domain_mods, latent_domains
-        )
-
-    def translation_loss(
-        self, latent_domains: LatentsDomainGroupsT
-    ) -> dict[str, torch.Tensor]:
-        return translation_loss(
-            self.gw_mod, self.selection_mod, self.domain_mods, latent_domains
-        )
-
     def contrastive_loss(
         self, latent_domains: LatentsDomainGroupsT
     ) -> dict[str, torch.Tensor]:
@@ -703,7 +682,7 @@ class GWLossesFusion(GWLossesBase):
 
         for group_name, latents in latent_domains.items():
             encoded_latents = self.gw_mod.encode(latents)
-            permutations = generate_permutations(len(latents))
+            permutations = generate_permutations(len(group_name))
 
             for permutation in permutations:
                 selected_latents = {
@@ -717,12 +696,14 @@ class GWLossesFusion(GWLossesBase):
                     domain: encoded_latents[domain] for domain in selected_latents
                 }
                 selection_scores = self.selection_mod.forward(
-                    selected_encoded_latents, selected_encoded_latents
+                    selected_latents, selected_encoded_latents
                 )
-                fused_latents = self.gw_mod.fuse(selected_latents, selection_scores)
+                fused_latents = self.gw_mod.fuse(selected_encoded_latents, selection_scores)
                 decoded_latents = self.gw_mod.decode(fused_latents)
 
                 for domain, pred in decoded_latents.items():
+                    if domain not in group_name: #if we don't have ground truth
+                        continue
                     ground_truth = latents[domain]
                     loss_output = self.domain_mods[domain].compute_loss(
                         pred, ground_truth
@@ -766,7 +747,7 @@ class GWLossesFusion(GWLossesBase):
             metrics["translations"] = torch.mean(torch.stack(translation_losses))
 
         total_loss = torch.mean(torch.stack(list(losses.values())))
-        return {"total_loss": total_loss, **metrics}
+        return {"broadcast": total_loss, **metrics}
 
     def step(
         self,
@@ -775,9 +756,6 @@ class GWLossesFusion(GWLossesBase):
     ) -> LossOutput:
         metrics: dict[str, torch.Tensor] = {}
 
-        metrics.update(self.demi_cycle_loss(domain_latents))
-        metrics.update(self.cycle_loss(domain_latents))
-        metrics.update(self.translation_loss(domain_latents))
         metrics.update(self.contrastive_loss(domain_latents))
         metrics.update(self.broadcast_loss(domain_latents, mode))
 
