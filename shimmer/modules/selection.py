@@ -252,17 +252,8 @@ class DynamicQueryAttention(SelectionBase):
         self.key_layers = nn.ModuleDict(
             {domain: nn.Linear(domain_dim, head_size) for domain in domains}
         )
-        # Start with a initial naive gw state
-        self.gw_state: torch.Tensor | None = None
-
-    def update_gw_state(self, gw_state: torch.Tensor) -> None:
-        """
-        Update gw state with an initial or updated value.
-
-        Args:
-            gw_state (`torch.Tensor`): the previous GW state
-        """
-        self.gw_state = gw_state
+        # Start with a random gw state
+        self.gw_state = torch.rand(batch_size, domain_dim)
 
     def calculate_attention_dict(
         self, keys: dict, query: torch.Tensor
@@ -336,11 +327,8 @@ class DynamicQueryAttention(SelectionBase):
         # Apply the attention scores to the encodings
         summed_tensor = self.fuse_weighted_encodings(encodings, static_attention_dict)
 
-        # Update the gw state
-        self.update_gw_state(summed_tensor)
-
         # Retrieve query (now it is dependent on the new gw state)
-        query = self.query_layer(self.gw_state.to(device))
+        query = self.query_layer(summed_tensor.to(device))
 
         # Calculate the attention scores again
         dynamic_attention_dict = self.calculate_attention_dict(keys, query)

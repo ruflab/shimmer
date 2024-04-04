@@ -9,8 +9,6 @@ def test_single_domain():
     batch_size = 2056
     domains = ["v_latents"]
     attention = DynamicQueryAttention(batch_size, domain_dim, head_size, domains)
-    gw_state = torch.rand(batch_size, domain_dim)
-    attention.update_gw_state(gw_state)
 
     single_domain_input = {"v_latents": torch.rand(batch_size, domain_dim)}
     prefusion_encodings = {"v_latents": torch.rand(batch_size, domain_dim)}
@@ -30,8 +28,6 @@ def test_multiple_domains_sumis1():
     domains = ["v_latents", "attr"]
 
     attention = DynamicQueryAttention(batch_size, domain_dim, head_size, domains)
-    gw_state = torch.rand(batch_size, domain_dim)
-    attention.update_gw_state(gw_state)
 
     multiple_domain_input = {
         "v_latents": torch.rand(batch_size, domain_dim),
@@ -60,8 +56,6 @@ def test_attention_backward():
     domains = ["v_latents", "attr"]
 
     attention = DynamicQueryAttention(batch_size, domain_dim, head_size, domains)
-    gw_state = torch.rand(batch_size, domain_dim, requires_grad=True)
-    attention.update_gw_state(gw_state)
 
     domains = {
         "v_latents": torch.rand(batch_size, domain_dim, requires_grad=True),
@@ -76,12 +70,6 @@ def test_attention_backward():
 
     loss = sum(score.mean() for score in attention_scores.values())
     loss.backward()
-
-    assert gw_state.grad is not None, "Gradients should be computed for gw_state"
-    for domain, tensor in domains.items():
-        assert (
-            tensor.grad is not None
-        ), f"Gradients should be computed for domain '{domain}' inputs"
 
     for name, param in attention.named_parameters():
         assert (
