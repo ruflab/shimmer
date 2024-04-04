@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from collections.abc import Iterable
 
 import torch
 import torch.nn as nn
@@ -227,3 +228,105 @@ class RandomSelection(SelectionBase):
             domain: all_scores[:, i : i + 1] for i, domain in enumerate(domains)
         }
         return attention_dict
+
+
+class DynamicQueryAttention(SelectionBase):
+    """
+    Key-Query attention with a dynamic gw vector.
+    """
+
+    def __init__(
+        self, batch_size: int, domain_dim: int, head_size: int, domains: Iterable[str]
+    ):
+        """
+        Args:
+            batch_size (`int`) : size of the batch
+            domain_dim (`int`) : dimension of the input dims (assumed to be the same for now)
+            head_size (`int`) : dimension of the key and query vectors
+            domains (`Iterable[str]`) : list of input domains
+        """
+        super().__init__()
+        self.batch_size = batch_size
+        self.head_size = head_size
+        self.query_layer = nn.Linear(domain_dim, head_size)
+        self.key_layers = nn.ModuleDict(
+            {domain: nn.Linear(domain_dim, head_size) for domain in domains}
+        )
+        # Start with a random gw state
+        self.gw_state = torch.rand(batch_size, domain_dim)
+
+    def calculate_attention_dict(
+        self, keys: dict, query: torch.Tensor
+    ) -> dict[str, torch.Tensor]:
+        dot_products = {
+            domain: torch.bmm(key.unsqueeze(1), query.unsqueeze(2)).squeeze()
+            for domain, key in keys.items()
+        }
+
+        dot_products_tensor = torch.stack(list(dot_products.values()), dim=1)
+
+        attention_scores = torch.softmax(dot_products_tensor, dim=1)
+
+        attention_dict = {
+            domain: attention_scores[:, i : i + 1] for i, domain in enumerate(keys)
+        }
+        return attention_dict
+
+    def fuse_weighted_encodings(
+        self, encodings: LatentsDomainGroupT, attention_dict: dict[str, torch.Tensor]
+    ) -> dict[str, torch.Tensor]:
+        # Apply attention scores to the encodings
+        weighted_encodings = {}
+        for key in attention_dict:
+            if key in encodings:
+                # Perform element-wise multiplication and store the result
+                weighted_encodings[key] = attention_dict[key] * encodings[key]
+
+        # Stack the tensors along a new dimension (dimension 0)
+        stacked_tensors = torch.stack(list(weighted_encodings.values()))
+
+        # Apply fusion by summing along the newly created dimension
+        summed_tensor = torch.sum(stacked_tensors, dim=0)
+
+        return summed_tensor
+
+    def forward(
+        self, domains: LatentsDomainGroupT, encodings: LatentsDomainGroupT
+    ) -> dict[str, torch.Tensor]:
+        """
+        Compute keys and queries, match them with dot product and softmax.
+        Does this twice, once with the static query and once with a dynamic query.
+
+        Args:
+            domains (`LatentsDomainGroupT`): Group of unimodal latent representations.
+            encodings (`LatentsDomainGroupT`): Group of pre-fusion encodings.
+
+        Returns:
+            `dict[str, torch.Tensor]`: the attention scores for each domain in the group.
+        """
+
+        # Encoding with pytorch
+        keys = {
+            domain: self.key_layers[domain](encoding)
+            for domain, encoding in domains.items()
+        }
+
+        # This for training (cpu or gpu)
+        device = group_device(domains)
+
+        # Retrieve query
+        query = self.query_layer(self.gw_state.to(device))
+
+        # Calculate the attention scores
+        static_attention_dict = self.calculate_attention_dict(keys, query)
+
+        # Apply the attention scores to the encodings
+        summed_tensor = self.fuse_weighted_encodings(encodings, static_attention_dict)
+
+        # Retrieve query (now it is dependent on the new gw state)
+        query = self.query_layer(summed_tensor.to(device))
+
+        # Calculate the attention scores again
+        dynamic_attention_dict = self.calculate_attention_dict(keys, query)
+
+        return dynamic_attention_dict
