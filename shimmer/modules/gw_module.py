@@ -329,13 +329,14 @@ class GWModuleWithUncertainty(GWModule):
         )
         """Log-uncertainty (logvar) at the neuron level for every domain."""
 
-    def fuse(
+    def fuse_and_scores(
         self,
         x: LatentsDomainGroupT,
         selection_scores: Mapping[str, torch.Tensor],
-    ) -> torch.Tensor:
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """
-        Merge function used to combine domains.
+        Merge function used to combine domains and return fusion scores.
+        This is used for testing purposes.
 
         Args:
             x (`LatentsDomainGroupT`): the group of latent representation.
@@ -362,7 +363,24 @@ class GWModuleWithUncertainty(GWModule):
         coef = final_scores.sum(dim=0)
         final_scores = final_scores / coef
 
-        return torch.sum(final_scores * torch.stack(domains), dim=0)
+        return torch.sum(final_scores * torch.stack(domains), dim=0), final_scores
+
+    def fuse(
+        self,
+        x: LatentsDomainGroupT,
+        selection_scores: Mapping[str, torch.Tensor],
+    ) -> torch.Tensor:
+        """
+        Merge function used to combine domains.
+
+        Args:
+            x (`LatentsDomainGroupT`): the group of latent representation.
+            selection_score (`Mapping[str, torch.Tensor]`): attention scores to
+                use to encode the reprensetation.
+        Returns:
+            `torch.Tensor`: The merged representation.
+        """
+        return self.fuse_and_scores(x, selection_scores)[0]
 
 
 class GWModuleFusion(GWModuleBase):
