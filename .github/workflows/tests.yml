@@ -20,9 +20,11 @@ jobs:
         uses: snok/install-poetry@v1
       - name: Install dependencies
         run: |
+          which python
+          poetry which python
           poetry install --with test,dev --without torch,docs
-          poetry run pip install torch --index-url https://download.pytorch.org/whl/cpu
-          poetry run pip install lightning
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install lightning
       - name: Ruff checks
         uses: chartboost/ruff-action@v1
         with:
