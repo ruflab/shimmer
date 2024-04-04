@@ -1,7 +1,7 @@
 import torch
+from utils import DummyDomainModule
 
 from shimmer import GWDecoder, GWEncoder, GWModuleWithUncertainty
-from tests.utils import DummyDomainModule
 
 
 def test_uncertainty_fusion():
