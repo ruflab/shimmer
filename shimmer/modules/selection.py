@@ -305,10 +305,6 @@ class DynamicQueryAttention(SelectionBase):
             `dict[str, torch.Tensor]`: the attention scores for each domain in the group.
         """
 
-        if self.gw_state is None:
-            # tensor with only zeros as default (with specified domain and batch size)
-            self.gw_state = torch.zeros(torch.rand(self.batch_size, self.domain_dim))
-
         # Encoding with pytorch
         keys = {
             domain: self.key_layers[domain](encoding)
