@@ -642,7 +642,23 @@ class GWLossesWithUncertainty(GWLossesBase):
         return LossOutput(loss, metrics)
 
 
+def generate_permutations(n_domains: int) -> List[List[int]]:
+    """
+    Generates all possible permutations of zeros and ones for a given number of domains.
+    
+    Args:
+        n_domains (int): The number of domains to generate permutations for.
 
+    Returns:
+        List[List[int]]: A list of permutations, where each permutation is a list of zeros and ones.
+    """
+    # Generate all possible combinations of 0 and 1 for n_domains
+    permutations = list(product([0, 1], repeat=n_domains))
+    
+    # Filter out the all-zeros permutation
+    permutations = [list(permutation) for permutation in permutations if any(permutation)]
+    
+    return permutations
 
 class GWLossesFusion(GWLossesBase):
     def __init__(
