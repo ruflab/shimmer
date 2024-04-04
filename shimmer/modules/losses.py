@@ -642,54 +642,6 @@ class GWLossesWithUncertainty(GWLossesBase):
         return LossOutput(loss, metrics)
 
 
-def sample_scaling_factors(
-    binary_scaling_prob: float,
-    batch_size: int,
-    temperature: float,
-    device: torch.device,
-):
-    """
-    Args:
-        binary_scaling_prob (`float`): Should be between 0 and 1.
-        batch_size (`int`):
-        temperature (`float`): Should be greater than 0.
-        device (`torch.device`):
-    """
-    assert 0 <= binary_scaling_prob <= 1
-
-    # TODO: make selection deterministic
-    binary_mask = torch.rand(batch_size) < binary_scaling_prob
-
-    binary_factors = torch.randint(0, 2, (batch_size,)).float()
-    binary_softmax = torch.stack([binary_factors, 1 - binary_factors], dim=1)
-
-    uniform_samples = torch.rand(batch_size)
-    uniform_for_softmax = torch.stack([uniform_samples, 1 - uniform_samples], dim=1)
-
-    uniform_softmax = F.softmax(uniform_for_softmax * temperature, dim=1)
-
-    scaling_factors = torch.where(
-        binary_mask.unsqueeze(-1), binary_softmax, uniform_softmax
-    ).to(device)
-
-    binary_indices = torch.where(binary_mask)[0]
-    softmax_indices = torch.where(~binary_mask)[0]
-
-    binary_scaling_factors = scaling_factors[binary_indices]
-    softmax_scaling_factors = scaling_factors[softmax_indices]
-
-    return {
-        "binary": (
-            binary_scaling_factors[:, 0],
-            binary_scaling_factors[:, 1],
-            binary_indices,
-        ),
-        "softmax": (
-            softmax_scaling_factors[:, 0],
-            softmax_scaling_factors[:, 1],
-            softmax_indices,
-        ),
-    }
 
 
 class GWLossesFusion(GWLossesBase):
