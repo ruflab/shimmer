@@ -37,22 +37,16 @@ jobs:
           poetry install --with test,dev,docs --without torch
           poetry run pip install torch --index-url https://download.pytorch.org/whl/cpu
           poetry run pip install lightning
+      - name: Create new branch
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "<>"
+          git checkout -b "vesion_docs/${{ github.event.release.tag_name }}"
       - run: poetry run python ./docs/make.py ${{ github.event.release.tag_name }}
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: docs/api/
-
-  # Deploy the artifact to GitHub pages.
-  # This is a separate job so that only actions/deploy-pages has the necessary permissions.
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Make PR for new version doc build
+        run: |
+          git add docs/api
+          git commit -m "Build release docs"
+          gh pr create --base main --head --title "[DOCS] shimmer API docs ${{ github.event.release.tag_name }}" --body "Automatically generated docs for this release."
+        env:
+            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
