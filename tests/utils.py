@@ -4,7 +4,7 @@ from typing import NamedTuple
 import torch
 import torch.utils.data
 
-from shimmer.modules import DomainModule, SelectionBase
+from shimmer import DomainModule
 
 PROJECT_DIR = Path(__file__).resolve().parent.parent
 
@@ -36,8 +36,3 @@ class DummyDomainModule(DomainModule):
 
     def decode(self, z: torch.Tensor) -> DummyData:
         return DummyData(vec=z)
-
-
-class DummySelectionModule(SelectionBase):
-    def forward(self, x):
-        return {"v_latents": torch.ones(x["v_latents"].shape[0], 1)}

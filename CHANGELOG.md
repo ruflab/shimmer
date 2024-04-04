@@ -60,3 +60,5 @@ refers to `DeterministicGlobalWorkspace`.
     methods in `GlobalWorkspaceBase`.
 * Remove on_before_gw_encode_{loss} callbacks to allow sharing computation between
     loss functions.
+* Remove many _with_uncertainty functions. The GWModuleWithUncertainty now behaves like
+    the other GWModules.
