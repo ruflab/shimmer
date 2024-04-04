@@ -242,7 +242,8 @@ class DynamicQueryAttention(SelectionBase):
         Args:
             batch_size (`int`) : size of the batch
             domain_dim (`int`) : dimension of the input dims (assumed to be the same for now)
-            head_size (`int`) : dimension of the key and query vectors.
+            head_size (`int`) : dimension of the key and query vectors
+            domains (`Iterable[str]`) : list of input domains
         """
         super().__init__()
         self.batch_size = batch_size
