@@ -47,5 +47,5 @@ def test_uncertainty_fusion():
     selection_scores = {
         domain: torch.full((batch_size,), 1.0 / 3.0) for domain in gw_encoders
     }
-    _, scores = gw_module.fuse_and_scores(pre_fusion_reps, selection_scores)
+    _, scores = gw_module._fuse_and_scores(pre_fusion_reps, selection_scores)
     assert torch.allclose(scores.sum(dim=0), torch.ones_like(scores.sum(dim=0)))
