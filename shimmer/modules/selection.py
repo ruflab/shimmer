@@ -241,7 +241,8 @@ class DynamicQueryAttention(SelectionBase):
         """
         Args:
             batch_size (`int`) : size of the batch
-            domain_dim (`int`) : dimension of the input dims (assumed to be the same for now)
+            domain_dim (`int`) : dimension of the input dims (assumed to be the same
+                for now)
             head_size (`int`) : dimension of the key and query vectors
             domains (`Iterable[str]`) : list of input domains
         """
@@ -302,7 +303,8 @@ class DynamicQueryAttention(SelectionBase):
             encodings (`LatentsDomainGroupT`): Group of pre-fusion encodings.
 
         Returns:
-            `dict[str, torch.Tensor]`: the attention scores for each domain in the group.
+            `dict[str, torch.Tensor]`: the attention scores for each domain in the
+            group.
         """
 
         # Encoding with pytorch

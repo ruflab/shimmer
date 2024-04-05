@@ -16,18 +16,35 @@ jobs:
         uses: actions/setup-python@v3
         with:
           python-version: "3.11.4"
+      - name: Load cached Poetry install
+        uses: actions/cache@v3
+        id: cached-poetry
+        with: 
+          path: ~/.local
+          key: poetry-0
       - name: Install Poetry
+        if: steps.cached-poetry.outputs.cache-hit != 'true'
         uses: snok/install-poetry@v1
+        with:
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+          installer-parallel: true
+      - name: Load cached venv
+        id: cached-poetry-dependencies
+        uses: actions/cache@v3
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
       - name: Install dependencies
+        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
         run: |
-          poetry install --with test --with dev
-          poetry run pip install --upgrade pip
+          poetry install --with test,dev,docs --without torch
           poetry run pip install torch --index-url https://download.pytorch.org/whl/cpu
           poetry run pip install lightning
-      - name: Ruff checks
-        uses: chartboost/ruff-action@v1
-        with:
-            args: "format --check"
+      - name: Ruff Formatting
+        run: poetry run ruff format --check
+      - name: Ruff Linter
+        run: poetry run ruff check
       - name: Analysing the code with mypy
         run: |
           poetry run mypy --install-types --non-interactive .
