@@ -658,6 +658,9 @@ def generate_partitions(n):
 
 
 class GWLossesFusion(GWLossesBase):
+    """
+    Implementation of `GWLossesBase` for fusion-based models.
+    """
     def __init__(
         self,
         gw_mod: GWModule,
@@ -665,6 +668,15 @@ class GWLossesFusion(GWLossesBase):
         domain_mods: dict[str, DomainModule],
         contrastive_fn: ContrastiveLossType,
     ):
+        """
+        Initializes the loss computation module for a Global Workspace Fusion model.
+
+        Args:
+            gw_mod: The GWModule for the global workspace.
+            selection_mod: The selection mechanism for the model.
+            domain_mods: A mapping of domain names to their respective DomainModule.
+            contrastive_fn: The function used for computing contrastive loss.
+        """
         super().__init__()
         self.gw_mod = gw_mod
         self.selection_mod = selection_mod
@@ -674,11 +686,31 @@ class GWLossesFusion(GWLossesBase):
     def contrastive_loss(
         self, latent_domains: LatentsDomainGroupsT
     ) -> dict[str, torch.Tensor]:
+        """
+        Computes the contrastive loss for the given latent domains.
+
+        Args:
+            latent_domains: The latent domain representations.
+
+        Returns:
+            A dictionary of contrastive loss metrics.
+        """
+
         return contrastive_loss(self.gw_mod, latent_domains, self.contrastive_fn)
 
     def broadcast_loss(
         self, latent_domains: LatentsDomainGroupsT, mode: ModelModeT
     ) -> dict[str, torch.Tensor]:
+        """
+        Computes broadcast loss including demi-cycle, cycle, and translation losses.
+
+        Args:
+            latent_domains: The latent domain representations.
+            mode: The mode of the model (e.g., 'train', 'eval').
+
+        Returns:
+            A dictionary with the total loss and additional metrics.
+        """
         losses: dict[str, torch.Tensor] = {}
         metrics: dict[str, Any] = {}
         demi_cycle_losses: list[torch.Tensor] = []
@@ -761,6 +793,19 @@ class GWLossesFusion(GWLossesBase):
         domain_latents: LatentsDomainGroupsT,
         mode: ModelModeT,
     ) -> LossOutput:
+
+        """
+        Performs a step of loss computation.
+
+        Args:
+            domain_latents: Latent representations for all domains.
+            mode: The mode in which the model is currently operating.
+
+        Returns:
+            A LossOutput object containing the loss and metrics for this step.
+        """
+
+
         metrics: dict[str, torch.Tensor] = {}
 
         metrics.update(self.contrastive_loss(domain_latents))
