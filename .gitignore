@@ -160,5 +160,3 @@ cython_debug/
 #.idea/
 
 .ruff_cache/
-
-docs/api/
