@@ -16,12 +16,26 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11.4'
+      - name: Load cached Poetry install
+        uses: actions/cache@v3
+        id: cached-poetry
+        with: 
+          path: ~/.local
+          key: poetry-0
       - name: Install Poetry
+        if: steps.cached-poetry.outputs.cache-hit != 'true'
         uses: snok/install-poetry@v1
+      - name: Load cached venv
+        id: cached-poetry-dependencies
+        uses: actions/cache@v3
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
       - name: Install dependencies
+        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
         run: |
           poetry install --with docs --without torch,dev,test
-          poetry run pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+          poetry pip install torch --index-url https://download.pytorch.org/whl/cpu
           poetry run pip install lightning
       - run: poetry run python ./docs/make.py ${{ github.event.release.tag_name }}
       - uses: actions/upload-pages-artifact@v3
