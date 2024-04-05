@@ -41,10 +41,10 @@ jobs:
           poetry install --with test,dev,docs --without torch
           poetry run pip install torch --index-url https://download.pytorch.org/whl/cpu
           poetry run pip install lightning
-      - name: Ruff checks
-        uses: chartboost/ruff-action@v1
-        with:
-            args: "format --check"
+      - name: Ruff Formatting
+        run: poetry run ruff format --check
+      - name: Ruff Linter
+        run: poetry run ruff check
       - name: Analysing the code with mypy
         run: |
           poetry run mypy --install-types --non-interactive .
