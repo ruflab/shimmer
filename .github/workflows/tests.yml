@@ -39,8 +39,8 @@ jobs:
         if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
         run: |
           poetry install --with test,dev,docs --without torch
-          poetry pip install torch --index-url https://download.pytorch.org/whl/cpu
-          poetry pip install lightning
+          poetry run pip install torch --index-url https://download.pytorch.org/whl/cpu
+          poetry run pip install lightning
       - name: Ruff checks
         uses: chartboost/ruff-action@v1
         with:

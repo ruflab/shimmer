@@ -34,8 +34,8 @@ jobs:
       - name: Install dependencies
         if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
         run: |
-          poetry install --with docs --without torch,dev,test
-          poetry pip install torch --index-url https://download.pytorch.org/whl/cpu
+          poetry install --with test,dev,docs --without torch
+          poetry run pip install torch --index-url https://download.pytorch.org/whl/cpu
           poetry run pip install lightning
       - run: poetry run python ./docs/make.py ${{ github.event.release.tag_name }}
       - uses: actions/upload-pages-artifact@v3
