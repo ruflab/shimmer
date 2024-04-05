@@ -641,14 +641,14 @@ class GWLossesWithUncertainty(GWLossesBase):
         return LossOutput(loss, metrics)
 
 
-def generate_permutations(n):
+def generate_partitions(n):
     """
-    Generates all possible permutations of zeros and ones for n elements,
-    excluding the all-zeros permutation.
+    Generates all possible partitions of zeros and ones for n elements,
+    excluding the all-zeros partition.
     inputs :
     n ('int') : number of modalities
     """
-    # Generate permutations using itertools.product, which will be in tuple form
+    # Generate partitions using itertools.product, which will be in tuple form
     return [perm for perm in product([0, 1], repeat=n) if any(perm)]
 
 
@@ -682,13 +682,13 @@ class GWLossesFusion(GWLossesBase):
 
         for group_name, latents in latent_domains.items():
             encoded_latents = self.gw_mod.encode(latents)
-            permutations = generate_permutations(len(group_name))
+            partitions = generate_partitions(len(group_name))
 
-            for permutation in permutations:
+            for partition in partitions:
                 selected_latents = {
                     domain: latents[domain]
                     for domain, present in zip(
-                        latents.keys(), permutation, strict=False
+                        latents.keys(), partition, strict=False
                     )
                     if present
                 }
@@ -699,6 +699,7 @@ class GWLossesFusion(GWLossesBase):
                     selected_latents, selected_encoded_latents
                 )
                 fused_latents = self.gw_mod.fuse(selected_encoded_latents, selection_scores)
+                fused_latents = torch.tanh(fused_latents)
                 decoded_latents = self.gw_mod.decode(fused_latents)
 
                 for domain, pred in decoded_latents.items():
@@ -710,12 +711,12 @@ class GWLossesFusion(GWLossesBase):
                     )
                     losses[f"{group_name}_{domain}_loss"] = loss_output.loss
 
-                    if sum(permutation) == 1 and domain in selected_latents:
+                    if sum(partition) == 1 and domain in selected_latents:
                         demi_cycle_losses.append(loss_output.loss)
-                    if sum(permutation) == 1 and domain not in selected_latents:
+                    if sum(partition) == 1 and domain not in selected_latents:
                         translation_losses.append(loss_output.loss)
 
-                if sum(permutation) < len(permutation):
+                if sum(partition) < len(partition):
                     inverse_selected_latents = {
                         domain: decoded_latents[domain]
                         for domain in decoded_latents
@@ -728,6 +729,7 @@ class GWLossesFusion(GWLossesBase):
                     re_fused_latents = self.gw_mod.fuse(
                         re_encoded_latents, re_selection_scores
                     )
+                    re_fused_latents = torch.tanh(re_fused_latents)
                     re_decoded_latents = self.gw_mod.decode(
                         re_fused_latents, domains=selected_latents.keys()
                     )
