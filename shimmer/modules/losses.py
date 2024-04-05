@@ -643,13 +643,18 @@ class GWLossesWithUncertainty(GWLossesBase):
 
 def generate_partitions(n):
     """
-    Generates all possible partitions of zeros and ones for n elements,
+    Generates all possible partitions of zeros and ones for `n` elements,
     excluding the all-zeros partition.
-    inputs :
-    n ('int') : number of modalities
+
+    Args:
+        n (`int`): The number of modalities to generate partitions for.
+
+    Yields:
+        `tuple[int]`: A partition of zeros and ones, excluding the all-zeros partition.
     """
-    # Generate partitions using itertools.product, which will be in tuple form
-    return [perm for perm in product([0, 1], repeat=n) if any(perm)]
+    for perm in product([0, 1], repeat=n):
+        if any(perm):
+            yield perm
 
 
 class GWLossesFusion(GWLossesBase):
