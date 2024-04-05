@@ -38,7 +38,6 @@ jobs:
       - name: Install dependencies
         if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
         run: |
-          poetry which python
           poetry install --with test,dev,docs --without torch
           poetry pip install torch --index-url https://download.pytorch.org/whl/cpu
           poetry pip install lightning
