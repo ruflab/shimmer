@@ -206,8 +206,7 @@ class RandomSelection(SelectionBase):
         # Create attention dictionary for each domain
         device = group_device(domains)
         attention_dict = {
-            domain: softmax_scores[:, i].to(device)
-            for i, domain in enumerate(domains)
+            domain: softmax_scores[:, i].to(device) for i, domain in enumerate(domains)
         }
 
         return attention_dict
