@@ -16,6 +16,7 @@ from shimmer.modules.gw_module import (
     GWModuleWithUncertainty,
 )
 from shimmer.modules.losses import (
+    BroadcastLossCoefs,
     GWLosses,
     GWLossesBase,
     GWLossesFusion,
@@ -654,6 +655,7 @@ class GlobalWorkspaceFusion(GlobalWorkspaceBase):
         gw_encoders: Mapping[str, Module],
         gw_decoders: Mapping[str, Module],
         workspace_dim: int,
+        loss_coefs: BroadcastLossCoefs,
         selection_temperature: float = 0.2,
         optim_lr: float = 1e-3,
         optim_weight_decay: float = 0.0,
@@ -675,6 +677,7 @@ class GlobalWorkspaceFusion(GlobalWorkspaceBase):
                 name to a `torch.nn.Module` class which role is to decode a
                 GW representation into a unimodal latent representations.
             workspace_dim (`int`): dimension of the GW.
+            loss_coefs (`BroadcastLossCoefs`): loss coefs for the losses.
             selection_temperature (`float`): temperature value for the RandomSelection
                 module.
             optim_lr (`float`): learning rate
@@ -695,7 +698,9 @@ class GlobalWorkspaceFusion(GlobalWorkspaceBase):
             )
 
         selection_mod = RandomSelection(selection_temperature)
-        loss_mod = GWLossesFusion(gw_mod, selection_mod, domain_mods, contrastive_loss)
+        loss_mod = GWLossesFusion(
+            gw_mod, selection_mod, domain_mods, loss_coefs, contrastive_loss
+        )
 
         super().__init__(
             gw_mod,

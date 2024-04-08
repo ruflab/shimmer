@@ -652,6 +652,22 @@ def generate_partitions(n: int) -> Generator[tuple[int, ...], None, None]:
             yield perm
 
 
+class BroadcastLossCoefs(TypedDict, total=False):
+    """
+    Dict of loss coefficients used in the GWLossesFusion.
+
+    If one is not provided, the coefficient is assumed to be 0 and will not be logged.
+    If the loss is excplicitely set to 0, it will be logged, but not take part in
+    the total loss.
+    """
+
+    contrastives: float
+    """Contrastive loss coefficient."""
+
+    broadcast: float
+    """Broadcast loss coefficient."""
+
+
 class GWLossesFusion(GWLossesBase):
     """
     Implementation of `GWLossesBase` for fusion-based models.
@@ -662,6 +678,7 @@ class GWLossesFusion(GWLossesBase):
         gw_mod: GWModule,
         selection_mod: SelectionBase,
         domain_mods: dict[str, DomainModule],
+        loss_coefs: BroadcastLossCoefs,
         contrastive_fn: ContrastiveLossType,
     ):
         """
@@ -671,12 +688,14 @@ class GWLossesFusion(GWLossesBase):
             gw_mod: The GWModule for the global workspace.
             selection_mod: The selection mechanism for the model.
             domain_mods: A mapping of domain names to their respective DomainModule.
+            loss_coefs (`BroadcastLossCoefs`): coefs for the losses
             contrastive_fn: The function used for computing contrastive loss.
         """
         super().__init__()
         self.gw_mod = gw_mod
         self.selection_mod = selection_mod
         self.domain_mods = domain_mods
+        self.loss_coefs = loss_coefs
         self.contrastive_fn = contrastive_fn
 
     def contrastive_loss(
@@ -836,6 +855,13 @@ class GWLossesFusion(GWLossesBase):
         metrics.update(self.contrastive_loss(domain_latents))
         metrics.update(self.broadcast_loss(domain_latents, mode))
 
-        loss = metrics["broadcast"] + metrics["contrastives"]
+        loss = torch.stack(
+            [
+                metrics[name] * coef
+                for name, coef in self.loss_coefs.items()
+                if isinstance(coef, float) and coef > 0
+            ],
+            dim=0,
+        ).mean()
 
         return LossOutput(loss, metrics)

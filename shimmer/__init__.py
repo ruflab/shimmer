@@ -22,6 +22,7 @@ from shimmer.modules.gw_module import (
     GWModuleWithUncertainty,
 )
 from shimmer.modules.losses import (
+    BroadcastLossCoefs,
     GWLosses,
     GWLossesBase,
     GWLossesWithUncertainty,
@@ -82,6 +83,7 @@ __all__ = [
     "contrastive_loss",
     "ContrastiveLoss",
     "LossCoefs",
+    "BroadcastLossCoefs",
     "GWLossesBase",
     "GWLosses",
     "GWLossesWithUncertainty",
