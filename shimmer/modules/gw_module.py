@@ -97,7 +97,7 @@ class GWEncoder(GWDecoder):
         super().__init__(in_dim, hidden_dim, out_dim, n_layers)
 
     def forward(self, input: torch.Tensor) -> torch.Tensor:
-        return torch.tanh(super().forward(input))
+        return super().forward(input)
 
 
 class GWEncoderLinear(nn.Linear):
@@ -252,14 +252,16 @@ class GWModule(GWModuleBase):
         Returns:
             `torch.Tensor`: The merged representation.
         """
-        return torch.sum(
-            torch.stack(
-                [
-                    selection_scores[domain].unsqueeze(1) * x[domain]
-                    for domain in selection_scores
-                ]
-            ),
-            dim=0,
+        return torch.tanh(
+            torch.sum(
+                torch.stack(
+                    [
+                        selection_scores[domain].unsqueeze(1) * x[domain]
+                        for domain in selection_scores
+                    ]
+                ),
+                dim=0,
+            )
         )
 
     def encode(self, x: LatentsDomainGroupT) -> LatentsDomainGroupT:
@@ -364,7 +366,9 @@ class GWModuleWithUncertainty(GWModule):
         coef = final_scores.sum(dim=0)
         final_scores = final_scores / coef
 
-        return torch.sum(final_scores * torch.stack(domains), dim=0), final_scores
+        return torch.tanh(
+            torch.sum(final_scores * torch.stack(domains), dim=0)
+        ), final_scores
 
     def fuse(
         self,
