@@ -726,7 +726,7 @@ class GWLossesFusion(GWLossesBase):
                 selected_encoded_latents = {
                     domain: encoded_latents[domain] for domain in selected_latents
                 }
-                selection_scores = self.selection_mod.forward(
+                selection_scores = self.selection_mod(
                     selected_latents, selected_encoded_latents
                 )
                 fused_latents = self.gw_mod.fuse(
@@ -756,7 +756,7 @@ class GWLossesFusion(GWLossesBase):
                         if domain not in selected_latents
                     }
                     re_encoded_latents = self.gw_mod.encode(inverse_selected_latents)
-                    re_selection_scores = self.selection_mod.forward(
+                    re_selection_scores = self.selection_mod(
                         inverse_selected_latents, re_encoded_latents
                     )
                     re_fused_latents = self.gw_mod.fuse(
