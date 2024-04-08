@@ -34,9 +34,10 @@ jobs:
       - name: Install dependencies
         if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
         run: |
-          poetry install --with test,dev,docs --without torch
-          poetry run pip install torch --index-url https://download.pytorch.org/whl/cpu
-          poetry run pip install lightning
+          poetry source add torch-cpu --priority=explicit https://download.pytorch.org/whl/cpu
+          torch_version=$(poetry show torch --no-ansi | sed -n 2p | sed 's/^\(\s*\)version\(\s*\):\(\s*\)\([0-9\.\+a-zA-Z]*\)\(.*\)$/\4/')
+          poetry add --source torch-cpu "torch@$torch_version"
+          poetry install --with test,dev,docs
       - run: poetry run python ./docs/make.py
       - uses: actions/upload-pages-artifact@v3
         with:
