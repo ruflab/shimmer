@@ -71,10 +71,11 @@ def setup_global_workspace_fusion() -> GlobalWorkspaceFusion:
     contrastive_fn: ContrastiveLossType = contrastive_loss
 
     gw_fusion = GlobalWorkspaceFusion(
-        domain_mods=domain_mods,
-        gw_encoders=gw_encoders,
-        gw_decoders=gw_decoders,
-        workspace_dim=workspace_dim,
+        domain_mods,
+        gw_encoders,
+        gw_decoders,
+        workspace_dim,
+        selection_temperature=0.2,
         optim_lr=1e-3,
         optim_weight_decay=0.0,
         scheduler_args=None,  # Simplified for testing
