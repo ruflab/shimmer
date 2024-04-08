@@ -5,6 +5,7 @@ from torch.nn.functional import cross_entropy, normalize
 from shimmer.modules.contrastive_loss import ContrastiveLossType
 from shimmer.modules.domain import DomainModule, LossOutput
 from shimmer.modules.global_workspace import GlobalWorkspaceFusion
+from shimmer.modules.losses import BroadcastLossCoefs
 
 
 def contrastive_loss(x: torch.Tensor, y: torch.Tensor) -> LossOutput:
@@ -69,12 +70,14 @@ def setup_global_workspace_fusion() -> GlobalWorkspaceFusion:
     gw_decoders = {"domain1": nn.Linear(10, 10), "domain2": nn.Linear(10, 10)}
     workspace_dim = 10
     contrastive_fn: ContrastiveLossType = contrastive_loss
+    loss_coefs: BroadcastLossCoefs = {"broadcast": 1.0, "contrastives": 0.1}
 
     gw_fusion = GlobalWorkspaceFusion(
         domain_mods,
         gw_encoders,
         gw_decoders,
         workspace_dim,
+        loss_coefs,
         selection_temperature=0.2,
         optim_lr=1e-3,
         optim_weight_decay=0.0,
