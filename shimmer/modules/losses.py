@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from collections.abc import Mapping
+from collections.abc import Generator, Mapping
 from itertools import product
 from typing import Any, TypedDict
 
@@ -635,7 +635,7 @@ class GWLossesWithUncertainty(GWLossesBase):
         return LossOutput(loss, metrics)
 
 
-def generate_partitions(n):
+def generate_partitions(n: int) -> Generator[tuple[int, ...], None, None]:
     """
     Generates all possible partitions of zeros and ones for `n` elements,
     excluding the all-zeros partition.
@@ -644,7 +644,8 @@ def generate_partitions(n):
         n (`int`): The number of modalities to generate partitions for.
 
     Yields:
-        `tuple[int]`: A partition of zeros and ones, excluding the all-zeros partition.
+        `tuple[int, ...]`: A partition of zeros and ones, excluding the
+        all-zeros partition.
     """
     for perm in product([0, 1], repeat=n):
         if any(perm):
