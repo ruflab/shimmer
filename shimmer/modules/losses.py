@@ -5,15 +5,9 @@ from typing import Any, TypedDict
 
 import torch
 
-from shimmer.modules.contrastive_loss import (
-    ContrastiveLossType,
-)
+from shimmer.modules.contrastive_loss import ContrastiveLossType
 from shimmer.modules.domain import DomainModule, LossOutput
-from shimmer.modules.gw_module import (
-    GWModule,
-    GWModuleBase,
-    GWModuleWithUncertainty,
-)
+from shimmer.modules.gw_module import GWModule, GWModuleBase, GWModuleWithUncertainty
 from shimmer.modules.selection import SelectionBase
 from shimmer.types import LatentsDomainGroupsT, ModelModeT
 
@@ -661,6 +655,7 @@ class GWLossesFusion(GWLossesBase):
     """
     Implementation of `GWLossesBase` for fusion-based models.
     """
+
     def __init__(
         self,
         gw_mod: GWModule,
@@ -724,9 +719,7 @@ class GWLossesFusion(GWLossesBase):
             for partition in partitions:
                 selected_latents = {
                     domain: latents[domain]
-                    for domain, present in zip(
-                        latents.keys(), partition, strict=False
-                    )
+                    for domain, present in zip(latents.keys(), partition, strict=False)
                     if present
                 }
                 selected_encoded_latents = {
@@ -735,12 +728,14 @@ class GWLossesFusion(GWLossesBase):
                 selection_scores = self.selection_mod.forward(
                     selected_latents, selected_encoded_latents
                 )
-                fused_latents = self.gw_mod.fuse(selected_encoded_latents, selection_scores)
+                fused_latents = self.gw_mod.fuse(
+                    selected_encoded_latents, selection_scores
+                )
                 fused_latents = torch.tanh(fused_latents)
                 decoded_latents = self.gw_mod.decode(fused_latents)
 
                 for domain, pred in decoded_latents.items():
-                    if domain not in group_name: #if we don't have ground truth
+                    if domain not in group_name:  # if we don't have ground truth
                         continue
                     ground_truth = latents[domain]
                     loss_output = self.domain_mods[domain].compute_loss(
@@ -793,7 +788,6 @@ class GWLossesFusion(GWLossesBase):
         domain_latents: LatentsDomainGroupsT,
         mode: ModelModeT,
     ) -> LossOutput:
-
         """
         Performs a step of loss computation.
 
@@ -804,7 +798,6 @@ class GWLossesFusion(GWLossesBase):
         Returns:
             A LossOutput object containing the loss and metrics for this step.
         """
-
 
         metrics: dict[str, torch.Tensor] = {}
 
