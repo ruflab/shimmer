@@ -58,7 +58,6 @@ def test_three_domains():
     for domain in three_domain_input:
         assert selection_scores[domain].shape == (
             batch_size,
-            1,
         ), f"Scores shape mismatch for {domain}"
 
     # Ensure the sum of attention scores across domains equals 1
