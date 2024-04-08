@@ -691,7 +691,7 @@ class GlobalWorkspaceFusion(GlobalWorkspaceBase):
                 torch.tensor([1 / 0.07]).log(), "mean", learn_logit_scale
             )
 
-        selection_mod = RandomSelection()
+        selection_mod = RandomSelection(temperature=0.2)
         loss_mod = GWLossesFusion(gw_mod, selection_mod, domain_mods, contrastive_loss)
 
         super().__init__(

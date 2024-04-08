@@ -1,5 +1,7 @@
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
+from typing import TypedDict, List, Dict, Any
+
 from itertools import product
 from typing import Dict, List, TypedDict
 
@@ -13,7 +15,6 @@ from shimmer.modules.domain import DomainModule, LossOutput
 from shimmer.modules.gw_module import (
     GWModule,
     GWModuleBase,
-    GWModuleFusion,
     GWModuleWithUncertainty,
 )
 from shimmer.modules.selection import SelectionBase
@@ -643,31 +644,21 @@ class GWLossesWithUncertainty(GWLossesBase):
         return LossOutput(loss, metrics)
 
 
-def generate_permutations(n_domains: int) -> List[List[int]]:
+def generate_permutations(n):
     """
-    Generates all possible permutations of zeros and ones for a given number of domains.
-
-    Args:
-        n_domains (int): The number of domains to generate permutations for.
-
-    Returns:
-        List[List[int]]: A list of permutations, where each permutation is a list of zeros and ones.
+    Generates all possible permutations of zeros and ones for n elements,
+    excluding the all-zeros permutation.
+    inputs : 
+    n ('int') : number of modalities
     """
-    # Generate all possible combinations of 0 and 1 for n_domains
-    permutations = list(product([0, 1], repeat=n_domains))
-
-    # Filter out the all-zeros permutation
-    permutations = [
-        list(permutation) for permutation in permutations if any(permutation)
-    ]
-
-    return permutations
+    # Generate permutations using itertools.product, which will be in tuple form
+    return [perm for perm in product([0, 1], repeat=n) if any(perm)]
 
 
 class GWLossesFusion(GWLossesBase):
     def __init__(
         self,
-        gw_mod: GWModuleFusion,
+        gw_mod: GWModule,
         selection_mod: SelectionBase,
         domain_mods: dict[str, DomainModule],
         contrastive_fn: ContrastiveLossType,
@@ -704,65 +695,51 @@ class GWLossesFusion(GWLossesBase):
     ) -> dict[str, torch.Tensor]:
         return contrastive_loss(self.gw_mod, latent_domains, self.contrastive_fn)
 
-    def broadcast_loss(
-        self, latent_domains: LatentsDomainGroupsT, mode: ModelModeT
-    ) -> dict[str, torch.Tensor]:
+    def broadcast_loss(self, latent_domains: LatentsDomainGroupsT, mode: ModelModeT) -> dict[str, torch.Tensor]:
         losses: Dict[str, torch.Tensor] = {}
         metrics: Dict[str, Any] = {}
+        demi_cycle_losses: List[torch.Tensor] = []
+        cycle_losses: List[torch.Tensor] = []
+        translation_losses: List[torch.Tensor] = []
 
         for group_name, latents in latent_domains.items():
             encoded_latents = self.gw_mod.encode(latents)
             permutations = generate_permutations(len(latents))
 
             for permutation in permutations:
-                # Filter out latents based on the permutation
-                selected_latents = {
-                    domain: latents[domain]
-                    for domain, present in zip(latents, permutation)
-                    if present
-                }
-
-                # Fuse and decode selected latents
-                fused_latents = self.gw_mod.fuse(selected_latents, self.selection_mod)
+                selected_latents = {domain: latents[domain] for domain, present in zip(latents.keys(), permutation) if present}
+                selection_scores = self.selection_mod.forward(encoded_latents, selected_latents)
+                fused_latents = self.gw_mod.fuse(selected_latents, selection_scores)
                 decoded_latents = self.gw_mod.decode(fused_latents)
 
-                for domain in selected_latents:
-                    ground_truth = selected_latents[domain]
-                    loss_output = self.domain_mods[domain].compute_loss(
-                        pred, ground_truth
-                    )
-                    losses[f"{group_name}_{domain}_loss_{permutation}"] = loss
+                for domain, pred in decoded_latents.items():
+                    ground_truth = latents[domain]
+                    loss_output = self.domain_mods[domain].compute_loss(pred, ground_truth)
+                    losses[f"{group_name}_{domain}_loss"] = loss_output.loss
 
-                # Cycle logic
-                if sum(permutation) == 1:
-                    # Create the inverse permutation
-                    inverse_permutation = [1 - p for p in permutation]
+                    if sum(permutation) == 1 and domain in selected_latents:
+                        demi_cycle_losses.append(loss_output.loss)
+                    elif sum(permutation) == 1 and domain not in selected_latents:
+                        translation_losses.append(loss_output.loss)
 
-                    # Filter decoded predictions for domains not in the original selected_latents
-                    inverse_selected_latents = {
-                        domain: decoded_latents[domain]
-                        for domain, present in zip(decoded_latents, inverse_permutation)
-                        if present
-                    }
-
-                    # Re-encode and fuse the decoded predictions with this permutation
+                if sum(permutation) < len(permutation): #no cycle if partition is all ones
+                    inverse_selected_latents = {domain: decoded_latents[domain] for domain in decoded_latents.keys() if domain not in selected_latents}
                     re_encoded_latents = self.gw_mod.encode(inverse_selected_latents)
-                    re_fused_latents = self.gw_mod.fuse(
-                        re_encoded_latents, self.selection_mod
-                    )
+                    re_selection_scores = self.selection_mod.forward(re_encoded_latents, inverse_selected_latents)
+                    re_fused_latents = self.gw_mod.fuse(re_encoded_latents, re_selection_scores)
+                    re_decoded_latents = self.gw_mod.decode(re_fused_latents, domains=selected_latents.keys())
 
-                    # Decode back to the original domain
-                    re_decoded_latents = self.gw_mod.decode(
-                        re_fused_latents, domains=selected_latents.keys()
-                    )
-
-                    # Compute loss on the domain that had a one in the original permutation
                     for domain in selected_latents:
-                        re_ground_truth = selected_latents[domain]
-                        re_loss = self.domain_mods[domain].compute_loss(
-                            re_decoded_latents[domain], re_ground_truth
-                        )
-                        losses[f"{group_name}_{domain}_re_loss_{permutation}"] = re_loss
+                        re_ground_truth = latents[domain]
+                        re_loss_output = self.domain_mods[domain].compute_loss(re_decoded_latents[domain], re_ground_truth)
+                        cycle_losses.append(re_loss_output.loss)  # Collect cycle losses
+
+        if demi_cycle_losses:
+            metrics["demi_cycles"] = torch.mean(torch.stack(demi_cycle_losses))
+        if cycle_losses:
+            metrics["cycles"] = torch.mean(torch.stack(cycle_losses))
+        if translation_losses:
+            metrics["translations"] = torch.mean(torch.stack(translation_losses))
 
         total_loss = torch.mean(torch.stack(list(losses.values())))
         return {"total_loss": total_loss, **metrics}
