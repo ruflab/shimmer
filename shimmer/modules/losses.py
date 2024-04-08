@@ -709,48 +709,55 @@ class GWLossesFusion(GWLossesBase):
         """
         losses: dict[str, torch.Tensor] = {}
         metrics: dict[str, Any] = {}
-        demi_cycle_losses: list[torch.Tensor] = []
-        cycle_losses: list[torch.Tensor] = []
-        translation_losses: list[torch.Tensor] = []
 
-        for group_name, latents in latent_domains.items():
+        demi_cycle_losses: list[str] = []
+        cycle_losses: list[str] = []
+        translation_losses: list[str] = []
+
+        for group_domains, latents in latent_domains.items():
             encoded_latents = self.gw_mod.encode(latents)
-            partitions = generate_partitions(len(group_name))
+            partitions = generate_partitions(len(group_domains))
+            domain_names = list(latents)
 
             for partition in partitions:
                 selected_latents = {
                     domain: latents[domain]
-                    for domain, present in zip(latents.keys(), partition, strict=True)
+                    for domain, present in zip(domain_names, partition, strict=True)
                     if present
                 }
                 selected_encoded_latents = {
                     domain: encoded_latents[domain] for domain in selected_latents
                 }
+                selected_group_label = "{" + ", ".join(sorted(selected_latents)) + "}"
+
                 selection_scores = self.selection_mod(
                     selected_latents, selected_encoded_latents
                 )
                 fused_latents = self.gw_mod.fuse(
                     selected_encoded_latents, selection_scores
                 )
-                fused_latents = torch.tanh(fused_latents)
                 decoded_latents = self.gw_mod.decode(fused_latents)
 
                 num_active_domains = sum(partition)
                 num_total_domains = len(partition)
 
                 for domain, pred in decoded_latents.items():
-                    if domain not in group_name:  # if we don't have ground truth
+                    if domain not in group_domains:  # if we don't have ground truth
                         continue
                     ground_truth = latents[domain]
                     loss_output = self.domain_mods[domain].compute_loss(
                         pred, ground_truth
                     )
-                    losses[f"{group_name}_{domain}_loss"] = loss_output.loss
+                    loss_label = f"from_{selected_group_label}_to_{domain}"
+                    losses[loss_label + "_loss"] = loss_output.loss
+                    metrics.update(
+                        {f"{loss_label}_{k}": v for k, v in loss_output.metrics.items()}
+                    )
 
                     if num_active_domains == 1 and domain in selected_latents:
-                        demi_cycle_losses.append(loss_output.loss)
+                        demi_cycle_losses.append(loss_label + "_loss")
                     if num_active_domains == 1 and domain not in selected_latents:
-                        translation_losses.append(loss_output.loss)
+                        translation_losses.append(loss_label + "_loss")
 
                 if num_active_domains < num_total_domains:
                     inverse_selected_latents = {
@@ -758,6 +765,11 @@ class GWLossesFusion(GWLossesBase):
                         for domain in decoded_latents
                         if domain not in selected_latents
                     }
+
+                    inverse_selected_group_label = (
+                        "{" + ", ".join(sorted(inverse_selected_latents)) + "}"
+                    )
+
                     re_encoded_latents = self.gw_mod.encode(inverse_selected_latents)
                     re_selection_scores = self.selection_mod(
                         inverse_selected_latents, re_encoded_latents
@@ -765,7 +777,6 @@ class GWLossesFusion(GWLossesBase):
                     re_fused_latents = self.gw_mod.fuse(
                         re_encoded_latents, re_selection_scores
                     )
-                    re_fused_latents = torch.tanh(re_fused_latents)
                     re_decoded_latents = self.gw_mod.decode(
                         re_fused_latents, domains=selected_latents.keys()
                     )
@@ -775,14 +786,31 @@ class GWLossesFusion(GWLossesBase):
                         re_loss_output = self.domain_mods[domain].compute_loss(
                             re_decoded_latents[domain], re_ground_truth
                         )
-                        cycle_losses.append(re_loss_output.loss)  # Collect cycle losses
+                        loss_label = (
+                            f"from_{selected_group_label}_"
+                            f"through_{inverse_selected_group_label}_to_{domain}"
+                        )
+                        losses[loss_label + "_loss"] = re_loss_output.loss
+                        metrics.update(
+                            {
+                                f"{loss_label}_{k}": v
+                                for k, v in re_loss_output.metrics.items()
+                            }
+                        )
+                        cycle_losses.append(loss_label + "_loss")
 
         if demi_cycle_losses:
-            metrics["demi_cycles"] = torch.mean(torch.stack(demi_cycle_losses))
+            metrics["demi_cycles"] = torch.mean(
+                torch.stack([losses[loss_name] for loss_name in demi_cycle_losses])
+            )
         if cycle_losses:
-            metrics["cycles"] = torch.mean(torch.stack(cycle_losses))
+            metrics["cycles"] = torch.mean(
+                torch.stack([losses[loss_name] for loss_name in cycle_losses])
+            )
         if translation_losses:
-            metrics["translations"] = torch.mean(torch.stack(translation_losses))
+            metrics["translations"] = torch.mean(
+                torch.stack([losses[loss_name] for loss_name in translation_losses])
+            )
 
         total_loss = torch.mean(torch.stack(list(losses.values())))
         return {"broadcast": total_loss, **metrics}
