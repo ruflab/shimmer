@@ -720,7 +720,7 @@ class GWLossesFusion(GWLossesBase):
             for partition in partitions:
                 selected_latents = {
                     domain: latents[domain]
-                    for domain, present in zip(latents.keys(), partition, strict=False)
+                    for domain, present in zip(latents.keys(), partition, strict=True)
                     if present
                 }
                 selected_encoded_latents = {
