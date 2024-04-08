@@ -1,12 +1,9 @@
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
-from typing import TypedDict, List, Dict, Any
-
 from itertools import product
-from typing import Dict, List, TypedDict
+from typing import Any, TypedDict
 
 import torch
-import torch.nn.functional as F
 
 from shimmer.modules.contrastive_loss import (
     ContrastiveLossType,
@@ -648,7 +645,7 @@ def generate_permutations(n):
     """
     Generates all possible permutations of zeros and ones for n elements,
     excluding the all-zeros permutation.
-    inputs : 
+    inputs :
     n ('int') : number of modalities
     """
     # Generate permutations using itertools.product, which will be in tuple form
@@ -695,26 +692,41 @@ class GWLossesFusion(GWLossesBase):
     ) -> dict[str, torch.Tensor]:
         return contrastive_loss(self.gw_mod, latent_domains, self.contrastive_fn)
 
-    def broadcast_loss(self, latent_domains: LatentsDomainGroupsT, mode: ModelModeT) -> dict[str, torch.Tensor]:
-        losses: Dict[str, torch.Tensor] = {}
-        metrics: Dict[str, Any] = {}
-        demi_cycle_losses: List[torch.Tensor] = []
-        cycle_losses: List[torch.Tensor] = []
-        translation_losses: List[torch.Tensor] = []
+    def broadcast_loss(
+        self, latent_domains: LatentsDomainGroupsT, mode: ModelModeT
+    ) -> dict[str, torch.Tensor]:
+        losses: dict[str, torch.Tensor] = {}
+        metrics: dict[str, Any] = {}
+        demi_cycle_losses: list[torch.Tensor] = []
+        cycle_losses: list[torch.Tensor] = []
+        translation_losses: list[torch.Tensor] = []
 
         for group_name, latents in latent_domains.items():
             encoded_latents = self.gw_mod.encode(latents)
             permutations = generate_permutations(len(latents))
 
             for permutation in permutations:
-                selected_latents = {domain: latents[domain] for domain, present in zip(latents.keys(), permutation) if present}
-                selection_scores = self.selection_mod.forward(encoded_latents, selected_latents)
+                selected_latents = {
+                    domain: latents[domain]
+                    for domain, present in zip(
+                        latents.keys(), permutation, strict=False
+                    )
+                    if present
+                }
+                selected_encoded_latents = {
+                    domain: encoded_latents[domain] for domain in selected_latents
+                }
+                selection_scores = self.selection_mod.forward(
+                    selected_encoded_latents, selected_encoded_latents
+                )
                 fused_latents = self.gw_mod.fuse(selected_latents, selection_scores)
                 decoded_latents = self.gw_mod.decode(fused_latents)
 
                 for domain, pred in decoded_latents.items():
                     ground_truth = latents[domain]
-                    loss_output = self.domain_mods[domain].compute_loss(pred, ground_truth)
+                    loss_output = self.domain_mods[domain].compute_loss(
+                        pred, ground_truth
+                    )
                     losses[f"{group_name}_{domain}_loss"] = loss_output.loss
 
                     if sum(permutation) == 1 and domain in selected_latents:
@@ -722,16 +734,28 @@ class GWLossesFusion(GWLossesBase):
                     elif sum(permutation) == 1 and domain not in selected_latents:
                         translation_losses.append(loss_output.loss)
 
-                if sum(permutation) < len(permutation): #no cycle if partition is all ones
-                    inverse_selected_latents = {domain: decoded_latents[domain] for domain in decoded_latents.keys() if domain not in selected_latents}
+                if sum(permutation) < len(permutation):
+                    inverse_selected_latents = {
+                        domain: decoded_latents[domain]
+                        for domain in decoded_latents
+                        if domain not in selected_latents
+                    }
                     re_encoded_latents = self.gw_mod.encode(inverse_selected_latents)
-                    re_selection_scores = self.selection_mod.forward(re_encoded_latents, inverse_selected_latents)
-                    re_fused_latents = self.gw_mod.fuse(re_encoded_latents, re_selection_scores)
-                    re_decoded_latents = self.gw_mod.decode(re_fused_latents, domains=selected_latents.keys())
+                    re_selection_scores = self.selection_mod.forward(
+                        inverse_selected_latents, re_encoded_latents
+                    )
+                    re_fused_latents = self.gw_mod.fuse(
+                        re_encoded_latents, re_selection_scores
+                    )
+                    re_decoded_latents = self.gw_mod.decode(
+                        re_fused_latents, domains=selected_latents.keys()
+                    )
 
                     for domain in selected_latents:
                         re_ground_truth = latents[domain]
-                        re_loss_output = self.domain_mods[domain].compute_loss(re_decoded_latents[domain], re_ground_truth)
+                        re_loss_output = self.domain_mods[domain].compute_loss(
+                            re_decoded_latents[domain], re_ground_truth
+                        )
                         cycle_losses.append(re_loss_output.loss)  # Collect cycle losses
 
         if demi_cycle_losses:
