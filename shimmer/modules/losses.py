@@ -735,6 +735,9 @@ class GWLossesFusion(GWLossesBase):
                 fused_latents = torch.tanh(fused_latents)
                 decoded_latents = self.gw_mod.decode(fused_latents)
 
+                num_active_domains = sum(partition)
+                num_total_domains = len(partition)
+
                 for domain, pred in decoded_latents.items():
                     if domain not in group_name:  # if we don't have ground truth
                         continue
@@ -744,12 +747,12 @@ class GWLossesFusion(GWLossesBase):
                     )
                     losses[f"{group_name}_{domain}_loss"] = loss_output.loss
 
-                    if sum(partition) == 1 and domain in selected_latents:
+                    if num_active_domains == 1 and domain in selected_latents:
                         demi_cycle_losses.append(loss_output.loss)
-                    if sum(partition) == 1 and domain not in selected_latents:
+                    if num_active_domains == 1 and domain not in selected_latents:
                         translation_losses.append(loss_output.loss)
 
-                if sum(partition) < len(partition):
+                if num_active_domains < num_total_domains:
                     inverse_selected_latents = {
                         domain: decoded_latents[domain]
                         for domain in decoded_latents
