@@ -13,7 +13,6 @@ from shimmer.modules.domain import DomainModule
 from shimmer.modules.gw_module import (
     GWModule,
     GWModuleBase,
-    GWModuleFusion,
     GWModuleWithUncertainty,
 )
 from shimmer.modules.losses import (
@@ -685,7 +684,7 @@ class GlobalWorkspaceFusion(GlobalWorkspaceBase):
                 contrastive losses.
         """
         domain_mods = freeze_domain_modules(domain_mods)
-        gw_mod = GWModuleFusion(domain_mods, workspace_dim, gw_encoders, gw_decoders)
+        gw_mod = GWModule(domain_mods, workspace_dim, gw_encoders, gw_decoders)
 
         if contrastive_loss is None:
             contrastive_loss = ContrastiveLoss(

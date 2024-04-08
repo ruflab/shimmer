@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
-from typing import TypedDict
+from itertools import product
+from typing import Dict, List, TypedDict
 
 import torch
 import torch.nn.functional as F
@@ -645,7 +646,7 @@ class GWLossesWithUncertainty(GWLossesBase):
 def generate_permutations(n_domains: int) -> List[List[int]]:
     """
     Generates all possible permutations of zeros and ones for a given number of domains.
-    
+
     Args:
         n_domains (int): The number of domains to generate permutations for.
 
@@ -654,11 +655,14 @@ def generate_permutations(n_domains: int) -> List[List[int]]:
     """
     # Generate all possible combinations of 0 and 1 for n_domains
     permutations = list(product([0, 1], repeat=n_domains))
-    
+
     # Filter out the all-zeros permutation
-    permutations = [list(permutation) for permutation in permutations if any(permutation)]
-    
+    permutations = [
+        list(permutation) for permutation in permutations if any(permutation)
+    ]
+
     return permutations
+
 
 class GWLossesFusion(GWLossesBase):
     def __init__(
@@ -724,7 +728,9 @@ class GWLossesFusion(GWLossesBase):
 
                 for domain in selected_latents:
                     ground_truth = selected_latents[domain]
-                    loss = compute_loss(decoded_latents[domain], ground_truth)
+                    loss_output = self.domain_mods[domain].compute_loss(
+                        pred, ground_truth
+                    )
                     losses[f"{group_name}_{domain}_loss_{permutation}"] = loss
 
                 # Cycle logic
@@ -753,7 +759,7 @@ class GWLossesFusion(GWLossesBase):
                     # Compute loss on the domain that had a one in the original permutation
                     for domain in selected_latents:
                         re_ground_truth = selected_latents[domain]
-                        re_loss = compute_loss(
+                        re_loss = self.domain_mods[domain].compute_loss(
                             re_decoded_latents[domain], re_ground_truth
                         )
                         losses[f"{group_name}_{domain}_re_loss_{permutation}"] = re_loss
