@@ -164,69 +164,49 @@ class KQFixedQSelection(SelectionBase):
 
 class RandomSelection(SelectionBase):
     """
-    random attention, not learned, with a proportion of binary scaling factors,
-    and a proportion of uniform-then-softmaxed-across-modalities scores.
-    this class serves to train broadcast with robustness on linear scaling on
-    prefusion representations.
+    Modified random attention to only utilize uniform-softmax scores across modalities.
+    This version omits the binary scaling factors and focuses on generating attention
+    coefficients using a uniform distribution followed by a domain-wise softmax.
     """
 
-    def __init__(self, binary_proportion: float, temperature: float):
+    def __init__(self, temperature: float):
         """
         Args:
-            binary_proportion (`float`) : proportion of binary scaling factors
-                returned by forward(). between 0 and 1.
-            temperature (`float`) : temperature of the softmax applied to uniform
+            temperature (`float`): Temperature of the softmax applied to uniform
                 scaling factors.
         """
         super().__init__()
-        self.binary_proportion = binary_proportion
         self.temperature = temperature
 
     def forward(
         self, domains: LatentsDomainGroupT, encodings_pre_fusion: LatentsDomainGroupT
     ) -> dict[str, torch.Tensor]:
         """
-        randomly draw binary and uniform-then-domain-wise-softmaxed samples according
-        to self.binary_proportion.
+        Generate uniform-then-domain-wise-softmaxed samples for each domain.
 
         Args:
             domains (`LatentsDomainGroupT`): Group of unimodal latent representations.
-                This is not used in the function.
+                This is not used in the function directly but determines the structure
+                of the returned attention coefficients.
 
         Returns:
-            `dict[str, torch.Tensor]`: for each domain in the group, the fusion
-            coefficient for each item in the batch.
+            `dict[str, torch.Tensor]`: For each domain in the group, the fusion
+            coefficient for each item in the batch, based solely on uniform-softmax scores.
         """
         num_domains = len(domains)
         batch_size = group_batch_size(domains)
 
-        # have to add extra binaries when the division's not integer
-        total_binary_scores = int(batch_size * self.binary_proportion)
-        num_binary_per_domain, extra_binary_scores = divmod(
-            total_binary_scores, num_domains
-        )
+        # Generate uniform scores
+        uniform_scores = torch.rand(batch_size, num_domains)
 
-        # Calculate number of uniform scores taking into account extra binary scores
-        num_uniform = batch_size - total_binary_scores
-
-        uniform_scores = torch.rand(num_uniform, num_domains)
+        # Apply softmax across domains with temperature scaling
         softmax_scores = torch.softmax(uniform_scores / self.temperature, dim=1)
 
-        # Generate binary scores, adjusting for any extra binary scores
-        binary_scores = []
-        for i in range(num_domains):
-            binary_score = torch.zeros(
-                num_binary_per_domain + (1 if i < extra_binary_scores else 0),
-                num_domains,
-            )
-            binary_score[:, i] = 1
-            binary_scores.append(binary_score)
-        binary_scores_concat = torch.cat(binary_scores, dim=0)
-
-        all_scores = torch.cat([softmax_scores, binary_scores_concat], dim=0)
+        # Create attention dictionary for each domain
         attention_dict = {
-            domain: all_scores[:, i : i + 1] for i, domain in enumerate(domains)
+            domain: softmax_scores[:, i : i + 1] for i, domain in enumerate(domains)
         }
+
         return attention_dict
 
 

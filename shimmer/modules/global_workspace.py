@@ -23,7 +23,11 @@ from shimmer.modules.losses import (
     GWLossesWithUncertainty,
     LossCoefs,
 )
-from shimmer.modules.selection import SelectionBase, SingleDomainSelection
+from shimmer.modules.selection import (
+    RandomSelection,
+    SelectionBase,
+    SingleDomainSelection,
+)
 from shimmer.modules.utils import batch_cycles, batch_demi_cycles, batch_translations
 from shimmer.types import (
     LatentsDomainGroupsDT,
@@ -688,8 +692,7 @@ class GlobalWorkspaceFusion(GlobalWorkspaceBase):
                 torch.tensor([1 / 0.07]).log(), "mean", learn_logit_scale
             )
 
-        # TODO: use the correction selection module
-        selection_mod = SingleDomainSelection()
+        selection_mod = RandomSelection()
         loss_mod = GWLossesFusion(gw_mod, selection_mod, domain_mods, contrastive_loss)
 
         super().__init__(

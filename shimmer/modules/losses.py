@@ -732,90 +732,67 @@ class GWLossesFusion(GWLossesBase):
     ) -> dict[str, torch.Tensor]:
         return contrastive_loss(self.gw_mod, latent_domains, self.contrastive_fn)
 
-    def broadcast_loss(
-        self, latent_domains: LatentsDomainGroupsT, mode: ModelModeT
-    ) -> dict[str, torch.Tensor]:
-        losses: dict[str, torch.Tensor] = {}
-        metrics: dict[str, torch.Tensor] = {}
 
-        for latents in latent_domains.values():
-            if len(latents) < 2:
-                continue
-            batch_size = latents[next(iter(latents))].size(0)
-            device = latents[next(iter(latents))].device
+def broadcast_loss(
+    self, latent_domains: LatentsDomainGroupsT, mode: ModelModeT
+) -> dict[str, torch.Tensor]:
+    losses = {}
+    metrics = {}
 
-            # TODO: don't hardcode the proportions
-            # (first param of the sample_scaling_factors function)
+    for group_name, latents in latent_domains.items():
+        encoded_latents = self.gw_mod.encode(latents)
+        permutations = generate_permutations(len(latents))
 
-            if mode == "val":
-                scaling_factors = sample_scaling_factors(0.5, batch_size, 5.0, device)
-            else:
-                scaling_factors = sample_scaling_factors(0.9, batch_size, 5.0, device)
+        for permutation in permutations:
+            # Filter out latents based on the permutation
+            selected_latents = {
+                domain: latents[domain]
+                for domain, present in zip(latents, permutation, strict=False)
+                if present
+            }
 
-            for scale_type, (
-                scaling_factor_1,
-                scaling_factor_2,
-                indices,
-            ) in scaling_factors.items():
-                scaled_latents = {}
+            # Fuse and decode selected latents
+            fused_latents = self.gw_mod.fuse(selected_latents, self.selection_mod)
+            decoded_latents = self.gw_mod.decode(fused_latents)
 
-                for i, (domain_name, latent) in enumerate(latents.items()):
-                    scaling_factor = scaling_factor_1 if i == 0 else scaling_factor_2
-                    scaled_latents_subset = latent[indices] * scaling_factor.unsqueeze(
-                        -1
+            for domain in selected_latents:
+                ground_truth = selected_latents[domain]
+                loss = compute_loss(decoded_latents[domain], ground_truth)
+                losses[f"{group_name}_{domain}_loss_{permutation}"] = loss
+
+            # Cycle logic
+            if sum(permutation) == 1:
+                # Create the inverse permutation
+                inverse_permutation = [1 - p for p in permutation]
+
+                # Filter decoded predictions for domains not in the original selected_latents
+                inverse_selected_latents = {
+                    domain: decoded_latents[domain]
+                    for domain, present in zip(
+                        decoded_latents, inverse_permutation, strict=False
                     )
-                    scaled_latents_subset = scaled_latents_subset.to(latent)
+                    if present
+                }
 
-                    scaled_latents[domain_name] = scaled_latents_subset
-
-                encoded_latents_for_subset = self.gw_mod.encode_and_fuse(
-                    scaled_latents, self.selection_mod
+                # Re-encode and fuse the decoded predictions with this permutation
+                re_encoded_latents = self.gw_mod.encode(inverse_selected_latents)
+                re_fused_latents = self.gw_mod.fuse(
+                    re_encoded_latents, self.selection_mod
                 )
-                encoded_latents_for_subset = torch.tanh(encoded_latents_for_subset)
-                decoded_latents_for_subset = self.gw_mod.decode(
-                    encoded_latents_for_subset
+
+                # Decode back to the original domain
+                re_decoded_latents = self.gw_mod.decode(
+                    re_fused_latents, domains=selected_latents.keys()
                 )
 
-                for domain_name in latents:
-                    domain_mod = self.domain_mods[domain_name]
-                    decoded_latent_for_domain_subset = decoded_latents_for_subset[
-                        domain_name
-                    ]
-                    original_latent_for_domain_subset = latents[domain_name][indices]
-                    loss_output = domain_mod.compute_broadcast_loss(
-                        decoded_latent_for_domain_subset,
-                        original_latent_for_domain_subset,
-                    )
-                    loss_key = f"{domain_name}_loss_{scale_type}"
+                # Compute loss on the domain that had a one in the original permutation
+                for domain in selected_latents:
+                    re_ground_truth = selected_latents[domain]
+                    re_loss = compute_loss(re_decoded_latents[domain], re_ground_truth)
+                    losses[f"{group_name}_{domain}_re_loss_{permutation}"] = re_loss
 
-                    metrics.update(
-                        {
-                            f"broadcast_{loss_key}_{k}": v
-                            for k, v in loss_output.metrics.items()
-                        }
-                    )
-                    losses[loss_key] = loss_output.loss.mean()
-
-            binary_count = scaling_factors["binary"][2].size(0)
-            softmax_count = scaling_factors["softmax"][2].size(0)
-            total_count = binary_count + softmax_count
-
-            for domain_name in latents:
-                full_loss_key = f"{domain_name}_full_loss"
-
-                binary_loss_key = f"{domain_name}_loss_binary"
-                softmax_loss_key = f"{domain_name}_loss_softmax"
-
-                binary_loss = losses[binary_loss_key] * (binary_count / total_count)
-                softmax_loss = losses[softmax_loss_key] * (softmax_count / total_count)
-
-                losses[full_loss_key] = binary_loss + softmax_loss
-
-        losses["broadcast"] = torch.stack(
-            [loss for name, loss in losses.items() if "full_loss" in name], dim=0
-        ).mean()
-        losses.update(metrics)
-        return losses
+    total_loss = torch.mean(torch.stack(list(losses.values())))
+    return {"total_loss": total_loss, **metrics}
 
     def step(
         self,
