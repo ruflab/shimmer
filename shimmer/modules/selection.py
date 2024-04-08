@@ -191,7 +191,8 @@ class RandomSelection(SelectionBase):
 
         Returns:
             `dict[str, torch.Tensor]`: For each domain in the group, the fusion
-            coefficient for each item in the batch, based solely on uniform-softmax scores.
+            coefficient for each item in the batch, based solely on
+            uniform-softmax scores.
         """
         num_domains = len(domains)
         batch_size = group_batch_size(domains)
@@ -204,7 +205,10 @@ class RandomSelection(SelectionBase):
 
         # Create attention dictionary for each domain
         device = group_device(domains)
-        attention_dict = {domain: softmax_scores[:, i : i + 1].to(device) for i, domain in enumerate(domains)}
+        attention_dict = {
+            domain: softmax_scores[:, i : i + 1].to(device)
+            for i, domain in enumerate(domains)
+        }
 
         return attention_dict
 
@@ -271,7 +275,7 @@ class DynamicQueryAttention(SelectionBase):
         return summed_tensor
 
     def forward(
-        self, domains: LatentsDomainGroupT, encodings: LatentsDomainGroupT
+        self, domains: LatentsDomainGroupT, encodings_pre_fusion: LatentsDomainGroupT
     ) -> dict[str, torch.Tensor]:
         """
         Compute keys and queries, match them with dot product and softmax.
@@ -302,7 +306,9 @@ class DynamicQueryAttention(SelectionBase):
         static_attention_dict = self.calculate_attention_dict(keys, query)
 
         # Apply the attention scores to the encodings
-        summed_tensor = self.fuse_weighted_encodings(encodings, static_attention_dict)
+        summed_tensor = self.fuse_weighted_encodings(
+            encodings_pre_fusion, static_attention_dict
+        )
 
         # Retrieve query (now it is dependent on the new gw state)
         query = self.query_layer(summed_tensor.to(device))
