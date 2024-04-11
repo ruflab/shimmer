@@ -880,4 +880,6 @@ class GWLossesFusion(GWLossesBase):
             dim=0,
         ).mean()
 
+        metrics["broadcast_loss"] = loss
+
         return LossOutput(loss, metrics)
