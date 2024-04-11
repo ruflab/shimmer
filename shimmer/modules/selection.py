@@ -94,21 +94,19 @@ class KQFixedQSelection(SelectionBase):
     Key-Query attention with a fixed gw vector.
     """
 
-    def __init__(self, domain_dim: int, head_size: int):
+    def __init__(self, domain_dim: int, head_size: int, domains: Iterable[str]):
         """
         Args:
             domain_dim (`int`) : dimension of the input dims
                 (assumed to be the same for now)
             head_size (`int`) : dimension of the key and query vectors.
+            domains (`Iterable[str]`) : list of input domains
         """
         super().__init__()
         self.head_size = head_size
         self.query_layer = nn.Linear(domain_dim, head_size)
         self.key_layers = nn.ModuleDict(
-            {
-                "v_latents": nn.Linear(domain_dim, head_size),
-                "attr": nn.Linear(domain_dim, head_size),
-            }
+            {domain: nn.Linear(domain_dim, head_size) for domain in domains}
         )
         self.gw_state: torch.Tensor | None = None
 

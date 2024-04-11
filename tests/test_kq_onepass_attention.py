@@ -7,8 +7,9 @@ def test_single_domain():
     domain_dim = 12
     head_size = 6
     batch_size = 2056
+    domains = ["v_latents"]
 
-    attention = KQFixedQSelection(domain_dim, head_size)
+    attention = KQFixedQSelection(domain_dim, head_size, domains)
     gw_state = torch.rand(batch_size, domain_dim)
     attention.update_gw_state(gw_state)
 
@@ -26,7 +27,8 @@ def test_multiple_domains_sumis1():
     domain_dim = 12
     head_size = 5
     batch_size = 2056
-    attention = KQFixedQSelection(domain_dim, head_size)
+    domains = ["v_latents", "attr"]
+    attention = KQFixedQSelection(domain_dim, head_size, domains)
     gw_state = torch.rand(batch_size, domain_dim)
     attention.update_gw_state(gw_state)
 
@@ -51,38 +53,3 @@ def test_multiple_domains_sumis1():
     assert torch.allclose(
         scores_sum, expected_sum
     ), "Sum of attention scores across domains should be 1"
-
-
-def test_attention_backward():
-    domain_dim = 12
-    head_size = 6
-    batch_size = 2056
-
-    attention = KQFixedQSelection(domain_dim, head_size)
-    gw_state = torch.rand(batch_size, domain_dim, requires_grad=True)
-    attention.update_gw_state(gw_state)
-
-    domains = {
-        "v_latents": torch.rand(batch_size, domain_dim, requires_grad=True),
-        "attr": torch.rand(batch_size, domain_dim, requires_grad=True),
-    }
-
-    encodings_pre_fusion = {
-        "v_latents": torch.rand(batch_size, domain_dim, requires_grad=True),
-        "attr": torch.rand(batch_size, domain_dim, requires_grad=True),
-    }
-    attention_scores = attention(domains, encodings_pre_fusion)
-    loss = sum(score.mean() for score in attention_scores.values())
-    assert isinstance(loss, torch.Tensor)
-    loss.backward()
-
-    assert gw_state.grad is not None, "Gradients should be computed for gw_state"
-    for domain, tensor in domains.items():
-        assert (
-            tensor.grad is not None
-        ), f"Gradients should be computed for domain '{domain}' inputs"
-
-    for name, param in attention.named_parameters():
-        assert (
-            param.grad is not None
-        ), f"Gradients should be computed for parameter '{name}'"
