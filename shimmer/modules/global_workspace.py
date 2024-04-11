@@ -1,6 +1,6 @@
 from collections.abc import Iterable, Mapping
 from pathlib import Path
-from typing import Any, TypedDict, cast
+from typing import Any, Generic, TypedDict, TypeVar, cast
 
 import torch
 from lightning.pytorch import LightningModule
@@ -61,7 +61,14 @@ class GWPredictionsBase(TypedDict):
     """
 
 
-class GlobalWorkspaceBase(LightningModule):
+_T_gw_mod = TypeVar("_T_gw_mod", bound=GWModuleBase)
+_T_selection_mod = TypeVar("_T_selection_mod", bound=SelectionBase)
+_T_loss_mod = TypeVar("_T_loss_mod", bound=GWLossesBase)
+
+
+class GlobalWorkspaceBase(
+    Generic[_T_gw_mod, _T_selection_mod, _T_loss_mod], LightningModule
+):
     """
     Global Workspace Lightning Module.
 
@@ -70,9 +77,9 @@ class GlobalWorkspaceBase(LightningModule):
 
     def __init__(
         self,
-        gw_mod: GWModuleBase,
-        selection_mod: SelectionBase,
-        loss_mod: GWLossesBase,
+        gw_mod: _T_gw_mod,
+        selection_mod: _T_selection_mod,
+        loss_mod: _T_loss_mod,
         optim_lr: float = 1e-3,
         optim_weight_decay: float = 0.0,
         scheduler_args: SchedulerArgs | None = None,
@@ -445,7 +452,7 @@ class GWPredictions(GWPredictionsBase):
     """
 
 
-class GlobalWorkspace(GlobalWorkspaceBase):
+class GlobalWorkspace(GlobalWorkspaceBase[GWModule, SingleDomainSelection, GWLosses]):
     """
     A simple 2-domains max flavor of GlobalWorkspaceBase.
 
@@ -538,16 +545,17 @@ class GlobalWorkspace(GlobalWorkspaceBase):
         )
 
 
-class GlobalWorkspaceWithUncertainty(GlobalWorkspaceBase):
+class GlobalWorkspaceWithUncertainty(
+    GlobalWorkspaceBase[
+        GWModuleWithUncertainty, SingleDomainSelection, GWLossesWithUncertainty
+    ]
+):
     """
     A simple 2-domains max GlobalWorkspaceBase with uncertainty.
 
     This is used to simplify a Global Workspace instanciation and only overrides the
     `__init__` method.
     """
-
-    gw_mod: GWModuleWithUncertainty
-    selection_mod: SingleDomainSelection
 
     def __init__(
         self,
@@ -642,7 +650,9 @@ class GlobalWorkspaceWithUncertainty(GlobalWorkspaceBase):
         )
 
 
-class GlobalWorkspaceFusion(GlobalWorkspaceBase):
+class GlobalWorkspaceFusion(
+    GlobalWorkspaceBase[GWModule, RandomSelection, GWLossesFusion]
+):
     """The 2-domain fusion (with broadcast loss) flavor of GlobalWorkspaceBase.
 
     This is used to simplify a Global Workspace instanciation and only overrides the
