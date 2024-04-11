@@ -832,6 +832,7 @@ class GWLossesFusion(GWLossesBase):
             )
 
         total_loss = torch.mean(torch.stack(list(losses.values())))
+        metrics.update(losses)
         return {"broadcast": total_loss, **metrics}
 
     def step(
