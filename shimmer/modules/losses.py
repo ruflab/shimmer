@@ -880,6 +880,13 @@ class GWLossesFusion(GWLossesBase):
             dim=0,
         ).mean()
 
-        metrics["broadcast_loss"] = loss
+        metrics["broadcast_loss"] = torch.stack(
+            [
+                metrics[name] * coef
+                for name, coef in self.loss_coefs.items()
+                if isinstance(coef, float) and coef > 0 and name != "contrastives"
+            ],
+            dim=0,
+        ).mean()
 
         return LossOutput(loss, metrics)
