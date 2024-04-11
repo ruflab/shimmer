@@ -41,7 +41,7 @@ if __name__ == "__main__":
     latest_version: None | str = None
     doc_versions: list[str] = []
     for folder in (here / "api").iterdir():
-        if folder.name == "index.html":
+        if folder.name == "index.html" or folder.name == ".gitignore":
             continue
         if folder.name != "latest":
             doc_versions.append(folder.name)
