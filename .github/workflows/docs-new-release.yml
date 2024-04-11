@@ -26,6 +26,11 @@ jobs:
       - name: Install Poetry
         if: steps.cached-poetry.outputs.cache-hit != 'true'
         uses: snok/install-poetry@v1
+      - name: Update torch's source to use CPU
+        run: |
+          poetry source add torch-cpu --priority=explicit https://download.pytorch.org/whl/cpu
+          torch_version=$(poetry show torch --no-ansi | sed -n 2p | sed 's/^\(\s*\)version\(\s*\):\(\s*\)\([0-9\.\+a-zA-Z]*\)\(.*\)$/\4/')
+          poetry add --lock --source torch-cpu "torch@$torch_version"
       - name: Load cached venv
         id: cached-poetry-dependencies
         uses: actions/cache@v3
@@ -34,11 +39,7 @@ jobs:
           key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
       - name: Install dependencies
         if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
-        run: |
-          poetry source add torch-cpu --priority=explicit https://download.pytorch.org/whl/cpu
-          torch_version=$(poetry show torch --no-ansi | sed -n 2p | sed 's/^\(\s*\)version\(\s*\):\(\s*\)\([0-9\.\+a-zA-Z]*\)\(.*\)$/\4/')
-          poetry add --source torch-cpu "torch@$torch_version"
-          poetry install --with test,dev,docs
+        run: poetry install --with test,dev,docs
       - name: Create new branch
         run: |
           git config user.name "github-actions"
