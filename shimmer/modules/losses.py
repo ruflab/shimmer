@@ -882,7 +882,7 @@ class GWLossesFusion(GWLossesBase):
 
         metrics["broadcast_loss"] = torch.stack(
             [
-                metrics[name] * coef
+                metrics[name] * 1.0  # broadcast loss is all-encompassing
                 for name, coef in self.loss_coefs.items()
                 if isinstance(coef, float) and coef > 0 and name != "contrastives"
             ],
