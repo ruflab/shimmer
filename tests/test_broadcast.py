@@ -23,10 +23,7 @@ class DummyDomainModule(DomainModule):
         return LossOutput(loss=loss)  # Constructing LossOutput with the loss
 
 
-def setup_global_workspace_fusion() -> GlobalWorkspaceFusion:
-    """
-    Setting up the test environment for GlobalWorkspaceFusion
-    """
+def test_broadcast_loss():
     domain_mods: dict[str, DomainModule] = {
         "domain1": DummyDomainModule(latent_dim=10),
         "domain2": DummyDomainModule(latent_dim=10),
@@ -49,12 +46,6 @@ def setup_global_workspace_fusion() -> GlobalWorkspaceFusion:
         learn_logit_scale=False,
     )
 
-    return gw_fusion
-
-
-def test_broadcast_loss():
-    gw_fusion = setup_global_workspace_fusion()
-
     # Adjusting the dummy data to fit the expected input structure for broadcast_loss
     # Now using a frozenset for the keys to match LatentsDomainGroupsT
     latent_domains = {
@@ -66,8 +57,19 @@ def test_broadcast_loss():
 
     # Test broadcast_loss with the corrected structure
     output = gw_fusion.loss_mod.broadcast_loss(latent_domains, "train")
-    print(output)
 
+    # Ensure the total broadcast loss is returned and is a single value
+    assert "broadcast" in output
+    assert output["broadcast"].dim() == 0, "broadcast loss should be a single value."
 
-# Call the test function to execute the test
-test_broadcast_loss()
+    er_msg = "Demi-cycle, cycle, and translation metrics should be in the output."
+    assert all(
+        metric in output for metric in ["demi_cycles", "cycles", "translations"]
+    ), er_msg
+
+    er_msg = "Losses should be a 1D tensor with size equal to the batch size."
+    assert all(
+        loss.dim() == 1 and loss.size(0) == 5
+        for key, loss in output.items()
+        if key.endswith("_loss")
+    ), er_msg
