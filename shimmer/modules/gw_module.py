@@ -97,7 +97,7 @@ class GWEncoder(GWDecoder):
         super().__init__(in_dim, hidden_dim, out_dim, n_layers)
 
     def forward(self, input: torch.Tensor) -> torch.Tensor:
-        return torch.tanh(super().forward(input))
+        return super().forward(input)
 
 
 class GWEncoderLinear(nn.Linear):
@@ -252,14 +252,16 @@ class GWModule(GWModuleBase):
         Returns:
             `torch.Tensor`: The merged representation.
         """
-        return torch.sum(
-            torch.stack(
-                [
-                    selection_scores[domain].unsqueeze(1) * x[domain]
-                    for domain in selection_scores
-                ]
-            ),
-            dim=0,
+        return torch.tanh(
+            torch.sum(
+                torch.stack(
+                    [
+                        selection_scores[domain].unsqueeze(1) * x[domain]
+                        for domain in selection_scores
+                    ]
+                ),
+                dim=0,
+            )
         )
 
     def encode(self, x: LatentsDomainGroupT) -> LatentsDomainGroupT:
@@ -364,7 +366,9 @@ class GWModuleWithUncertainty(GWModule):
         coef = final_scores.sum(dim=0)
         final_scores = final_scores / coef
 
-        return torch.sum(final_scores * torch.stack(domains), dim=0), final_scores
+        return torch.tanh(
+            torch.sum(final_scores * torch.stack(domains), dim=0)
+        ), final_scores
 
     def fuse(
         self,
@@ -406,96 +410,3 @@ class GWModuleWithUncertainty(GWModule):
             `torch.Tensor`: The merged representation.
         """
         return self._fuse_and_scores(x, selection_scores)[0]
-
-
-class GWModuleFusion(GWModuleBase):
-    """
-    GWModule used for fusion.
-    """
-
-    def __init__(
-        self,
-        domain_modules: Mapping[str, DomainModule],
-        workspace_dim: int,
-        gw_encoders: Mapping[str, nn.Module],
-        gw_decoders: Mapping[str, nn.Module],
-    ) -> None:
-        """
-        Initializes the GWModule Fusion.
-
-        Args:
-            domain_modules (`Mapping[str, DomainModule]`): the domain modules.
-            workspace_dim (`int`): dimension of the GW.
-            gw_encoders (`Mapping[str, torch.nn.Module]`): mapping for each domain
-                name to a an torch.nn.Module class that encodes a
-                unimodal latent representations into a GW representation (pre fusion).
-            gw_decoders (`Mapping[str, torch.nn.Module]`): mapping for each domain
-                name to a an torch.nn.Module class that decodes a
-                 GW representation to a unimodal latent representation.
-        """
-        super().__init__(domain_modules, workspace_dim)
-
-        self.gw_encoders = nn.ModuleDict(gw_encoders)
-        """The module's encoders"""
-
-        self.gw_decoders = nn.ModuleDict(gw_decoders)
-        """The module's decoders"""
-
-    def fuse(
-        self,
-        x: LatentsDomainGroupT,
-        selection_scores: Mapping[str, torch.Tensor],
-    ) -> torch.Tensor:
-        """
-        Merge function used to combine domains.
-
-        Args:
-            x (`LatentsDomainGroupT`): the group of latent representation.
-            selection_score (`Mapping[str, torch.Tensor]`): attention scores to
-                use to encode the reprensetation.
-        Returns:
-            `torch.Tensor`: The merged representation.
-        """
-        return torch.sum(
-            torch.stack(
-                [
-                    selection_scores[domain].unsqueeze(1) * x[domain]
-                    for domain in selection_scores
-                ]
-            ),
-            dim=0,
-        )
-
-    def encode(self, x: LatentsDomainGroupT) -> LatentsDomainGroupT:
-        """
-        Encode the unimodal latent representation `x` into the pre-fusion GW
-        representations.
-
-        Args:
-            x (`LatentsDomainGroupT`): the group of latent representation.
-
-        Returns:
-            `torch.Tensor`: encoded and fused GW representation.
-        """
-        return {
-            domain_name: self.gw_encoders[domain_name](domain)
-            for domain_name, domain in x.items()
-        }
-
-    def decode(
-        self, z: torch.Tensor, domains: Iterable[str] | None = None
-    ) -> LatentsDomainGroupDT:
-        """
-        Decodes a GW representation to multiple domains.
-
-        Args:
-            z (`torch.Tensor`): the GW representation
-            domains (`Iterable[str] | None`): the domains to decode to. Defaults to
-                use keys in `gw_interfaces` (all domains).
-        Returns:
-            `LatentsDomainGroupDT`: decoded unimodal representation
-        """
-        return {
-            domain: self.gw_decoders[domain](z)
-            for domain in domains or self.gw_decoders.keys()
-        }

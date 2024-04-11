@@ -13,17 +13,21 @@ from shimmer.modules.domain import DomainModule
 from shimmer.modules.gw_module import (
     GWModule,
     GWModuleBase,
-    GWModuleFusion,
     GWModuleWithUncertainty,
 )
 from shimmer.modules.losses import (
+    BroadcastLossCoefs,
     GWLosses,
     GWLossesBase,
     GWLossesFusion,
     GWLossesWithUncertainty,
     LossCoefs,
 )
-from shimmer.modules.selection import SelectionBase, SingleDomainSelection
+from shimmer.modules.selection import (
+    RandomSelection,
+    SelectionBase,
+    SingleDomainSelection,
+)
 from shimmer.modules.utils import batch_cycles, batch_demi_cycles, batch_translations
 from shimmer.types import (
     LatentsDomainGroupsDT,
@@ -651,6 +655,8 @@ class GlobalWorkspaceFusion(GlobalWorkspaceBase):
         gw_encoders: Mapping[str, Module],
         gw_decoders: Mapping[str, Module],
         workspace_dim: int,
+        loss_coefs: BroadcastLossCoefs,
+        selection_temperature: float = 0.2,
         optim_lr: float = 1e-3,
         optim_weight_decay: float = 0.0,
         scheduler_args: SchedulerArgs | None = None,
@@ -671,6 +677,9 @@ class GlobalWorkspaceFusion(GlobalWorkspaceBase):
                 name to a `torch.nn.Module` class which role is to decode a
                 GW representation into a unimodal latent representations.
             workspace_dim (`int`): dimension of the GW.
+            loss_coefs (`BroadcastLossCoefs`): loss coefs for the losses.
+            selection_temperature (`float`): temperature value for the RandomSelection
+                module.
             optim_lr (`float`): learning rate
             optim_weight_decay (`float`): weight decay
             scheduler_args (`SchedulerArgs | None`): optimization scheduler's arguments
@@ -681,16 +690,17 @@ class GlobalWorkspaceFusion(GlobalWorkspaceBase):
                 contrastive losses.
         """
         domain_mods = freeze_domain_modules(domain_mods)
-        gw_mod = GWModuleFusion(domain_mods, workspace_dim, gw_encoders, gw_decoders)
+        gw_mod = GWModule(domain_mods, workspace_dim, gw_encoders, gw_decoders)
 
         if contrastive_loss is None:
             contrastive_loss = ContrastiveLoss(
                 torch.tensor([1 / 0.07]).log(), "mean", learn_logit_scale
             )
 
-        # TODO: use the correction selection module
-        selection_mod = SingleDomainSelection()
-        loss_mod = GWLossesFusion(gw_mod, selection_mod, domain_mods, contrastive_loss)
+        selection_mod = RandomSelection(selection_temperature)
+        loss_mod = GWLossesFusion(
+            gw_mod, selection_mod, domain_mods, loss_coefs, contrastive_loss
+        )
 
         super().__init__(
             gw_mod,

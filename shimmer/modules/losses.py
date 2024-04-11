@@ -1,20 +1,13 @@
 from abc import ABC, abstractmethod
-from collections.abc import Mapping
-from typing import TypedDict
+from collections.abc import Generator, Mapping
+from itertools import product
+from typing import Any, TypedDict
 
 import torch
-import torch.nn.functional as F
 
-from shimmer.modules.contrastive_loss import (
-    ContrastiveLossType,
-)
+from shimmer.modules.contrastive_loss import ContrastiveLossType
 from shimmer.modules.domain import DomainModule, LossOutput
-from shimmer.modules.gw_module import (
-    GWModule,
-    GWModuleBase,
-    GWModuleFusion,
-    GWModuleWithUncertainty,
-)
+from shimmer.modules.gw_module import GWModule, GWModuleBase, GWModuleWithUncertainty
 from shimmer.modules.selection import SelectionBase
 from shimmer.types import LatentsDomainGroupsT, ModelModeT
 
@@ -642,194 +635,233 @@ class GWLossesWithUncertainty(GWLossesBase):
         return LossOutput(loss, metrics)
 
 
-def sample_scaling_factors(
-    binary_scaling_prob: float,
-    batch_size: int,
-    temperature: float,
-    device: torch.device,
-):
+def generate_partitions(n: int) -> Generator[tuple[int, ...], None, None]:
     """
+    Generates all possible partitions of zeros and ones for `n` elements,
+    excluding the all-zeros partition.
+
     Args:
-        binary_scaling_prob (`float`): Should be between 0 and 1.
-        batch_size (`int`):
-        temperature (`float`): Should be greater than 0.
-        device (`torch.device`):
+        n (`int`): The number of modalities to generate partitions for.
+
+    Yields:
+        `tuple[int, ...]`: A partition of zeros and ones, excluding the
+        all-zeros partition.
     """
-    assert 0 <= binary_scaling_prob <= 1
+    for perm in product([0, 1], repeat=n):
+        if any(perm):
+            yield perm
 
-    # TODO: make selection deterministic
-    binary_mask = torch.rand(batch_size) < binary_scaling_prob
 
-    binary_factors = torch.randint(0, 2, (batch_size,)).float()
-    binary_softmax = torch.stack([binary_factors, 1 - binary_factors], dim=1)
+class BroadcastLossCoefs(TypedDict, total=False):
+    """
+    Dict of loss coefficients used in the GWLossesFusion.
 
-    uniform_samples = torch.rand(batch_size)
-    uniform_for_softmax = torch.stack([uniform_samples, 1 - uniform_samples], dim=1)
+    If one is not provided, the coefficient is assumed to be 0 and will not be logged.
+    If the loss is excplicitely set to 0, it will be logged, but not take part in
+    the total loss.
+    """
 
-    uniform_softmax = F.softmax(uniform_for_softmax * temperature, dim=1)
+    contrastives: float
+    """Contrastive loss coefficient."""
 
-    scaling_factors = torch.where(
-        binary_mask.unsqueeze(-1), binary_softmax, uniform_softmax
-    ).to(device)
-
-    binary_indices = torch.where(binary_mask)[0]
-    softmax_indices = torch.where(~binary_mask)[0]
-
-    binary_scaling_factors = scaling_factors[binary_indices]
-    softmax_scaling_factors = scaling_factors[softmax_indices]
-
-    return {
-        "binary": (
-            binary_scaling_factors[:, 0],
-            binary_scaling_factors[:, 1],
-            binary_indices,
-        ),
-        "softmax": (
-            softmax_scaling_factors[:, 0],
-            softmax_scaling_factors[:, 1],
-            softmax_indices,
-        ),
-    }
+    broadcast: float
+    """Broadcast loss coefficient."""
 
 
 class GWLossesFusion(GWLossesBase):
+    """
+    Implementation of `GWLossesBase` for fusion-based models.
+    """
+
     def __init__(
         self,
-        gw_mod: GWModuleFusion,
+        gw_mod: GWModule,
         selection_mod: SelectionBase,
         domain_mods: dict[str, DomainModule],
+        loss_coefs: BroadcastLossCoefs,
         contrastive_fn: ContrastiveLossType,
     ):
+        """
+        Initializes the loss computation module for a Global Workspace Fusion model.
+
+        Args:
+            gw_mod: The GWModule for the global workspace.
+            selection_mod: The selection mechanism for the model.
+            domain_mods: A mapping of domain names to their respective DomainModule.
+            loss_coefs (`BroadcastLossCoefs`): coefs for the losses
+            contrastive_fn: The function used for computing contrastive loss.
+        """
         super().__init__()
         self.gw_mod = gw_mod
         self.selection_mod = selection_mod
         self.domain_mods = domain_mods
+        self.loss_coefs = loss_coefs
         self.contrastive_fn = contrastive_fn
-
-    def demi_cycle_loss(
-        self, latent_domains: LatentsDomainGroupsT
-    ) -> dict[str, torch.Tensor]:
-        return demi_cycle_loss(
-            self.gw_mod, self.selection_mod, self.domain_mods, latent_domains
-        )
-
-    def cycle_loss(
-        self, latent_domains: LatentsDomainGroupsT
-    ) -> dict[str, torch.Tensor]:
-        return cycle_loss(
-            self.gw_mod, self.selection_mod, self.domain_mods, latent_domains
-        )
-
-    def translation_loss(
-        self, latent_domains: LatentsDomainGroupsT
-    ) -> dict[str, torch.Tensor]:
-        return translation_loss(
-            self.gw_mod, self.selection_mod, self.domain_mods, latent_domains
-        )
 
     def contrastive_loss(
         self, latent_domains: LatentsDomainGroupsT
     ) -> dict[str, torch.Tensor]:
+        """
+        Computes the contrastive loss for the given latent domains.
+
+        Args:
+            latent_domains: The latent domain representations.
+
+        Returns:
+            A dictionary of contrastive loss metrics.
+        """
+
         return contrastive_loss(self.gw_mod, latent_domains, self.contrastive_fn)
 
     def broadcast_loss(
         self, latent_domains: LatentsDomainGroupsT, mode: ModelModeT
     ) -> dict[str, torch.Tensor]:
+        """
+        Computes broadcast loss including demi-cycle, cycle, and translation losses.
+
+        Args:
+            latent_domains: The latent domain representations.
+            mode: The mode of the model (e.g., 'train', 'eval').
+
+        Returns:
+            A dictionary with the total loss and additional metrics.
+        """
         losses: dict[str, torch.Tensor] = {}
-        metrics: dict[str, torch.Tensor] = {}
+        metrics: dict[str, Any] = {}
 
-        for latents in latent_domains.values():
-            if len(latents) < 2:
-                continue
-            batch_size = latents[next(iter(latents))].size(0)
-            device = latents[next(iter(latents))].device
+        demi_cycle_losses: list[str] = []
+        cycle_losses: list[str] = []
+        translation_losses: list[str] = []
 
-            # TODO: don't hardcode the proportions
-            # (first param of the sample_scaling_factors function)
+        for group_domains, latents in latent_domains.items():
+            encoded_latents = self.gw_mod.encode(latents)
+            partitions = generate_partitions(len(group_domains))
+            domain_names = list(latents)
 
-            if mode == "val":
-                scaling_factors = sample_scaling_factors(0.5, batch_size, 5.0, device)
-            else:
-                scaling_factors = sample_scaling_factors(0.9, batch_size, 5.0, device)
+            for partition in partitions:
+                selected_latents = {
+                    domain: latents[domain]
+                    for domain, present in zip(domain_names, partition, strict=True)
+                    if present
+                }
+                selected_encoded_latents = {
+                    domain: encoded_latents[domain] for domain in selected_latents
+                }
+                selected_group_label = "{" + ", ".join(sorted(selected_latents)) + "}"
 
-            for scale_type, (
-                scaling_factor_1,
-                scaling_factor_2,
-                indices,
-            ) in scaling_factors.items():
-                scaled_latents = {}
-
-                for i, (domain_name, latent) in enumerate(latents.items()):
-                    scaling_factor = scaling_factor_1 if i == 0 else scaling_factor_2
-                    scaled_latents_subset = latent[indices] * scaling_factor.unsqueeze(
-                        -1
-                    )
-                    scaled_latents_subset = scaled_latents_subset.to(latent)
-
-                    scaled_latents[domain_name] = scaled_latents_subset
-
-                encoded_latents_for_subset = self.gw_mod.encode_and_fuse(
-                    scaled_latents, self.selection_mod
+                selection_scores = self.selection_mod(
+                    selected_latents, selected_encoded_latents
                 )
-                encoded_latents_for_subset = torch.tanh(encoded_latents_for_subset)
-                decoded_latents_for_subset = self.gw_mod.decode(
-                    encoded_latents_for_subset
+                fused_latents = self.gw_mod.fuse(
+                    selected_encoded_latents, selection_scores
                 )
+                decoded_latents = self.gw_mod.decode(fused_latents)
 
-                for domain_name in latents:
-                    domain_mod = self.domain_mods[domain_name]
-                    decoded_latent_for_domain_subset = decoded_latents_for_subset[
-                        domain_name
-                    ]
-                    original_latent_for_domain_subset = latents[domain_name][indices]
-                    loss_output = domain_mod.compute_broadcast_loss(
-                        decoded_latent_for_domain_subset,
-                        original_latent_for_domain_subset,
+                num_active_domains = sum(partition)
+                num_total_domains = len(partition)
+
+                for domain, pred in decoded_latents.items():
+                    if domain not in group_domains:  # if we don't have ground truth
+                        continue
+                    ground_truth = latents[domain]
+                    loss_output = self.domain_mods[domain].compute_loss(
+                        pred, ground_truth
                     )
-                    loss_key = f"{domain_name}_loss_{scale_type}"
-
+                    loss_label = f"from_{selected_group_label}_to_{domain}"
+                    losses[loss_label + "_loss"] = loss_output.loss
                     metrics.update(
-                        {
-                            f"broadcast_{loss_key}_{k}": v
-                            for k, v in loss_output.metrics.items()
-                        }
+                        {f"{loss_label}_{k}": v for k, v in loss_output.metrics.items()}
                     )
-                    losses[loss_key] = loss_output.loss.mean()
 
-            binary_count = scaling_factors["binary"][2].size(0)
-            softmax_count = scaling_factors["softmax"][2].size(0)
-            total_count = binary_count + softmax_count
+                    if num_active_domains == 1 and domain in selected_latents:
+                        demi_cycle_losses.append(loss_label + "_loss")
+                    if num_active_domains == 1 and domain not in selected_latents:
+                        translation_losses.append(loss_label + "_loss")
 
-            for domain_name in latents:
-                full_loss_key = f"{domain_name}_full_loss"
+                if num_active_domains < num_total_domains:
+                    inverse_selected_latents = {
+                        domain: decoded_latents[domain]
+                        for domain in decoded_latents
+                        if domain not in selected_latents
+                    }
 
-                binary_loss_key = f"{domain_name}_loss_binary"
-                softmax_loss_key = f"{domain_name}_loss_softmax"
+                    inverse_selected_group_label = (
+                        "{" + ", ".join(sorted(inverse_selected_latents)) + "}"
+                    )
 
-                binary_loss = losses[binary_loss_key] * (binary_count / total_count)
-                softmax_loss = losses[softmax_loss_key] * (softmax_count / total_count)
+                    re_encoded_latents = self.gw_mod.encode(inverse_selected_latents)
+                    re_selection_scores = self.selection_mod(
+                        inverse_selected_latents, re_encoded_latents
+                    )
+                    re_fused_latents = self.gw_mod.fuse(
+                        re_encoded_latents, re_selection_scores
+                    )
+                    re_decoded_latents = self.gw_mod.decode(
+                        re_fused_latents, domains=selected_latents.keys()
+                    )
 
-                losses[full_loss_key] = binary_loss + softmax_loss
+                    for domain in selected_latents:
+                        re_ground_truth = latents[domain]
+                        re_loss_output = self.domain_mods[domain].compute_loss(
+                            re_decoded_latents[domain], re_ground_truth
+                        )
+                        loss_label = (
+                            f"from_{selected_group_label}_"
+                            f"through_{inverse_selected_group_label}_to_{domain}"
+                        )
+                        losses[loss_label + "_loss"] = re_loss_output.loss
+                        metrics.update(
+                            {
+                                f"{loss_label}_{k}": v
+                                for k, v in re_loss_output.metrics.items()
+                            }
+                        )
+                        cycle_losses.append(loss_label + "_loss")
 
-        losses["broadcast"] = torch.stack(
-            [loss for name, loss in losses.items() if "full_loss" in name], dim=0
-        ).mean()
-        losses.update(metrics)
-        return losses
+        if demi_cycle_losses:
+            metrics["demi_cycles"] = torch.mean(
+                torch.stack([losses[loss_name] for loss_name in demi_cycle_losses])
+            )
+        if cycle_losses:
+            metrics["cycles"] = torch.mean(
+                torch.stack([losses[loss_name] for loss_name in cycle_losses])
+            )
+        if translation_losses:
+            metrics["translations"] = torch.mean(
+                torch.stack([losses[loss_name] for loss_name in translation_losses])
+            )
+
+        total_loss = torch.mean(torch.stack(list(losses.values())))
+        return {"broadcast": total_loss, **metrics}
 
     def step(
         self,
         domain_latents: LatentsDomainGroupsT,
         mode: ModelModeT,
     ) -> LossOutput:
+        """
+        Performs a step of loss computation.
+
+        Args:
+            domain_latents: Latent representations for all domains.
+            mode: The mode in which the model is currently operating.
+
+        Returns:
+            A LossOutput object containing the loss and metrics for this step.
+        """
+
         metrics: dict[str, torch.Tensor] = {}
 
-        metrics.update(self.demi_cycle_loss(domain_latents))
-        metrics.update(self.cycle_loss(domain_latents))
-        metrics.update(self.translation_loss(domain_latents))
         metrics.update(self.contrastive_loss(domain_latents))
         metrics.update(self.broadcast_loss(domain_latents, mode))
 
-        loss = metrics["broadcast"] + metrics["contrastives"]
+        loss = torch.stack(
+            [
+                metrics[name] * coef
+                for name, coef in self.loss_coefs.items()
+                if isinstance(coef, float) and coef > 0
+            ],
+            dim=0,
+        ).mean()
 
         return LossOutput(loss, metrics)
