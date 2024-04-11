@@ -741,7 +741,7 @@ class GWLossesFusion(GWLossesBase):
         demi_cycle_losses: list[str] = []
         cycle_losses: list[str] = []
         translation_losses: list[str] = []
-        broadcast_losses: list[str] = []
+        fused_losses: list[str] = []
 
         for group_domains, latents in latent_domains.items():
             encoded_latents = self.gw_mod.encode(latents)
@@ -788,7 +788,7 @@ class GWLossesFusion(GWLossesBase):
                     elif domain not in selected_latents:
                         translation_losses.append(loss_label + "_loss")
                     else:  # broadcast loss
-                        broadcast_losses.append(loss_label + "_loss")
+                        fused_losses.append(loss_label + "_loss")
 
                 if num_active_domains < num_total_domains:
                     inverse_selected_latents = {
@@ -842,8 +842,8 @@ class GWLossesFusion(GWLossesBase):
             metrics["translations"] = torch.mean(
                 torch.stack([losses[loss_name] for loss_name in translation_losses])
             )
-        if broadcast_losses:
-            metrics["broadcast"] = torch.mean(
+        if fused_losses:
+            metrics["fused"] = torch.mean(
                 torch.stack([losses[loss_name] for loss_name in translation_losses])
             )
 
