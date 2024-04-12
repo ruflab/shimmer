@@ -787,7 +787,7 @@ class GWLossesFusion(GWLossesBase):
                         demi_cycle_losses.append(loss_label + "_loss")
                     elif domain not in selected_latents:
                         translation_losses.append(loss_label + "_loss")
-                    else:  # broadcast loss
+                    else:  # fused loss
                         fused_losses.append(loss_label + "_loss")
 
                 if num_active_domains < num_total_domains:
