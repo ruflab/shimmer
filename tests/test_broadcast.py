@@ -31,7 +31,13 @@ def test_broadcast_loss():
     gw_encoders = {"domain1": nn.Linear(10, 10), "domain2": nn.Linear(10, 10)}
     gw_decoders = {"domain1": nn.Linear(10, 10), "domain2": nn.Linear(10, 10)}
     workspace_dim = 10
-    loss_coefs: BroadcastLossCoefs = {"broadcast": 1.0, "contrastives": 0.1}
+    loss_coefs: BroadcastLossCoefs = {
+        "fused": 1.0,
+        "cycles": 1.0,
+        "demi_cycles": 1.0,
+        "translations": 1.0,
+        "contrastives": 0.1,
+    }
 
     gw_fusion = GlobalWorkspaceFusion(
         domain_mods,
@@ -58,18 +64,15 @@ def test_broadcast_loss():
     # Test broadcast_loss with the corrected structure
     output = gw_fusion.loss_mod.broadcast_loss(latent_domains, "train")
 
-    # Ensure the total broadcast loss is returned and is a single value
-    assert "broadcast" in output
-    assert output["broadcast"].dim() == 0, "broadcast loss should be a single value."
-
-    er_msg = "Demi-cycle, cycle, and translation metrics should be in the output."
+    er_msg = "Demi-cycle, cycle, fused and translation metrics should be in the output."
     assert all(
-        metric in output for metric in ["demi_cycles", "cycles", "translations"]
+        metric in output
+        for metric in ["demi_cycles", "cycles", "translations", "fused"]
     ), er_msg
 
-    er_msg = "Losses should be a 1D tensor with size equal to the batch size."
+    er_msg = "Losses should be scalar tensors or 1D tensor with size equal to one."
     assert all(
-        loss.dim() == 1 and loss.size(0) == 5
+        (loss.dim() == 0 or (loss.dim() == 1 and loss.size(0) == 1))
         for key, loss in output.items()
         if key.endswith("_loss")
     ), er_msg
