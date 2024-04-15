@@ -382,24 +382,24 @@ class GWModuleWithUncertainty(GWModule):
         dimension of the Global Workspace.
 
         This function needs to merge two kind of scores:
-        * the selection scores $s\\in [0,1]^{D\\times N \\times 1}$;
-        * the uncertainty scores $\\sigma \\in R_+^{D\\times 1 \\times d}$.
+        * the selection scores $s\\in [0,1]^{D\\times N}$;
+        * the uncertainty scores $\\sigma \\in R_+^{D\\times N \\times d}$.
 
         The uncertainty scores are computed from the
         log-variances $\\log(\\sigma)$ with:
         $$\\mu = \\text{softmax}(\\text{sigmoid}(-\\log(\\sigma)))$$
 
-        To combine this score with the selection scores, we batch multiply the two
+        To combine this score with the selection scores, we multiply the two
         scores:
-        $$S = \\frac{s @ \\mu}{N} \\in [0,1]^{D \\times N \\times d}$$
+        $$S = \\frac{s @ \\mu}{M} \\in [0,1]^{D \\times N \\times d}$$
 
         And for domain $k$, batch element $i$ and workspace neuron $j$:
-        $$S_{k,i,j} = \\frac{s_{k,i} \\mu_{k,j}}{N}$$
+        $$S_{k,i,j} = \\frac{s_{k,i} \\mu_{k,i,j}}{M_{i,j}}$$
 
-        To select the normalization coef $N$, we use the following requirement:
+        To select the normalization coef $M_{i,j}$, we use the following requirement:
         $$\\sum_k S_{k,i,j} = 1$$
         which yields:
-        $$N = \\sum_k s_{k,i}\\mu_{k,j}$$
+        $$M{i,j} = \\sum_k s_{k,i}\\mu_{k,i,j}$$
 
 
         Args:
