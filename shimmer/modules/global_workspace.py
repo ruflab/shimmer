@@ -635,7 +635,7 @@ class GlobalWorkspaceWithUncertainty(
         gw_encoders: Mapping[str, Module],
         gw_decoders: Mapping[str, Module],
         workspace_dim: int,
-        loss_coefs: LossCoefs,
+        loss_coefs: BroadcastLossCoefs,
         selection_temperature: float = 0.2,
         optim_lr: float = 1e-3,
         optim_weight_decay: float = 0.0,
