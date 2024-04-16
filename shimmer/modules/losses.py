@@ -844,7 +844,7 @@ class GWLossesFusion(GWLossesBase):
             )
         if fused_losses:
             metrics["fused"] = torch.mean(
-                torch.stack([losses[loss_name] for loss_name in translation_losses])
+                torch.stack([losses[loss_name] for loss_name in fused_losses])
             )
 
         metrics.update(losses)
