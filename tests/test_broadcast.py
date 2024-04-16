@@ -62,7 +62,7 @@ def test_broadcast_loss():
     }
 
     # Test broadcast_loss with the corrected structure
-    output = gw_fusion.loss_mod.broadcast_loss(latent_domains, "train")
+    output = gw_fusion.loss_mod.broadcast_loss(latent_domains)
 
     er_msg = "Demi-cycle, cycle, fused and translation metrics should be in the output."
     assert all(

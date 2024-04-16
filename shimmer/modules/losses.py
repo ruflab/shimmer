@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from collections.abc import Generator, Mapping
 from itertools import product
-from typing import Any, TypedDict
+from typing import TypedDict
 
 import torch
 
@@ -483,158 +483,6 @@ class GWLosses(GWLossesBase):
         return LossOutput(loss, metrics)
 
 
-class GWLossesWithUncertainty(GWLossesBase):
-    """
-    Implementation of `GWLossesBase` used for `GWModuleWithUncertainty`.
-    """
-
-    def __init__(
-        self,
-        gw_mod: GWModuleWithUncertainty,
-        selection_mod: SelectionBase,
-        domain_mods: dict[str, DomainModule],
-        loss_coefs: LossCoefs,
-        contrastive_fn: ContrastiveLossType,
-    ):
-        """
-        Loss module with uncertainty to use with the GlobalWorkspaceWithUncertainty
-
-        Args:
-            gw_mod (`GWModuleWithUncertainty`): the GWModule
-            selection_mod (`SelectionBase`): selection module
-            domain_mods (`dict[str, DomainModule]`): a dict where the key is the
-                domain name and value is the DomainModule
-            loss_coefs (`LossCoefsWithUncertainty`): loss coefficients
-            contrastive_fn (`ContrastiveLossType`): the contrastive function
-                to use in contrastive loss
-        """
-
-        super().__init__()
-
-        self.gw_mod = gw_mod
-        """The GWModule."""
-
-        self.selection_mod = selection_mod
-        """Selection module"""
-
-        self.domain_mods = domain_mods
-        """Domain modules linked to the GW."""
-
-        self.loss_coefs = loss_coefs
-        """The loss coefficients."""
-
-        self.contrastive_fn = contrastive_fn
-        """
-        Contrastive loss to use without the use of uncertainty. This is only
-        used in `GWLossesWithUncertainty.step` if
-        `GWLossesWithUncertainty.cont_fn_with_uncertainty` is not set.
-        """
-
-    def demi_cycle_loss(
-        self, latent_domains: LatentsDomainGroupsT
-    ) -> dict[str, torch.Tensor]:
-        """
-        Demi-cycle loss. See `GWLosses.demi_cycle_loss`.
-
-        Args:
-            latent_domains (`LatentsDomainGroupsT`): the latent unimodal groups
-
-        Returns:
-            `dict[str, torch.Tensor]`: a dict of metrics.
-        """
-        return demi_cycle_loss(
-            self.gw_mod, self.selection_mod, self.domain_mods, latent_domains
-        )
-
-    def cycle_loss(
-        self, latent_domains: LatentsDomainGroupsT
-    ) -> dict[str, torch.Tensor]:
-        """
-        Cycle loss. See `GWLosses.cycle_loss`.
-
-        Args:
-            latent_domains (`LatentsDomainGroupsT`): the latent unimodal groups
-
-        Returns:
-            `dict[str, torch.Tensor]`: a dict of metrics.
-        """
-        return cycle_loss(
-            self.gw_mod, self.selection_mod, self.domain_mods, latent_domains
-        )
-
-    def translation_loss(
-        self, latent_domains: LatentsDomainGroupsT
-    ) -> dict[str, torch.Tensor]:
-        """
-        Translation loss. See `GWLosses.translation_loss`.
-
-        Args:
-            latent_domains (`LatentsDomainGroupsT`): the latent unimodal groups
-
-        Returns:
-            `dict[str, torch.Tensor]`: a dict of metrics.
-        """
-        return translation_loss(
-            self.gw_mod, self.selection_mod, self.domain_mods, latent_domains
-        )
-
-    def contrastive_loss(
-        self, latent_domains: LatentsDomainGroupsT
-    ) -> dict[str, torch.Tensor]:
-        """
-        Contrastive loss.
-
-        Args:
-            latent_domains (`LatentsDomainGroupsT`): the latent unimodal groups
-
-        Returns:
-            `dict[str, torch.Tensor]`: a dict of metrics.
-        """
-        return contrastive_loss_with_uncertainty(
-            self.gw_mod, latent_domains, self.contrastive_fn
-        )
-
-    def step(
-        self, domain_latents: LatentsDomainGroupsT, mode: ModelModeT
-    ) -> LossOutput:
-        """
-        Computes and returns the losses
-
-        Contains:
-            - Demi-cycle metrics (see `GWLossesWithUncertainty.demi_cycle_loss`)
-            - Cycle metrics (see `GWLossesWithUncertainty.cycle_loss`)
-            - Translation metrics (see `GWLossesWithUncertainty.translation_loss`)
-            - Contrastive metrics (see `GWLossesWithUncertainty.contrastive_loss`)
-
-        Args:
-            domain_latents (`LatentsDomainGroupsT`): All latent groups
-            mode (`ModelModeT`): model mode
-        Returns:
-            `LossOutput`: the losses
-        """
-        metrics: dict[str, torch.Tensor] = {}
-
-        dcy_losses = self.demi_cycle_loss(domain_latents)
-        metrics.update(dcy_losses)
-        cy_losses = self.cycle_loss(domain_latents)
-        metrics.update(cy_losses)
-        tr_losses = self.translation_loss(domain_latents)
-        metrics.update(tr_losses)
-        cont_losses = self.contrastive_loss(domain_latents)
-        metrics.update(cont_losses)
-
-        loss = torch.stack(
-            [
-                metrics[name] * coef
-                for name, coef in self.loss_coefs.items()
-                if isinstance(coef, float) and coef > 0
-            ],
-            dim=0,
-        ).mean()
-
-        return LossOutput(loss, metrics)
-
-
 def generate_partitions(n: int) -> Generator[tuple[int, ...], None, None]:
     """
     Generates all possible partitions of zeros and ones for `n` elements,
@@ -650,6 +498,132 @@ def generate_partitions(n: int) -> Generator[tuple[int, ...], None, None]:
     for perm in product([0, 1], repeat=n):
         if any(perm):
             yield perm
+
+
+def broadcast_loss(
+    gw_mod: GWModuleBase,
+    selection_mod: SelectionBase,
+    domain_mods: Mapping[str, DomainModule],
+    latent_domains: LatentsDomainGroupsT,
+) -> dict[str, torch.Tensor]:
+    """
+    Computes broadcast loss including demi-cycle, cycle, and translation losses.
+
+    Args:
+        gw_mod (`shimmer.modules.gw_module.GWModuleBase`): The GWModule to use
+        selection_mod (`shimmer.modules.selection.SelectionBase`): Selection mod to use
+        domain_mods (`Mapping[str, DomainModule]`): the domain modules
+        latent_domains: The latent domain representations.
+
+    Returns:
+        A dictionary with the total loss and additional metrics.
+    """
+    losses: dict[str, torch.Tensor] = {}
+    metrics: dict[str, torch.Tensor] = {}
+
+    demi_cycle_losses: list[str] = []
+    cycle_losses: list[str] = []
+    translation_losses: list[str] = []
+    fused_losses: list[str] = []
+
+    for group_domains, latents in latent_domains.items():
+        encoded_latents = gw_mod.encode(latents)
+        partitions = generate_partitions(len(group_domains))
+        domain_names = list(latents)
+
+        for partition in partitions:
+            selected_latents = {
+                domain: latents[domain]
+                for domain, present in zip(domain_names, partition, strict=True)
+                if present
+            }
+            selected_encoded_latents = {
+                domain: encoded_latents[domain] for domain in selected_latents
+            }
+            selected_group_label = "{" + ", ".join(sorted(selected_latents)) + "}"
+
+            selection_scores = selection_mod(selected_latents, selected_encoded_latents)
+            fused_latents = gw_mod.fuse(selected_encoded_latents, selection_scores)
+            decoded_latents = gw_mod.decode(fused_latents)
+
+            num_active_domains = sum(partition)
+            num_total_domains = len(partition)
+
+            for domain, pred in decoded_latents.items():
+                if domain not in group_domains:  # if we don't have ground truth
+                    continue
+                ground_truth = latents[domain]
+                loss_output = domain_mods[domain].compute_loss(pred, ground_truth)
+                loss_label = f"from_{selected_group_label}_to_{domain}"
+                losses[loss_label + "_loss"] = loss_output.loss
+                metrics.update(
+                    {f"{loss_label}_{k}": v for k, v in loss_output.metrics.items()}
+                )
+
+                if num_active_domains == 1 and domain in selected_latents:
+                    demi_cycle_losses.append(loss_label + "_loss")
+                elif domain not in selected_latents:
+                    translation_losses.append(loss_label + "_loss")
+                else:  # fused loss
+                    fused_losses.append(loss_label + "_loss")
+
+            if num_active_domains < num_total_domains:
+                inverse_selected_latents = {
+                    domain: decoded_latents[domain]
+                    for domain in decoded_latents
+                    if domain not in selected_latents
+                }
+
+                inverse_selected_group_label = (
+                    "{" + ", ".join(sorted(inverse_selected_latents)) + "}"
+                )
+
+                re_encoded_latents = gw_mod.encode(inverse_selected_latents)
+                re_selection_scores = selection_mod(
+                    inverse_selected_latents, re_encoded_latents
+                )
+                re_fused_latents = gw_mod.fuse(re_encoded_latents, re_selection_scores)
+                re_decoded_latents = gw_mod.decode(
+                    re_fused_latents, domains=selected_latents.keys()
+                )
+
+                for domain in selected_latents:
+                    re_ground_truth = latents[domain]
+                    re_loss_output = domain_mods[domain].compute_loss(
+                        re_decoded_latents[domain], re_ground_truth
+                    )
+                    loss_label = (
+                        f"from_{selected_group_label}_"
+                        f"through_{inverse_selected_group_label}_to_{domain}"
+                    )
+                    losses[loss_label + "_loss"] = re_loss_output.loss
+                    metrics.update(
+                        {
+                            f"{loss_label}_{k}": v
+                            for k, v in re_loss_output.metrics.items()
+                        }
+                    )
+                    cycle_losses.append(loss_label + "_loss")
+
+    if demi_cycle_losses:
+        metrics["demi_cycles"] = torch.mean(
+            torch.stack([losses[loss_name] for loss_name in demi_cycle_losses])
+        )
+    if cycle_losses:
+        metrics["cycles"] = torch.mean(
+            torch.stack([losses[loss_name] for loss_name in cycle_losses])
+        )
+    if translation_losses:
+        metrics["translations"] = torch.mean(
+            torch.stack([losses[loss_name] for loss_name in translation_losses])
+        )
+    if fused_losses:
+        metrics["fused"] = torch.mean(
+            torch.stack([losses[loss_name] for loss_name in fused_losses])
+        )
+
+    metrics.update(losses)
+    return metrics
 
 
 class BroadcastLossCoefs(TypedDict, total=False):
@@ -723,137 +697,14 @@ class GWLossesFusion(GWLossesBase):
         return contrastive_loss(self.gw_mod, latent_domains, self.contrastive_fn)
 
     def broadcast_loss(
-        self, latent_domains: LatentsDomainGroupsT, mode: ModelModeT
+        self, latent_domains: LatentsDomainGroupsT
     ) -> dict[str, torch.Tensor]:
-        """
-        Computes broadcast loss including demi-cycle, cycle, and translation losses.
-
-        Args:
-            latent_domains: The latent domain representations.
-            mode: The mode of the model (e.g., 'train', 'eval').
-
-        Returns:
-            A dictionary with the total loss and additional metrics.
-        """
-        losses: dict[str, torch.Tensor] = {}
-        metrics: dict[str, Any] = {}
-
-        demi_cycle_losses: list[str] = []
-        cycle_losses: list[str] = []
-        translation_losses: list[str] = []
-        fused_losses: list[str] = []
-
-        for group_domains, latents in latent_domains.items():
-            encoded_latents = self.gw_mod.encode(latents)
-            partitions = generate_partitions(len(group_domains))
-            domain_names = list(latents)
-
-            for partition in partitions:
-                selected_latents = {
-                    domain: latents[domain]
-                    for domain, present in zip(domain_names, partition, strict=True)
-                    if present
-                }
-                selected_encoded_latents = {
-                    domain: encoded_latents[domain] for domain in selected_latents
-                }
-                selected_group_label = "{" + ", ".join(sorted(selected_latents)) + "}"
-
-                selection_scores = self.selection_mod(
-                    selected_latents, selected_encoded_latents
-                )
-                fused_latents = self.gw_mod.fuse(
-                    selected_encoded_latents, selection_scores
-                )
-                decoded_latents = self.gw_mod.decode(fused_latents)
-
-                num_active_domains = sum(partition)
-                num_total_domains = len(partition)
-
-                for domain, pred in decoded_latents.items():
-                    if domain not in group_domains:  # if we don't have ground truth
-                        continue
-                    ground_truth = latents[domain]
-                    loss_output = self.domain_mods[domain].compute_loss(
-                        pred, ground_truth
-                    )
-                    loss_label = f"from_{selected_group_label}_to_{domain}"
-                    losses[loss_label + "_loss"] = loss_output.loss
-                    metrics.update(
-                        {f"{loss_label}_{k}": v for k, v in loss_output.metrics.items()}
-                    )
-
-                    if num_active_domains == 1 and domain in selected_latents:
-                        demi_cycle_losses.append(loss_label + "_loss")
-                    elif domain not in selected_latents:
-                        translation_losses.append(loss_label + "_loss")
-                    else:  # fused loss
-                        fused_losses.append(loss_label + "_loss")
-
-                if num_active_domains < num_total_domains:
-                    inverse_selected_latents = {
-                        domain: decoded_latents[domain]
-                        for domain in decoded_latents
-                        if domain not in selected_latents
-                    }
-
-                    inverse_selected_group_label = (
-                        "{" + ", ".join(sorted(inverse_selected_latents)) + "}"
-                    )
-
-                    re_encoded_latents = self.gw_mod.encode(inverse_selected_latents)
-                    re_selection_scores = self.selection_mod(
-                        inverse_selected_latents, re_encoded_latents
-                    )
-                    re_fused_latents = self.gw_mod.fuse(
-                        re_encoded_latents, re_selection_scores
-                    )
-                    re_decoded_latents = self.gw_mod.decode(
-                        re_fused_latents, domains=selected_latents.keys()
-                    )
-
-                    for domain in selected_latents:
-                        re_ground_truth = latents[domain]
-                        re_loss_output = self.domain_mods[domain].compute_loss(
-                            re_decoded_latents[domain], re_ground_truth
-                        )
-                        loss_label = (
-                            f"from_{selected_group_label}_"
-                            f"through_{inverse_selected_group_label}_to_{domain}"
-                        )
-                        losses[loss_label + "_loss"] = re_loss_output.loss
-                        metrics.update(
-                            {
-                                f"{loss_label}_{k}": v
-                                for k, v in re_loss_output.metrics.items()
-                            }
-                        )
-                        cycle_losses.append(loss_label + "_loss")
-
-        if demi_cycle_losses:
-            metrics["demi_cycles"] = torch.mean(
-                torch.stack([losses[loss_name] for loss_name in demi_cycle_losses])
-            )
-        if cycle_losses:
-            metrics["cycles"] = torch.mean(
-                torch.stack([losses[loss_name] for loss_name in cycle_losses])
-            )
-        if translation_losses:
-            metrics["translations"] = torch.mean(
-                torch.stack([losses[loss_name] for loss_name in translation_losses])
-            )
-        if fused_losses:
-            metrics["fused"] = torch.mean(
-                torch.stack([losses[loss_name] for loss_name in fused_losses])
-            )
-
-        metrics.update(losses)
-        return metrics
+        return broadcast_loss(
+            self.gw_mod, self.selection_mod, self.domain_mods, latent_domains
+        )
 
     def step(
-        self,
-        domain_latents: LatentsDomainGroupsT,
-        mode: ModelModeT,
+        self, domain_latents: LatentsDomainGroupsT, mode: ModelModeT
     ) -> LossOutput:
         """
         Performs a step of loss computation.
@@ -869,7 +720,7 @@ class GWLossesFusion(GWLossesBase):
         metrics: dict[str, torch.Tensor] = {}
 
         metrics.update(self.contrastive_loss(domain_latents))
-        metrics.update(self.broadcast_loss(domain_latents, mode))
+        metrics.update(self.broadcast_loss(domain_latents))
 
         loss = torch.stack(
             [
@@ -882,7 +733,114 @@ class GWLossesFusion(GWLossesBase):
 
         metrics["broadcast_loss"] = torch.stack(
             [
-                metrics[name] * 1.0  # broadcast loss is all-encompassing
+                metrics[name]
+                for name, coef in self.loss_coefs.items()
+                if isinstance(coef, float) and coef > 0 and name != "contrastives"
+            ],
+            dim=0,
+        ).mean()
+
+        return LossOutput(loss, metrics)
+
+
+class GWLossesWithUncertainty(GWLossesBase):
+    """
+    Implementation of `GWLossesBase` used for `GWModuleWithUncertainty`.
+    """
+
+    def __init__(
+        self,
+        gw_mod: GWModuleWithUncertainty,
+        selection_mod: SelectionBase,
+        domain_mods: dict[str, DomainModule],
+        loss_coefs: BroadcastLossCoefs,
+        contrastive_fn: ContrastiveLossType,
+    ):
+        """
+        Loss module with uncertainty to use with the GlobalWorkspaceWithUncertainty
+
+        Args:
+            gw_mod (`GWModuleWithUncertainty`): the GWModule
+            selection_mod (`SelectionBase`): selection module
+            domain_mods (`dict[str, DomainModule]`): a dict where the key is the
+                domain name and value is the DomainModule
+            loss_coefs (`BroadcastLossCoefs`): loss coefficients
+            contrastive_fn (`ContrastiveLossType`): the contrastive function
+                to use in contrastive loss
+        """
+        super().__init__()
+
+        self.gw_mod = gw_mod
+        """The GWModule."""
+
+        self.selection_mod = selection_mod
+        """Selection module"""
+
+        self.domain_mods = domain_mods
+        """Domain modules linked to the GW."""
+
+        self.loss_coefs = loss_coefs
+        """The loss coefficients."""
+
+        self.contrastive_fn = contrastive_fn
+        """
+        Contrastive loss to use without the use of uncertainty.
+        """
+
+    def contrastive_loss(
+        self, latent_domains: LatentsDomainGroupsT
+    ) -> dict[str, torch.Tensor]:
+        """
+        Contrastive loss.
+
+        Args:
+            latent_domains (`LatentsDomainGroupsT`): the latent unimodal groups
+
+        Returns:
+            `dict[str, torch.Tensor]`: a dict of metrics.
+        """
+        return contrastive_loss_with_uncertainty(
+            self.gw_mod, latent_domains, self.contrastive_fn
+        )
+
+    def broadcast_loss(
+        self, latent_domains: LatentsDomainGroupsT
+    ) -> dict[str, torch.Tensor]:
+        return broadcast_loss(
+            self.gw_mod, self.selection_mod, self.domain_mods, latent_domains
+        )
+
+    def step(
+        self, domain_latents: LatentsDomainGroupsT, mode: ModelModeT
+    ) -> LossOutput:
+        """
+        Performs a step of loss computation.
+
+        Args:
+            domain_latents: Latent representations for all domains.
+            mode: The mode in which the model is currently operating.
+
+        Returns:
+            A LossOutput object containing the loss and metrics for this step.
+        """
+
+        metrics: dict[str, torch.Tensor] = {}
+
+        metrics.update(self.contrastive_loss(domain_latents))
+        metrics.update(self.broadcast_loss(domain_latents))
+
+        loss = torch.stack(
+            [
+                metrics[name] * coef
+                for name, coef in self.loss_coefs.items()
+                if isinstance(coef, float) and coef > 0
+            ],
+            dim=0,
+        ).mean()
+
+        metrics["broadcast_loss"] = torch.stack(
+            [
+                metrics[name]
                 for name, coef in self.loss_coefs.items()
                 if isinstance(coef, float) and coef > 0 and name != "contrastives"
             ],
