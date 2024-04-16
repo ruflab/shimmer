@@ -31,14 +31,7 @@ def test_broadcast_loss():
     gw_encoders = {"domain1": nn.Linear(10, 10), "domain2": nn.Linear(10, 10)}
     gw_decoders = {"domain1": nn.Linear(10, 10), "domain2": nn.Linear(10, 10)}
     workspace_dim = 10
-    contrastive_fn: ContrastiveLossType = contrastive_loss
-    loss_coefs: BroadcastLossCoefs = {
-        "cycles": 1.0,
-        "translations": 1.0,
-        "demi_cycles": 1.0,
-        "fused": 1.0,
-        "contrastives": 0.1,
-    }
+    loss_coefs: BroadcastLossCoefs = {"broadcast": 1.0, "contrastives": 0.1}
 
     gw_fusion = GlobalWorkspaceFusion(
         domain_mods,
