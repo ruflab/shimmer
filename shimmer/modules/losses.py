@@ -665,7 +665,7 @@ class BroadcastLossCoefs(TypedDict, total=False):
     """Contrastive loss coefficient."""
 
     fused: float
-    """fused loss coefficient (encode multiple domains and decode to one of them."""
+    """fused loss coefficient (encode multiple domains and decode to one of them)."""
 
     demi_cycles: float
     """demi_cycles loss coefficient. Demi-cycles are always one-to-one"""
