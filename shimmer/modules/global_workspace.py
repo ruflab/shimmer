@@ -545,111 +545,6 @@ class GlobalWorkspace(GlobalWorkspaceBase[GWModule, SingleDomainSelection, GWLos
         )
 
 
-class GlobalWorkspaceWithUncertainty(
-    GlobalWorkspaceBase[
-        GWModuleWithUncertainty, SingleDomainSelection, GWLossesWithUncertainty
-    ]
-):
-    """
-    A simple 2-domains max GlobalWorkspaceBase with uncertainty.
-
-    This is used to simplify a Global Workspace instanciation and only overrides the
-    `__init__` method.
-    """
-
-    def __init__(
-        self,
-        domain_mods: Mapping[str, DomainModule],
-        gw_encoders: Mapping[str, Module],
-        gw_decoders: Mapping[str, Module],
-        workspace_dim: int,
-        loss_coefs: LossCoefs,
-        optim_lr: float = 1e-3,
-        optim_weight_decay: float = 0.0,
-        scheduler_args: SchedulerArgs | None = None,
-        learn_logit_scale: bool = False,
-        contrastive_loss: ContrastiveLossType | None = None,
-    ) -> None:
-        """
-        Initializes a Global Workspace
-
-        Args:
-            domain_mods (`Mapping[str, DomainModule]`): mapping of the domains
-                connected to the GW. Keys are domain names, values are the
-                `DomainModule`.
-            gw_encoders (`Mapping[str, torch.nn.Module]`): mapping for each domain
-                name to a `torch.nn.Module` class which role is to encode a
-                unimodal latent representations into a GW representation (pre fusion).
-            gw_decoders (`Mapping[str, torch.nn.Module]`): mapping for each domain
-                name to a `torch.nn.Module` class which role is to decode a
-                GW representation into a unimodal latent representations.
-            workspace_dim (`int`): dimension of the GW.
-            loss_coefs (`LossCoefs`): loss coefficients
-            optim_lr (`float`): learning rate
-            optim_weight_decay (`float`): weight decay
-            scheduler_args (`SchedulerArgs | None`): optimization scheduler's arguments
-            learn_logit_scale (`bool`): whether to learn the contrastive learning
-                contrastive loss when using the default contrastive loss.
-            contrastive_loss (`ContrastiveLossType | None`): a contrastive loss
-                function used for alignment. `learn_logit_scale` will not affect custom
-                contrastive losses.
-        """
-        domain_mods = freeze_domain_modules(domain_mods)
-
-        gw_mod = GWModuleWithUncertainty(
-            domain_mods, workspace_dim, gw_encoders, gw_decoders
-        )
-
-        selection_mod = SingleDomainSelection()
-
-        contrastive_loss = ContrastiveLoss(
-            torch.tensor([1]).log(), "mean", learn_logit_scale
-        )
-
-        loss_mod = GWLossesWithUncertainty(
-            gw_mod,
-            selection_mod,
-            domain_mods,
-            loss_coefs,
-            contrastive_loss,
-        )
-
-        super().__init__(
-            gw_mod,
-            selection_mod,
-            loss_mod,
-            optim_lr,
-            optim_weight_decay,
-            scheduler_args,
-        )
-
-    def forward(  # type: ignore
-        self,
-        latent_domains: LatentsDomainGroupsT,
-    ) -> GWPredictions:
-        """
-        Computes demi-cycles, cycles, and translations.
-
-        Args:
-            latent_domains (`LatentsT`): Groups of domains for the computation.
-
-        Returns:
-            `GWPredictions`: the predictions on the batch.
-        """
-        return GWPredictions(
-            demi_cycles=batch_demi_cycles(
-                self.gw_mod, self.selection_mod, latent_domains
-            ),
-            cycles=batch_cycles(
-                self.gw_mod, self.selection_mod, latent_domains, self.domain_mods.keys()
-            ),
-            translations=batch_translations(
-                self.gw_mod, self.selection_mod, latent_domains
-            ),
-            **super().forward(latent_domains),
-        )
-
-
 class GlobalWorkspaceFusion(
     GlobalWorkspaceBase[GWModule, RandomSelection, GWLossesFusion]
 ):
@@ -719,6 +614,113 @@ class GlobalWorkspaceFusion(
             optim_lr,
             optim_weight_decay,
             scheduler_args,
+        )
+
+
+class GlobalWorkspaceWithUncertainty(
+    GlobalWorkspaceBase[
+        GWModuleWithUncertainty, RandomSelection, GWLossesWithUncertainty
+    ]
+):
+    """
+    A simple 2-domains max GlobalWorkspaceBase with uncertainty.
+
+    This is used to simplify a Global Workspace instanciation and only overrides the
+    `__init__` method.
+    """
+
+    def __init__(
+        self,
+        domain_mods: Mapping[str, DomainModule],
+        gw_encoders: Mapping[str, Module],
+        gw_decoders: Mapping[str, Module],
+        workspace_dim: int,
+        loss_coefs: LossCoefs,
+        selection_temperature: float = 0.2,
+        optim_lr: float = 1e-3,
+        optim_weight_decay: float = 0.0,
+        scheduler_args: SchedulerArgs | None = None,
+        learn_logit_scale: bool = False,
+        contrastive_loss: ContrastiveLossType | None = None,
+    ) -> None:
+        """
+        Initializes a Global Workspace
+
+        Args:
+            domain_mods (`Mapping[str, DomainModule]`): mapping of the domains
+                connected to the GW. Keys are domain names, values are the
+                `DomainModule`.
+            gw_encoders (`Mapping[str, torch.nn.Module]`): mapping for each domain
+                name to a `torch.nn.Module` class which role is to encode a
+                unimodal latent representations into a GW representation (pre fusion).
+            gw_decoders (`Mapping[str, torch.nn.Module]`): mapping for each domain
+                name to a `torch.nn.Module` class which role is to decode a
+                GW representation into a unimodal latent representations.
+            workspace_dim (`int`): dimension of the GW.
+            loss_coefs (`LossCoefs`): loss coefficients
+            selection_temperature (`float`): temperature for `RandomSelection`
+            optim_lr (`float`): learning rate
+            optim_weight_decay (`float`): weight decay
+            scheduler_args (`SchedulerArgs | None`): optimization scheduler's arguments
+            learn_logit_scale (`bool`): whether to learn the contrastive learning
+                contrastive loss when using the default contrastive loss.
+            contrastive_loss (`ContrastiveLossType | None`): a contrastive loss
+                function used for alignment. `learn_logit_scale` will not affect custom
+                contrastive losses.
+        """
+        domain_mods = freeze_domain_modules(domain_mods)
+
+        gw_mod = GWModuleWithUncertainty(
+            domain_mods, workspace_dim, gw_encoders, gw_decoders
+        )
+
+        selection_mod = RandomSelection(selection_temperature)
+
+        contrastive_loss = ContrastiveLoss(
+            torch.tensor([1]).log(), "mean", learn_logit_scale
+        )
+
+        loss_mod = GWLossesWithUncertainty(
+            gw_mod,
+            selection_mod,
+            domain_mods,
+            loss_coefs,
+            contrastive_loss,
+        )
+
+        super().__init__(
+            gw_mod,
+            selection_mod,
+            loss_mod,
+            optim_lr,
+            optim_weight_decay,
+            scheduler_args,
+        )
+
+    def forward(  # type: ignore
+        self,
+        latent_domains: LatentsDomainGroupsT,
+    ) -> GWPredictions:
+        """
+        Computes demi-cycles, cycles, and translations.
+
+        Args:
+            latent_domains (`LatentsT`): Groups of domains for the computation.
+
+        Returns:
+            `GWPredictions`: the predictions on the batch.
+        """
+        return GWPredictions(
+            demi_cycles=batch_demi_cycles(
+                self.gw_mod, self.selection_mod, latent_domains
+            ),
+            cycles=batch_cycles(
+                self.gw_mod, self.selection_mod, latent_domains, self.domain_mods.keys()
+            ),
+            translations=batch_translations(
+                self.gw_mod, self.selection_mod, latent_domains
+            ),
+            **super().forward(latent_domains),
         )
 
 
