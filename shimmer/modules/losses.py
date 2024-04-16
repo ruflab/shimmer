@@ -664,8 +664,17 @@ class BroadcastLossCoefs(TypedDict, total=False):
     contrastives: float
     """Contrastive loss coefficient."""
 
-    broadcast: float
-    """Broadcast loss coefficient."""
+    fused: float
+    """fused loss coefficient (encode multiple domains and decode to one of them."""
+
+    demi_cycles: float
+    """demi_cycles loss coefficient. Demi-cycles are always one-to-one"""
+
+    cycles: float
+    """cycles loss coefficient. Cycles can be many-to-one"""
+
+    translations: float
+    """translation loss coefficient. Translation, like cycles, can be many-to-one."""
 
 
 class GWLossesFusion(GWLossesBase):
@@ -732,6 +741,7 @@ class GWLossesFusion(GWLossesBase):
         demi_cycle_losses: list[str] = []
         cycle_losses: list[str] = []
         translation_losses: list[str] = []
+        broadcast_losses: list[str] = []
 
         for group_domains, latents in latent_domains.items():
             encoded_latents = self.gw_mod.encode(latents)
@@ -775,8 +785,10 @@ class GWLossesFusion(GWLossesBase):
 
                     if num_active_domains == 1 and domain in selected_latents:
                         demi_cycle_losses.append(loss_label + "_loss")
-                    if num_active_domains == 1 and domain not in selected_latents:
+                    elif domain not in selected_latents:
                         translation_losses.append(loss_label + "_loss")
+                    else:  # broadcast loss
+                        broadcast_losses.append(loss_label + "_loss")
 
                 if num_active_domains < num_total_domains:
                     inverse_selected_latents = {
@@ -830,9 +842,13 @@ class GWLossesFusion(GWLossesBase):
             metrics["translations"] = torch.mean(
                 torch.stack([losses[loss_name] for loss_name in translation_losses])
             )
+        if broadcast_losses:
+            metrics["broadcast"] = torch.mean(
+                torch.stack([losses[loss_name] for loss_name in translation_losses])
+            )
 
-        total_loss = torch.mean(torch.stack(list(losses.values())))
-        return {"broadcast": total_loss, **metrics}
+        metrics.update(losses)
+        return metrics
 
     def step(
         self,
