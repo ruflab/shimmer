@@ -1,18 +1,10 @@
 import torch
 import torch.nn.functional as F
-from torch.nn import Linear
-
-from shimmer import DomainModule, LossOutput
-
-import torch
-import torch.nn.functional as F
-from torch.nn import Linear, Module
+from torch.nn import Module
 from torch.optim import AdamW
-from shimmer import DomainModule, LossOutput
-
-from shimmer.utils import group_device
 from vae import VanillaVAE
 
+from shimmer import DomainModule, LossOutput
 
 
 class ImageDomain(DomainModule):
@@ -20,9 +12,10 @@ class ImageDomain(DomainModule):
         super().__init__(latent_dim)
         # load the model parameters
         checkpoint_path = "vae_model.pth"
-        model = VanillaVAE(in_channels=3, latent_dim=384, upsampling='nearest', loss_type='lpips')
+        model = VanillaVAE(
+            in_channels=3, latent_dim=384, upsampling="nearest", loss_type="lpips"
+        )
         model.load_state_dict(torch.load(checkpoint_path))
-
 
     def encode(self, x: torch.Tensor) -> torch.Tensor:
         # Just pass through the embedding

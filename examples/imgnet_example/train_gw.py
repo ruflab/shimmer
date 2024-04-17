@@ -1,72 +1,46 @@
-from dataset import GWDataModule, domain_sizes, get_domain_data, make_datasets
-from domains import GenericDomain
+from dataset import prepare_datasets
+from domains import ImageDomain, TextDomain
 from lightning.pytorch import Trainer
 from lightning.pytorch.callbacks import ModelCheckpoint
-from torch import nn
 
 from shimmer import GlobalWorkspace, GWDecoder, GWEncoder, LossCoefs
 from shimmer.modules.global_workspace import SchedulerArgs
 
 
 def train_gw():
-    train_domain1, val_domain1 = get_domain_data("domain1")
-    train_domain2, val_domain2 = get_domain_data("domain2")
+    # Prepare data modules from the dataset script
+    train_data_module, val_data_module = prepare_datasets()
 
-    train_data = {"domain1": train_domain1, "domain2": train_domain2}
-    val_data = {"domain1": val_domain1, "domain2": val_domain2}
-
-    n_paired = 32
-
-    train_datasets = make_datasets(
-        train_data, paired_items=list(range(n_paired)), add_unpaired_dataset=True
-    )
-
-    # The val set is completely paired and we do not add the unpaired datasets
-    val_datasets = make_datasets(val_data, list(range(val_domain1.size(0))))
-
-    batch_size = 32
-
-    data = GWDataModule(val_datasets, train_datasets, batch_size=batch_size)
-
-    # We have pretrained the domain module, we need to load them.
-    domain_mod1 = GenericDomain.load_from_checkpoint(
-        "checkpoints/domain1.ckpt",
-        input_size=domain_sizes["domain1"],
-        latent_dim=32,
-    )
-    domain_mod2 = GenericDomain.load_from_checkpoint(
-        "checkpoints/domain2.ckpt",
-        input_size=domain_sizes["domain2"],
-        latent_dim=32,
-    )
+    # Initialize the domain modules with the specific
+    # latent dimensions and model parameters
+    image_domain = ImageDomain(latent_dim=384)
+    text_domain = TextDomain(latent_dim=384)
 
     domain_mods = {
-        "domain1": domain_mod1,
-        "domain2": domain_mod2,
+        "image_latents": image_domain,
+        "caption_embeddings": text_domain,
     }
 
-    workspace_dim = 16
+    workspace_dim = 16  # Define the dimension of the global workspace
 
-    # Now we define modality encoders and decoders that will encode and decode
-    # the domain representations to and from the global workspace
-    gw_encoders: dict[str, nn.Module] = {}
-    gw_decoders: dict[str, nn.Module] = {}
+    # Define modality encoders and decoders
+    gw_encoders = {}
+    gw_decoders = {}
     for name, mod in domain_mods.items():
         gw_encoders[name] = GWEncoder(
             mod.latent_dim,
             hidden_dim=64,
             out_dim=workspace_dim,
-            # total number of Linear layers is this value + 2 (one before, one after)
             n_layers=1,
         )
         gw_decoders[name] = GWDecoder(
             in_dim=workspace_dim,
             hidden_dim=64,
             out_dim=mod.latent_dim,
-            # total number of Linear layers is this value + 2 (one before, one after)
             n_layers=1,
         )
 
+    # Loss coefficients setup
     loss_coefs: LossCoefs = {
         "translations": 1.0,
         "demi_cycles": 1.0,
@@ -74,7 +48,7 @@ def train_gw():
         "contrastives": 0.01,
     }
 
-    n_epochs = 4
+    n_epochs = 4  # Number of training epochs
 
     global_workspace = GlobalWorkspace(
         domain_mods,
@@ -82,32 +56,35 @@ def train_gw():
         gw_decoders,
         workspace_dim,
         loss_coefs,
-        # Secify learning rate scheduler arguments. It will use a
-        # [OneCycleLR](https://pytorch.org/docs/stable/generated/torch.optim.lr_scheduler.OneCycleLR.html#torch.optim.lr_scheduler.OneCycleLR)
         scheduler_args=SchedulerArgs(
-            max_lr=1e-3,  # max learning rate of the OneCycle
-            # number of steps for training:
-            # number of epochs * dataset size (`train_domain1.size(0)`) / batch size
-            total_steps=n_epochs * train_domain1.size(0) // batch_size,
+            max_lr=1e-3,
+            total_steps=n_epochs
+            * len(
+                train_data_module.train_datasets["image_latents", "caption_embeddings"]
+            )
+            // 64,
         ),
     )
 
+    # Trainer setup
     trainer = Trainer(
-        devices=1,  # only train on 1 GPU
+        devices=1,  # assuming training on 1 GPU
         max_epochs=n_epochs,
-        log_every_n_steps=1,  # evaluate metrics every step
+        log_every_n_steps=1,
         callbacks=[
             ModelCheckpoint(
                 dirpath="checkpoints",
-                filename="gw",
+                filename="global_workspace_{epoch}",
                 monitor="val/loss",
                 mode="min",
                 save_top_k=1,
             ),
         ],
     )
-    trainer.fit(global_workspace, data)
-    trainer.validate(global_workspace, data, "best")
+
+    # Run training and validation
+    trainer.fit(global_workspace, train_data_module, val_data_module)
+    trainer.validate(global_workspace, val_data_module, "best")
 
 
 if __name__ == "__main__":
