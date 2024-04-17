@@ -8,7 +8,10 @@ IMAGE_LATENTS_PATH = (
     "/home/rbertin/pyt_scripts/full_imgnet/full_size/vae_full_withbigger__disc/"
     "image_embeddings.npy"
 )
-CAPTION_EMBEDDINGS_PATH = "/home/rbertin/pyt_scripts/BLIP_TEST/instruct/full_imgnet/bge_fullsized_captions.npy"
+CAPTION_EMBEDDINGS_PATH = (
+    "/home/rbertin/pyt_scripts/BLIP_TEST/"
+    "instruct/full_imgnet/bge_fullsized_captions.npy"
+)
 
 
 def load_data(file_path: str) -> torch.Tensor:
