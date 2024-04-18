@@ -342,7 +342,7 @@ class GWModuleWithUncertainty(GWModule):
         Returns:
             `torch.Tensor`: batch of uncertainties (batch of logvars)
         """
-        return self.log_uncertainties[domain].unsqueeze(0).repeat(x.size(0), -1)
+        return self.log_uncertainties[domain].unsqueeze(0).repeat(x.size(0), 1)
 
     def _fuse_and_scores(
         self,
