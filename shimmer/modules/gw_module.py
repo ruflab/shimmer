@@ -371,9 +371,7 @@ class GWModuleWithUncertainty(GWModule):
         # Size: D x N x d  (D: number of domains, d: workspace dim)
         uncertainty_scores = torch.sigmoid(-torch.stack(uncertainties))
         scores_ = torch.stack(scores)  # Size: D x N (N: batch size)
-        final_scores = torch.bmm(
-            scores_, uncertainty_scores.unsqueeze(1)
-        )  # Size: D x N x d
+        final_scores = scores_.unsqueeze(-1) * uncertainty_scores  # Size D x N x d
         coef = final_scores.sum(dim=0)
         final_scores = final_scores / coef
 
@@ -402,7 +400,7 @@ class GWModuleWithUncertainty(GWModule):
 
         To combine this score with the selection scores, we multiply the two
         scores:
-        $$S = \\frac{a @ s}{M} \\in [0,1]^{D \\times N \\times d}$$
+        $$S = \\frac{a @ s}{M} \\in [0,1]^{D \\times d}$$
 
         And for domain $k$, batch element $i$ and workspace neuron $j$:
         $$S_{k,i,j} = \\frac{a_{k,i} s_{k,i,j}}{M_{i,j}}$$
