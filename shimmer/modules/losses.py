@@ -297,7 +297,7 @@ def contrastive_loss_with_uncertainty(
             continue
         for domain1_name, domain1 in latents.items():
             z1 = gw_mod.encode({domain1_name: domain1})[domain1_name]
-            z1_uncertainty = gw_mod.log_uncertainties[domain1_name]
+            z1_uncertainty = gw_mod.get_uncertainties(domain1_name, domain1)
             for domain2_name, domain2 in latents.items():
                 selected_domains = {domain1_name, domain2_name}
                 if domain1_name == domain2_name or selected_domains in keys:
@@ -307,7 +307,7 @@ def contrastive_loss_with_uncertainty(
 
                 loss_name = f"contrastive_{domain1_name}_and_{domain2_name}"
                 z2 = gw_mod.encode({domain2_name: domain2})[domain2_name]
-                z2_uncertainty = gw_mod.log_uncertainties[domain2_name]
+                z2_uncertainty = gw_mod.get_uncertainties(domain2_name, domain2)
                 norm = 1.0 + z1_uncertainty.exp() + z2_uncertainty.exp()
                 loss_output = contrastive_fn(z1 / norm, z2 / norm)
                 losses[loss_name] = loss_output.loss
