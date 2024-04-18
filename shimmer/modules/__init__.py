@@ -2,10 +2,8 @@ from shimmer.dataset import RepeatedDataset
 from shimmer.modules.contrastive_loss import (
     ContrastiveLoss,
     ContrastiveLossType,
-    ContrastiveLossWithConfidence,
     ContrastiveLossWithConfidenceType,
     contrastive_loss,
-    contrastive_loss_with_confidence,
 )
 from shimmer.modules.domain import DomainModule, LossOutput
 from shimmer.modules.global_workspace import (
@@ -71,8 +69,6 @@ __all__ = [
     "ContrastiveLossWithConfidenceType",
     "contrastive_loss",
     "ContrastiveLoss",
-    "contrastive_loss_with_confidence",
-    "ContrastiveLossWithConfidence",
     "LossCoefs",
     "BroadcastLossCoefs",
     "GWLossesBase",
