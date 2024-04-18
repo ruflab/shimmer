@@ -331,6 +331,19 @@ class GWModuleWithUncertainty(GWModule):
         )
         """Log-uncertainty (logvar) at the neuron level for every domain."""
 
+    def get_uncertainties(self, domain: str, x: torch.Tensor) -> torch.Tensor:
+        """
+        Get the uncertainty vector (logvar) of given domain and batch
+
+        Args:
+            domain (`str`):
+            x (`torch.Tensor`): batch of inputs
+
+        Returns:
+            `torch.Tensor`: batch of uncertainties (batch of logvars)
+        """
+        return self.log_uncertainties[domain].unsqueeze(0).repeat(x.size(0), -1)
+
     def _fuse_and_scores(
         self,
         x: LatentsDomainGroupT,
@@ -353,15 +366,13 @@ class GWModuleWithUncertainty(GWModule):
         domains: list[torch.Tensor] = []
         for domain, score in selection_scores.items():
             scores.append(score)
-            uncertainties.append(self.log_uncertainties[domain])
+            uncertainties.append(self.get_uncertainties(domain, x[domain]))
             domains.append(x[domain])
-        # Size: D x d  (D: number of domains, d: workspace dim)
-        uncertainty_scores = torch.softmax(
-            torch.sigmoid(-torch.stack(uncertainties)), dim=0
-        )
+        # Size: D x N x d  (D: number of domains, d: workspace dim)
+        uncertainty_scores = torch.sigmoid(-torch.stack(uncertainties))
         scores_ = torch.stack(scores)  # Size: D x N (N: batch size)
         final_scores = torch.bmm(
-            scores_.unsqueeze(-1), uncertainty_scores.unsqueeze(1)
+            scores_, uncertainty_scores.unsqueeze(1)
         )  # Size: D x N x d
         coef = final_scores.sum(dim=0)
         final_scores = final_scores / coef
@@ -382,24 +393,24 @@ class GWModuleWithUncertainty(GWModule):
         dimension of the Global Workspace.
 
         This function needs to merge two kind of scores:
-        * the selection scores $s\\in [0,1]^{D\\times N}$;
+        * the selection (attention) scores $a\\in [0,1]^{D\\times N}$;
         * the uncertainty scores $\\sigma \\in R_+^{D\\times N \\times d}$.
 
         The uncertainty scores are computed from the
-        log-variances $\\log(\\sigma)$ with:
-        $$\\mu = \\text{softmax}(\\text{sigmoid}(-\\log(\\sigma)))$$
+        log-variances $\\log(\\sigma^2)$ with:
+        $$\\s = \\text{sigmoid}(-\\log(\\sigma^2))$$
 
         To combine this score with the selection scores, we multiply the two
         scores:
-        $$S = \\frac{s @ \\mu}{M} \\in [0,1]^{D \\times N \\times d}$$
+        $$S = \\frac{a @ s}{M} \\in [0,1]^{D \\times N \\times d}$$
 
         And for domain $k$, batch element $i$ and workspace neuron $j$:
-        $$S_{k,i,j} = \\frac{s_{k,i} \\mu_{k,i,j}}{M_{i,j}}$$
+        $$S_{k,i,j} = \\frac{a_{k,i} s_{k,i,j}}{M_{i,j}}$$
 
         To select the normalization coef $M_{i,j}$, we use the following requirement:
         $$\\sum_k S_{k,i,j} = 1$$
         which yields:
-        $$M{i,j} = \\sum_k s_{k,i}\\mu_{k,i,j}$$
+        $$M_{i,j} = \\sum_k a_{k,i}s_{k,i,j}$$
 
 
         Args:
