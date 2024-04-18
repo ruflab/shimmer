@@ -13,14 +13,14 @@ from shimmer.modules.domain import DomainModule
 from shimmer.modules.gw_module import (
     GWModule,
     GWModuleBase,
-    GWModuleWithUncertainty,
+    GWModuleWithConfidence,
 )
 from shimmer.modules.losses import (
     BroadcastLossCoefs,
     GWLosses,
     GWLossesBase,
     GWLossesFusion,
-    GWLossesWithUncertainty,
+    GWLossesWithConfidence,
     LossCoefs,
 )
 from shimmer.modules.selection import (
@@ -104,7 +104,7 @@ class GlobalWorkspaceBase(
                 "loss_mod",
                 "domain_descriptions",
                 "contrastive_loss",
-                "cont_loss_with_uncertainty",
+                "cont_loss_with_confidence",
                 "gw_encoders",
                 "gw_decoders",
             ]
@@ -630,13 +630,11 @@ class GlobalWorkspaceFusion(
         )
 
 
-class GlobalWorkspaceWithUncertainty(
-    GlobalWorkspaceBase[
-        GWModuleWithUncertainty, RandomSelection, GWLossesWithUncertainty
-    ]
+class GlobalWorkspaceWithConfidence(
+    GlobalWorkspaceBase[GWModuleWithConfidence, RandomSelection, GWLossesWithConfidence]
 ):
     """
-    A simple 2-domains max GlobalWorkspaceBase with uncertainty.
+    A simple 2-domains max GlobalWorkspaceBase with confidence.
 
     This is used to simplify a Global Workspace instanciation and only overrides the
     `__init__` method.
@@ -683,7 +681,7 @@ class GlobalWorkspaceWithUncertainty(
         """
         domain_mods = freeze_domain_modules(domain_mods)
 
-        gw_mod = GWModuleWithUncertainty(
+        gw_mod = GWModuleWithConfidence(
             domain_mods, workspace_dim, gw_encoders, gw_decoders
         )
 
@@ -693,7 +691,7 @@ class GlobalWorkspaceWithUncertainty(
             torch.tensor([1]).log(), "mean", learn_logit_scale
         )
 
-        loss_mod = GWLossesWithUncertainty(
+        loss_mod = GWLossesWithConfidence(
             gw_mod,
             selection_mod,
             domain_mods,

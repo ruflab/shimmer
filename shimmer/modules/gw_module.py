@@ -298,8 +298,8 @@ class GWModule(GWModuleBase):
         }
 
 
-class GWModuleWithUncertainty(GWModule):
-    """`GWModule` with uncertainty information."""
+class GWModuleWithConfidence(GWModule):
+    """`GWModule` with confidence information."""
 
     def __init__(
         self,
@@ -309,7 +309,7 @@ class GWModuleWithUncertainty(GWModule):
         gw_decoders: Mapping[str, nn.Module],
     ) -> None:
         """
-        Initializes the GWModuleWithUncertainty.
+        Initializes the GWModuleWithConfidence.
 
         Args:
             domain_modules (`Mapping[str, DomainModule]`): the domain modules.

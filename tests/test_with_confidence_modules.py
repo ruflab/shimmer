@@ -1,10 +1,10 @@
 import torch
 from utils import DummyDomainModule
 
-from shimmer import GWDecoder, GWEncoder, GWModuleWithUncertainty
+from shimmer import GWDecoder, GWEncoder, GWModuleWithConfidence
 
 
-def test_uncertainty_fusion():
+def test_confidence_fusion():
     domains = {
         "v": DummyDomainModule(latent_dim=2),
         "t": DummyDomainModule(latent_dim=4),
@@ -33,9 +33,7 @@ def test_uncertainty_fusion():
         for domain_name, domain in domains.items()
     }
 
-    gw_module = GWModuleWithUncertainty(
-        domains, workspace_dim, gw_encoders, gw_decoders
-    )
+    gw_module = GWModuleWithConfidence(domains, workspace_dim, gw_encoders, gw_decoders)
 
     batch_size = 32
     batch = {

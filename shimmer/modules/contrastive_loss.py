@@ -15,11 +15,11 @@ Contrastive loss function type.
 A function taking the prediction and targets and returning a LossOutput.
 """
 
-ContrastiveLossWithUncertaintyType = Callable[
+ContrastiveLossWithConfidenceType = Callable[
     [torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor], LossOutput
 ]
 """
-Contrastive loss function type for GlobalWorkspaceWithUncertainty.
+Contrastive loss function type for GlobalWorkspaceWithConfidence.
 
 A function taking the prediction mean, prediction std, target mean and target std and
     returns a LossOutput.
@@ -76,33 +76,31 @@ def contrastive_loss(
     return 0.5 * (ce + ce_t)
 
 
-def contrastive_loss_with_uncertainty(
+def contrastive_loss_with_confidence(
     x: torch.Tensor,
-    x_log_uncertainty: torch.Tensor,
+    x_confidence: torch.Tensor,
     y: torch.Tensor,
-    y_log_uncertainty: torch.Tensor,
+    y_confidence: torch.Tensor,
     logit_scale: torch.Tensor,
     reduction: Literal["mean", "sum", "none"] = "mean",
 ) -> torch.Tensor:
     """
-    CLIP-like contrastive loss with uncertainty.
-    This is used in Global Workspaces with uncertainty.
+    CLIP-like contrastive loss with confidence.
+    This is used in Global Workspaces with confidence.
 
     Args:
         x (`torch.Tensor`): prediction
-        x_log_uncertainty (`torch.Tensor`): logvar of the prediction
+        x_confidence (`torch.Tensor`): logvar of the prediction
         y (`torch.Tensor`): target
-        y_log_uncertainty (`torch.Tensor`): logvar of the target
+        y_confidence (`torch.Tensor`): logvar of the target
         logit_scale (`torch.Tensor`): logit scale
         reduction (`Literal["mean", "sum", "none"]`): reduction to apply
 
-    Returns: the contrastive loss with uncertainty.
+    Returns: the contrastive loss with confidence.
     """
-    uncertainty_norm = (
-        1 + torch.exp(0.5 * x_log_uncertainty) + torch.exp(0.5 * y_log_uncertainty)
-    )
-    xn = normalize(x) / uncertainty_norm
-    yn = normalize(y) / uncertainty_norm
+    confidence_norm = 1 + torch.exp(0.5 * x_confidence) + torch.exp(0.5 * y_confidence)
+    xn = normalize(x) / confidence_norm
+    yn = normalize(y) / confidence_norm
     logits = torch.clamp(logit_scale.exp(), max=100) * xn @ yn.t()
     labels = torch.arange(xn.size(0)).to(logits.device)
     ce = cross_entropy(logits, labels, reduction=reduction)
@@ -155,11 +153,11 @@ class ContrastiveLoss(torch.nn.Module):
         )
 
 
-class ContrastiveLossWithUncertainty(torch.nn.Module):
+class ContrastiveLossWithConfidence(torch.nn.Module):
     """
-    CLIP-like contrastive loss with uncertainty module.
+    CLIP-like contrastive loss with confidence module.
 
-    This is used in Global Workspaces with uncertainty.
+    This is used in Global Workspaces with confidence.
     """
 
     def __init__(
@@ -169,7 +167,7 @@ class ContrastiveLossWithUncertainty(torch.nn.Module):
         learn_logit_scale: bool = False,
     ) -> None:
         """
-        ContrastiveLoss used for GlobalWorkspaceWithUncertainty
+        ContrastiveLoss used for GlobalWorkspaceWithConfidence
 
         Args:
             logit_scale (`torch.Tensor`): logit_scale tensor.
@@ -190,34 +188,34 @@ class ContrastiveLossWithUncertainty(torch.nn.Module):
     def forward(
         self,
         x: torch.Tensor,
-        x_log_uncertainty: torch.Tensor,
+        x_confidence: torch.Tensor,
         y: torch.Tensor,
-        y_log_uncertainty: torch.Tensor,
+        y_confidence: torch.Tensor,
     ) -> LossOutput:
         """
         Computes the loss
         Args:
             x: prediction
-            x_log_uncertainty: prediction logvar
+            x_confidence: prediction logvar
             y: target
-            y_log_uncertainty: target logvar
+            y_confidence: target logvar
 
         Returns:
             LossOutput of the loss. Contains a `"logit_scale"` metric and a
-            `"no_uncertainty"` metric with the classic contrastive loss computed without
+            `"no_confidence"` metric with the classic contrastive loss computed without
             the logvar information.
         """
-        loss = contrastive_loss_with_uncertainty(
+        loss = contrastive_loss_with_confidence(
             x,
-            x_log_uncertainty,
+            x_confidence,
             y,
-            y_log_uncertainty,
+            y_confidence,
             self.logit_scale,
             self.reduction,
         )
 
         metrics = {
-            "no_uncertainty": contrastive_loss(x, y, self.logit_scale, self.reduction),
+            "no_confidence": contrastive_loss(x, y, self.logit_scale, self.reduction),
             "logit_scale": self.logit_scale.exp(),
         }
 

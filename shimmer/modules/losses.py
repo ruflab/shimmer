@@ -7,7 +7,7 @@ import torch
 
 from shimmer.modules.contrastive_loss import ContrastiveLossType
 from shimmer.modules.domain import DomainModule, LossOutput
-from shimmer.modules.gw_module import GWModule, GWModuleBase, GWModuleWithUncertainty
+from shimmer.modules.gw_module import GWModule, GWModuleBase, GWModuleWithConfidence
 from shimmer.modules.selection import SelectionBase
 from shimmer.types import LatentsDomainGroupsT, ModelModeT
 
@@ -262,13 +262,13 @@ def contrastive_loss(
     return losses
 
 
-def contrastive_loss_with_uncertainty(
-    gw_mod: GWModuleWithUncertainty,
+def contrastive_loss_with_confidence(
+    gw_mod: GWModuleWithConfidence,
     latent_domains: LatentsDomainGroupsT,
     contrastive_fn: ContrastiveLossType,
 ) -> dict[str, torch.Tensor]:
     """
-    Computes the contrastive loss with uncertainty.
+    Computes the contrastive loss with confidence.
 
     This return multiple metrics:
         * `contrastive_{domain_1}_and_{domain_2}` with the contrastive
@@ -280,9 +280,9 @@ def contrastive_loss_with_uncertainty(
             `contrastive_{domain_1}_and_{domain_2}` values.
 
     Args:
-        gw_mod (`GWModuleWithUncertainty`): The GWModule to use
+        gw_mod (`GWModuleWithConfidence`): The GWModule to use
         latent_domains (`LatentsDomainGroupsT`): the latent unimodal groups
-        contrastive_fn (`ContrastiveLossWithUncertaintyType`): the contrastive function
+        contrastive_fn (`ContrastiveLossWithConfidenceType`): the contrastive function
             to apply
 
     Returns:
@@ -297,7 +297,7 @@ def contrastive_loss_with_uncertainty(
             continue
         for domain1_name, domain1 in latents.items():
             z1 = gw_mod.encode({domain1_name: domain1})[domain1_name]
-            z1_uncertainty = gw_mod.get_precision(domain1_name, domain1)
+            z1_confidence = gw_mod.get_precision(domain1_name, domain1)
             for domain2_name, domain2 in latents.items():
                 selected_domains = {domain1_name, domain2_name}
                 if domain1_name == domain2_name or selected_domains in keys:
@@ -307,8 +307,8 @@ def contrastive_loss_with_uncertainty(
 
                 loss_name = f"contrastive_{domain1_name}_and_{domain2_name}"
                 z2 = gw_mod.encode({domain2_name: domain2})[domain2_name]
-                z2_uncertainty = gw_mod.get_precision(domain2_name, domain2)
-                coef = torch.stack([z1_uncertainty, z2_uncertainty]).softmax(dim=0)
+                z2_confidence = gw_mod.get_precision(domain2_name, domain2)
+                coef = torch.stack([z1_confidence, z2_confidence]).softmax(dim=0)
                 loss_output = contrastive_fn(
                     z1 * coef[0] * coef[1], z2 * coef[0] * coef[1]
                 )
@@ -747,24 +747,24 @@ class GWLossesFusion(GWLossesBase):
         return LossOutput(loss, metrics)
 
 
-class GWLossesWithUncertainty(GWLossesBase):
+class GWLossesWithConfidence(GWLossesBase):
     """
-    Implementation of `GWLossesBase` used for `GWModuleWithUncertainty`.
+    Implementation of `GWLossesBase` used for `GWModuleWithConfidence`.
     """
 
     def __init__(
         self,
-        gw_mod: GWModuleWithUncertainty,
+        gw_mod: GWModuleWithConfidence,
         selection_mod: SelectionBase,
         domain_mods: dict[str, DomainModule],
         loss_coefs: BroadcastLossCoefs,
         contrastive_fn: ContrastiveLossType,
     ):
         """
-        Loss module with uncertainty to use with the GlobalWorkspaceWithUncertainty
+        Loss module with confidence to use with the GlobalWorkspaceWithConfidence
 
         Args:
-            gw_mod (`GWModuleWithUncertainty`): the GWModule
+            gw_mod (`GWModuleWithConfidence`): the GWModule
             selection_mod (`SelectionBase`): selection module
             domain_mods (`dict[str, DomainModule]`): a dict where the key is the
                 domain name and value is the DomainModule
@@ -788,7 +788,7 @@ class GWLossesWithUncertainty(GWLossesBase):
 
         self.contrastive_fn = contrastive_fn
         """
-        Contrastive loss to use without the use of uncertainty.
+        Contrastive loss to use without the use of confidence.
         """
 
     def contrastive_loss(
@@ -803,7 +803,7 @@ class GWLossesWithUncertainty(GWLossesBase):
         Returns:
             `dict[str, torch.Tensor]`: a dict of metrics.
         """
-        return contrastive_loss_with_uncertainty(
+        return contrastive_loss_with_confidence(
             self.gw_mod, latent_domains, self.contrastive_fn
         )
 
