@@ -547,7 +547,7 @@ def broadcast_loss(
             decoded_latents = gw_mod.decode(fused_latents)
 
             num_active_domains = sum(partition)
-            num_total_domains = len(partition)
+            num_total_domains = len(decoded_latents)
 
             for domain, pred in decoded_latents.items():
                 if domain not in group_domains:  # if we don't have ground truth
