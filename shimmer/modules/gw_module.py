@@ -323,26 +323,26 @@ class GWModuleWithUncertainty(GWModule):
         """
         super().__init__(domain_modules, workspace_dim, gw_encoders, gw_decoders)
 
-        self.log_uncertainties = cast(
+        self.precisions = cast(
             dict[str, torch.Tensor],
             nn.ParameterDict(
                 {domain: torch.randn(workspace_dim) for domain in gw_encoders}
             ),
         )
-        """Log-uncertainty (logvar) at the neuron level for every domain."""
+        """Precision at the neuron level for every domain."""
 
-    def get_uncertainties(self, domain: str, x: torch.Tensor) -> torch.Tensor:
+    def get_precision(self, domain: str, x: torch.Tensor) -> torch.Tensor:
         """
-        Get the uncertainty vector (logvar) of given domain and batch
+        Get the precision vector of given domain and batch
 
         Args:
             domain (`str`):
             x (`torch.Tensor`): batch of inputs
 
         Returns:
-            `torch.Tensor`: batch of uncertainties (batch of logvars)
+            `torch.Tensor`: batch of precision
         """
-        return self.log_uncertainties[domain].unsqueeze(0).repeat(x.size(0), 1)
+        return self.precisions[domain].unsqueeze(0).expand(x.size(0), -1)
 
     def _fuse_and_scores(
         self,
@@ -362,18 +362,17 @@ class GWModuleWithUncertainty(GWModule):
             `torch.Tensor`: The merged representation.
         """
         scores: list[torch.Tensor] = []
-        uncertainties: list[torch.Tensor] = []
+        precisions: list[torch.Tensor] = []
         domains: list[torch.Tensor] = []
         for domain, score in selection_scores.items():
             scores.append(score)
-            uncertainties.append(self.get_uncertainties(domain, x[domain]))
+            precisions.append(self.get_precision(domain, x[domain]))
             domains.append(x[domain])
         # Size: D x N x d  (D: number of domains, d: workspace dim)
-        uncertainty_scores = torch.sigmoid(-torch.stack(uncertainties))
+        precision_scores = torch.softmax(torch.stack(precisions), dim=0)
         scores_ = torch.stack(scores)  # Size: D x N (N: batch size)
-        final_scores = scores_.unsqueeze(-1) * uncertainty_scores  # Size D x N x d
-        coef = final_scores.sum(dim=0)
-        final_scores = final_scores / coef
+        final_scores = scores_.unsqueeze(-1) * precision_scores  # Size D x N x d
+        final_scores = final_scores / final_scores.sum(dim=0, keepdim=True)
 
         return torch.tanh(
             torch.sum(final_scores * torch.stack(domains), dim=0)
@@ -391,25 +390,19 @@ class GWModuleWithUncertainty(GWModule):
         dimension of the Global Workspace.
 
         This function needs to merge two kind of scores:
-        * the selection (attention) scores $a\\in [0,1]^{D\\times N}$;
-        * the uncertainty scores $\\sigma \\in R_+^{D\\times N \\times d}$.
-
-        The uncertainty scores are computed from the
-        log-variances $\\log(\\sigma^2)$ with:
-        $$\\s = \\text{sigmoid}(-\\log(\\sigma^2))$$
+        * the selection scores $s\\in [0,1]^{D\\times N}$;
+        * the precision scores $\\mu \\in R_+^{D\\times N \\times d}$.
 
         To combine this score with the selection scores, we multiply the two
         scores:
-        $$S = \\frac{a @ s}{M} \\in [0,1]^{D \\times d}$$
+        $$\\lambda = \\frac{s * \\text{softmax}(\\mu)}{M} \\in [0,1]^{D \\times d}$$
 
         And for domain $k$, batch element $i$ and workspace neuron $j$:
-        $$S_{k,i,j} = \\frac{a_{k,i} s_{k,i,j}}{M_{i,j}}$$
+        $$S_{k,i,j} =
+            \\frac{s_{k,i} e^{\\mu_{k,i,j}}}{M_{i,j}(\\sum_k e^{\\mu_{k,i,j})}$$
 
         To select the normalization coef $M_{i,j}$, we use the following requirement:
         $$\\sum_k S_{k,i,j} = 1$$
-        which yields:
-        $$M_{i,j} = \\sum_k a_{k,i}s_{k,i,j}$$
-
 
         Args:
             x (`LatentsDomainGroupT`): the group of latent representation.
