@@ -594,7 +594,8 @@ def broadcast_loss(
                     )
                     loss_label = (
                         f"from_{selected_group_label}_"
-                        f"through_{inverse_selected_group_label}_to_{domain}"
+                        f"through_{inverse_selected_group_label}_to_{domain}_"
+                        f"case_{"-".join(group_domains)}"
                     )
                     losses[loss_label + "_loss"] = re_loss_output.loss
                     metrics.update(
