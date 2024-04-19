@@ -243,7 +243,7 @@ class DynamicQueryAttention(SelectionBase):
         self, encodings: torch.Tensor, attention_dict: torch.Tensor
     ) -> torch.Tensor:
         # Stack the tensors along a new dimension (dimension 0)
-        stacked_tensors = attention_dict * encodings
+        stacked_tensors = encodings * attention_dict.unsqueeze(2)
         return torch.sum(stacked_tensors, dim=0)
 
     def forward(
