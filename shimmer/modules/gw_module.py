@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 from collections.abc import Iterable, Mapping
-from typing import cast
 
 import torch
 from torch import nn
@@ -142,15 +141,13 @@ class GWModuleBase(nn.Module, ABC):
         """Dimension of the GW"""
 
     @abstractmethod
-    def fuse(
-        self, x: LatentsDomainGroupT, selection_scores: Mapping[str, torch.Tensor]
-    ) -> torch.Tensor:
+    def fuse(self, x: torch.Tensor, selection_scores: torch.Tensor) -> torch.Tensor:
         """
         Merge function used to combine domains.
 
         Args:
-            x (`LatentsDomainGroupT`): the group of latent representation.
-            selection_score (`Mapping[str, torch.Tensor]`): attention scores to
+            x (`torch.Tensor`): the group of latent representation.
+            selection_score (`torch.Tensor`): attention scores to
                 use to encode the reprensetation.
         Returns:
             `torch.Tensor`: The merged representation.
@@ -158,7 +155,7 @@ class GWModuleBase(nn.Module, ABC):
         ...
 
     @abstractmethod
-    def encode(self, x: LatentsDomainGroupT) -> LatentsDomainGroupT:
+    def encode(self, x: LatentsDomainGroupT) -> torch.Tensor:
         """
         Encode the latent representation infos to the pre-fusion GW representation.
 
@@ -239,32 +236,22 @@ class GWModule(GWModuleBase):
 
     def fuse(
         self,
-        x: LatentsDomainGroupT,
-        selection_scores: Mapping[str, torch.Tensor],
+        x: torch.Tensor,
+        selection_scores: torch.Tensor,
     ) -> torch.Tensor:
         """
         Merge function used to combine domains.
 
         Args:
-            x (`LatentsDomainGroupT`): the group of latent representation.
-            selection_score (`Mapping[str, torch.Tensor]`): attention scores to
+            x (`torch.Tensor`): the group of latent representation.
+            selection_score (`torch.Tensor`): attention scores to
                 use to encode the reprensetation.
         Returns:
             `torch.Tensor`: The merged representation.
         """
-        return torch.tanh(
-            torch.sum(
-                torch.stack(
-                    [
-                        selection_scores[domain].unsqueeze(1) * x[domain]
-                        for domain in selection_scores
-                    ]
-                ),
-                dim=0,
-            )
-        )
+        return torch.tanh(torch.sum(selection_scores.unsqueeze(2) * x, dim=0))
 
-    def encode(self, x: LatentsDomainGroupT) -> LatentsDomainGroupT:
+    def encode(self, x: LatentsDomainGroupT) -> torch.Tensor:
         """
         Encode the latent representation infos to the pre-fusion GW representation.
 
@@ -272,12 +259,15 @@ class GWModule(GWModuleBase):
             x (`LatentsDomainGroupT`): the input domain representations.
 
         Returns:
-            `LatentsDomainGroupT`: pre-fusion representation
+            `torch.Tensor`: pre-fusion representation
         """
-        return {
-            domain_name: self.gw_encoders[domain_name](domain)
-            for domain_name, domain in x.items()
-        }
+        return torch.stack(
+            [
+                self.gw_encoders[domain_name](domain)
+                for domain_name, domain in x.items()
+            ],
+            dim=0,
+        )
 
     def decode(
         self, z: torch.Tensor, domains: Iterable[str] | None = None
@@ -323,18 +313,16 @@ class GWModuleWithUncertainty(GWModule):
         """
         super().__init__(domain_modules, workspace_dim, gw_encoders, gw_decoders)
 
-        self.log_uncertainties = cast(
-            dict[str, torch.Tensor],
-            nn.ParameterDict(
-                {domain: torch.randn(workspace_dim) for domain in gw_encoders}
-            ),
+        self.domains = [domain for domain in gw_encoders]
+        self.log_uncertainties = nn.Parameter(
+            torch.randn(len(self.domains), workspace_dim)
         )
         """Log-uncertainty (logvar) at the neuron level for every domain."""
 
     def _fuse_and_scores(
         self,
-        x: LatentsDomainGroupT,
-        selection_scores: Mapping[str, torch.Tensor],
+        x: torch.Tensor,
+        selection_scores: torch.Tensor,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Merge function used to combine domains and return fusion scores.
@@ -342,38 +330,27 @@ class GWModuleWithUncertainty(GWModule):
         This is used for testing purposes.
 
         Args:
-            x (`LatentsDomainGroupT`): the group of latent representation.
-            selection_score (`Mapping[str, torch.Tensor]`): attention scores to
+            x (`torch.Tensor`): the group of latent representation.
+            selection_score (`torch.Tensor`): attention scores to
                 use to encode the reprensetation.
         Returns:
             `torch.Tensor`: The merged representation.
         """
-        scores: list[torch.Tensor] = []
-        uncertainties: list[torch.Tensor] = []
-        domains: list[torch.Tensor] = []
-        for domain, score in selection_scores.items():
-            scores.append(score)
-            uncertainties.append(self.log_uncertainties[domain])
-            domains.append(x[domain])
         # Size: D x d  (D: number of domains, d: workspace dim)
         uncertainty_scores = torch.softmax(
-            torch.sigmoid(-torch.stack(uncertainties)), dim=0
+            torch.sigmoid(-self.log_uncertainties), dim=0
         )
-        scores_ = torch.stack(scores)  # Size: D x N (N: batch size)
         final_scores = torch.bmm(
-            scores_.unsqueeze(-1), uncertainty_scores.unsqueeze(1)
+            selection_scores.unsqueeze(-1), uncertainty_scores.unsqueeze(1)
         )  # Size: D x N x d
         coef = final_scores.sum(dim=0)
         final_scores = final_scores / coef
-
-        return torch.tanh(
-            torch.sum(final_scores * torch.stack(domains), dim=0)
-        ), final_scores
+        return torch.tanh(torch.sum(final_scores * x, dim=0)), final_scores
 
     def fuse(
         self,
-        x: LatentsDomainGroupT,
-        selection_scores: Mapping[str, torch.Tensor],
+        x: torch.Tensor,
+        selection_scores: torch.Tensor,
     ) -> torch.Tensor:
         """
         Merge function used to combine domains.
