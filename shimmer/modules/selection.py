@@ -167,15 +167,6 @@ class RandomSelection(SelectionBase):
     coefficients using a uniform distribution followed by a domain-wise softmax.
     """
 
-    def __init__(self, temperature: float):
-        """
-        Args:
-            temperature (`float`): Temperature of the softmax applied to uniform
-                scaling factors.
-        """
-        super().__init__()
-        self.temperature = temperature
-
     def forward(
         self, domains: LatentsDomainGroupT, encodings_pre_fusion: LatentsDomainGroupT
     ) -> dict[str, torch.Tensor]:
@@ -196,15 +187,13 @@ class RandomSelection(SelectionBase):
         batch_size = group_batch_size(domains)
 
         # Generate uniform scores
-        uniform_scores = torch.rand(batch_size, num_domains)
-
-        # Apply softmax across domains with temperature scaling
-        softmax_scores = torch.softmax(uniform_scores / self.temperature, dim=1)
+        device = group_device(domains)
+        uniform_scores = torch.rand(batch_size, num_domains, device=device)
+        uniform_scores = uniform_scores / uniform_scores.sum(dim=1, keepdim=True)
 
         # Create attention dictionary for each domain
-        device = group_device(domains)
         attention_dict = {
-            domain: softmax_scores[:, i].to(device) for i, domain in enumerate(domains)
+            domain: uniform_scores[:, i] for i, domain in enumerate(domains)
         }
 
         return attention_dict

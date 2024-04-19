@@ -561,7 +561,6 @@ class GlobalWorkspaceFusion(
         gw_decoders: Mapping[str, Module],
         workspace_dim: int,
         loss_coefs: BroadcastLossCoefs,
-        selection_temperature: float = 0.2,
         optim_lr: float = 1e-3,
         optim_weight_decay: float = 0.0,
         scheduler_args: SchedulerArgs | None = None,
@@ -583,8 +582,6 @@ class GlobalWorkspaceFusion(
                 GW representation into a unimodal latent representations.
             workspace_dim (`int`): dimension of the GW.
             loss_coefs (`BroadcastLossCoefs`): loss coefs for the losses.
-            selection_temperature (`float`): temperature value for the RandomSelection
-                module.
             optim_lr (`float`): learning rate
             optim_weight_decay (`float`): weight decay
             scheduler_args (`SchedulerArgs | None`): optimization scheduler's arguments
@@ -602,7 +599,7 @@ class GlobalWorkspaceFusion(
                 torch.tensor([1 / 0.07]).log(), "mean", learn_logit_scale
             )
 
-        selection_mod = RandomSelection(selection_temperature)
+        selection_mod = RandomSelection()
         loss_mod = GWLossesFusion(
             gw_mod, selection_mod, domain_mods, loss_coefs, contrastive_loss
         )
@@ -636,7 +633,6 @@ class GlobalWorkspaceWithUncertainty(
         gw_decoders: Mapping[str, Module],
         workspace_dim: int,
         loss_coefs: BroadcastLossCoefs,
-        selection_temperature: float = 0.2,
         optim_lr: float = 1e-3,
         optim_weight_decay: float = 0.0,
         scheduler_args: SchedulerArgs | None = None,
@@ -658,7 +654,6 @@ class GlobalWorkspaceWithUncertainty(
                 GW representation into a unimodal latent representations.
             workspace_dim (`int`): dimension of the GW.
             loss_coefs (`LossCoefs`): loss coefficients
-            selection_temperature (`float`): temperature for `RandomSelection`
             optim_lr (`float`): learning rate
             optim_weight_decay (`float`): weight decay
             scheduler_args (`SchedulerArgs | None`): optimization scheduler's arguments
@@ -674,7 +669,7 @@ class GlobalWorkspaceWithUncertainty(
             domain_mods, workspace_dim, gw_encoders, gw_decoders
         )
 
-        selection_mod = RandomSelection(selection_temperature)
+        selection_mod = RandomSelection()
 
         contrastive_loss = ContrastiveLoss(
             torch.tensor([1]).log(), "mean", learn_logit_scale

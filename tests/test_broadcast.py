@@ -45,7 +45,6 @@ def test_broadcast_loss():
         gw_decoders,
         workspace_dim,
         loss_coefs,
-        selection_temperature=0.2,
         optim_lr=1e-3,
         optim_weight_decay=0.0,
         scheduler_args=None,  # Simplified for testing

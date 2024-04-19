@@ -4,11 +4,10 @@ from shimmer.modules.selection import RandomSelection
 
 
 def test_multiple_domains():
-    temperature = 1.0
     domain_dim = 12
     batch_size = 2056
 
-    selection = RandomSelection(temperature)
+    selection = RandomSelection()
     multiple_domain_input = {
         "v_latents": torch.rand(batch_size, domain_dim),
         "attr": torch.rand(batch_size, domain_dim),
@@ -35,11 +34,10 @@ def test_multiple_domains():
 
 
 def test_three_domains():
-    temperature = 1.0
     domain_dim = 12
     batch_size = 2056
 
-    selection = RandomSelection(temperature)
+    selection = RandomSelection()
     three_domain_input = {
         "v_latents": torch.rand(batch_size, domain_dim),
         "attr": torch.rand(batch_size, domain_dim),
