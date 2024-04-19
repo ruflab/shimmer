@@ -155,7 +155,7 @@ class GlobalWorkspaceBase(
         """
         return self.gw_mod.encode_and_fuse(x, selection_module)
 
-    def encode(self, x: LatentsDomainGroupT) -> LatentsDomainGroupT:
+    def encode(self, x: LatentsDomainGroupT) -> torch.Tensor:
         """
         Encode latent representations into the pre-fusion GW representation.
 
@@ -168,7 +168,7 @@ class GlobalWorkspaceBase(
             x (`LatentsDomainGroupT`): the input domain representations.
 
         Returns:
-            `LatensDomainGroupT`: the GW representations.
+            `torch.Tensor`: the GW representations.
         """
         return self.gw_mod.encode(x)
 
