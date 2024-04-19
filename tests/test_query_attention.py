@@ -11,13 +11,13 @@ def test_single_domain():
     attention = DynamicQueryAttention(batch_size, domain_dim, head_size, domains)
 
     single_domain_input = {"v_latents": torch.rand(batch_size, domain_dim)}
-    prefusion_encodings = {"v_latents": torch.rand(batch_size, domain_dim)}
+    prefusion_encodings = torch.rand(1, batch_size, domain_dim)
 
     attention_scores = attention(single_domain_input, prefusion_encodings)
 
-    expected_scores = torch.ones(batch_size, 1)
+    expected_scores = torch.ones(batch_size)
     assert torch.allclose(
-        attention_scores["v_latents"], expected_scores
+        attention_scores[0], expected_scores
     ), "Attention scores for single domain should be all 1s"
 
 
@@ -33,15 +33,10 @@ def test_multiple_domains_sumis1():
         "v_latents": torch.rand(batch_size, domain_dim),
         "attr": torch.rand(batch_size, domain_dim),
     }
-    prefusion_encodings = {
-        "v_latents": torch.rand(batch_size, domain_dim),
-        "attr": torch.rand(batch_size, domain_dim),
-    }
+    prefusion_encodings = torch.rand(2, batch_size, domain_dim)
     attention_scores = attention(multiple_domain_input, prefusion_encodings)
 
-    scores_sum = sum(
-        attention_scores[domain].squeeze() for domain in multiple_domain_input
-    )
+    scores_sum = attention_scores.sum(dim=0)
     assert isinstance(scores_sum, torch.Tensor)
 
     expected_sum = torch.ones(batch_size)
@@ -63,13 +58,9 @@ def test_attention_backward():
         "v_latents": torch.rand(batch_size, domain_dim, requires_grad=True),
         "attr": torch.rand(batch_size, domain_dim, requires_grad=True),
     }
-    prefusion_encodings = {
-        "v_latents": torch.rand(batch_size, domain_dim, requires_grad=True),
-        "attr": torch.rand(batch_size, domain_dim, requires_grad=True),
-    }
+    prefusion_encodings = torch.rand(2, batch_size, domain_dim, requires_grad=True)
 
     attention_scores = attention(domains, prefusion_encodings)
 
-    loss = sum(score.mean() for score in attention_scores.values())
-
+    loss = attention_scores.mean(dim=1).sum(dim=0)
     assert isinstance(loss, torch.Tensor)
