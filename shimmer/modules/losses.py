@@ -242,8 +242,8 @@ def contrastive_loss(
             continue
 
         cont_latents = gw_mod.encode(latents)
-        for domain1, z1 in cont_latents.items():
-            for domain2, z2 in cont_latents.items():
+        for k1, domain1 in enumerate(latents):
+            for k2, domain2 in enumerate(latents):
                 selected_domains = {domain1, domain2}
                 if domain1 == domain2 or selected_domains in keys:
                     continue
@@ -251,7 +251,7 @@ def contrastive_loss(
                 keys.append(selected_domains)
 
                 loss_name = f"contrastive_{domain1}_and_{domain2}"
-                loss_output = contrastive_fn(z1, z2)
+                loss_output = contrastive_fn(cont_latents[k1], cont_latents[k2])
                 losses[loss_name] = loss_output.loss
                 metrics.update(
                     {f"{loss_name}_{k}": v for k, v in loss_output.metrics.items()}
@@ -295,21 +295,22 @@ def contrastive_loss_with_uncertainty(
     for latents in latent_domains.values():
         if len(latents) < 2:
             continue
-        for domain1_name, domain1 in latents.items():
-            z1 = gw_mod.encode({domain1_name: domain1})[domain1_name]
-            z1_uncertainty = gw_mod.log_uncertainties[domain1_name]
-            for domain2_name, domain2 in latents.items():
-                selected_domains = {domain1_name, domain2_name}
-                if domain1_name == domain2_name or selected_domains in keys:
+        cont_latents = gw_mod.encode(latents)
+        for k1, domain1 in enumerate(latents):
+            for k2, domain2 in enumerate(latents):
+                selected_domains = {domain1, domain2}
+                if domain1 == domain2 or selected_domains in keys:
                     continue
-
                 keys.append(selected_domains)
 
-                loss_name = f"contrastive_{domain1_name}_and_{domain2_name}"
-                z2 = gw_mod.encode({domain2_name: domain2})[domain2_name]
-                z2_uncertainty = gw_mod.log_uncertainties[domain2_name]
+                z1 = cont_latents[k1]
+                z1_uncertainty = gw_mod.log_uncertainties[k1]
+                z2 = cont_latents[k2]
+                z2_uncertainty = gw_mod.log_uncertainties[k2]
                 norm = 1.0 + z1_uncertainty.exp() + z2_uncertainty.exp()
                 loss_output = contrastive_fn(z1 / norm, z2 / norm)
+
+                loss_name = f"contrastive_{domain1}_and_{domain2}"
                 losses[loss_name] = loss_output.loss
                 metrics.update(
                     {f"{loss_name}_{k}": v for k, v in loss_output.metrics.items()}
@@ -538,9 +539,8 @@ def broadcast_loss(
                 for domain, present in zip(domain_names, partition, strict=True)
                 if present
             }
-            selected_encoded_latents = {
-                domain: encoded_latents[domain] for domain in selected_latents
-            }
+            selected_domains = torch.Tensor(partition, device=encoded_latents.device)
+            selected_encoded_latents = encoded_latents[selected_domains == 1]
             selected_group_label = "{" + ", ".join(sorted(selected_latents)) + "}"
 
             selection_scores = selection_mod(selected_latents, selected_encoded_latents)
