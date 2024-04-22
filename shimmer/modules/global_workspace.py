@@ -648,6 +648,8 @@ class GlobalWorkspaceWithConfidence(
         workspace_dim: int,
         loss_coefs: BroadcastLossCoefs,
         selection_temperature: float = 0.2,
+        sensitivity_selection: float = 1,
+        sensitivity_confidence: float = 1,
         optim_lr: float = 1e-3,
         optim_weight_decay: float = 0.0,
         scheduler_args: SchedulerArgs | None = None,
@@ -670,6 +672,8 @@ class GlobalWorkspaceWithConfidence(
             workspace_dim (`int`): dimension of the GW.
             loss_coefs (`LossCoefs`): loss coefficients
             selection_temperature (`float`): temperature for `RandomSelection`
+            sensitivity_selection (`float`): sensivity coef $c'_1$
+            sensitivity_confidence (`float`): sensitivity coef $c'_2$
             optim_lr (`float`): learning rate
             optim_weight_decay (`float`): weight decay
             scheduler_args (`SchedulerArgs | None`): optimization scheduler's arguments
@@ -682,7 +686,12 @@ class GlobalWorkspaceWithConfidence(
         domain_mods = freeze_domain_modules(domain_mods)
 
         gw_mod = GWModuleWithConfidence(
-            domain_mods, workspace_dim, gw_encoders, gw_decoders
+            domain_mods,
+            workspace_dim,
+            gw_encoders,
+            gw_decoders,
+            sensitivity_selection,
+            sensitivity_confidence,
         )
 
         selection_mod = RandomSelection(selection_temperature)

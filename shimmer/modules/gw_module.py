@@ -353,6 +353,8 @@ class GWModuleWithConfidence(GWModule):
             gw_decoders (`Mapping[str, torch.nn.Module]`): mapping for each domain
                 name to a an torch.nn.Module class that decodes a
                  GW representation to a unimodal latent representation.
+            sensitivity_selection (`float`): sensivity coef $c'_1$
+            sensitivity_confidence (`float`): sensitivity coef $c'_2$
         """
         super().__init__(domain_modules, workspace_dim, gw_encoders, gw_decoders)
 
