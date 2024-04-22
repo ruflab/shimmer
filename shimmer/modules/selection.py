@@ -194,17 +194,17 @@ class RandomSelection(SelectionBase):
         """
         num_domains = len(domains)
         batch_size = group_batch_size(domains)
+        device = group_device(domains)
 
         # Generate uniform scores
-        uniform_scores = torch.rand(batch_size, num_domains)
+        uniform_scores = torch.rand(batch_size, num_domains, device=device)
 
         # Apply softmax across domains with temperature scaling
         softmax_scores = torch.softmax(uniform_scores / self.temperature, dim=1)
 
         # Create attention dictionary for each domain
-        device = group_device(domains)
         attention_dict = {
-            domain: softmax_scores[:, i].to(device) for i, domain in enumerate(domains)
+            domain: softmax_scores[:, i] for i, domain in enumerate(domains)
         }
 
         return attention_dict
