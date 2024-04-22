@@ -31,8 +31,8 @@ class SelectionBase(torch.nn.Module, ABC):
 
     @abstractmethod
     def forward(
-        self, domains: LatentsDomainGroupT, encodings_pre_fusion: LatentsDomainGroupT
-    ) -> dict[str, torch.Tensor]:
+        self, domains: LatentsDomainGroupT, encodings_pre_fusion: torch.Tensor
+    ) -> torch.Tensor:
         """
         Forward pass of the selection method.
 
@@ -40,21 +40,22 @@ class SelectionBase(torch.nn.Module, ABC):
             domains (`LatentsDomainGroupT`): Group of unimodal latent representations.
 
         Returns:
-            `dict[str, torch.Tensor]`: for each domain in the group, the fusion
+            `torch.Tensor`: for each domain in the group, the fusion
             coefficient for each item in the batch.
 
         Example:
             >>> SomeSelectionImplementation().forward(
-            ...     {"v": torch.randn(3, 4), "t": torch.randn(3, 8)}
+            ...     {"v": torch.randn(3, 4), "t": torch.randn(3, 8)},
+            ...     torch.randn(2, 3, 12),
             ... )
-            {"v": torch.Tensor([0.0, 0.4, 1.0]), "t": torch.Tensor([1.0, 0.6, 0.0])}
+            torch.Tensor([[0.0, 0.4, 1.0], [1.0, 0.6, 0.0]])}
         """
         ...
 
     # This is just for proper auto-completion...
     def __call__(
-        self, domains: LatentsDomainGroupT, encodings_pre_fusion: LatentsDomainGroupT
-    ) -> dict[str, torch.Tensor]:
+        self, domains: LatentsDomainGroupT, encodings_pre_fusion: torch.Tensor
+    ) -> torch.Tensor:
         return super().__call__(domains, encodings_pre_fusion)
 
 
@@ -68,24 +69,24 @@ class SingleDomainSelection(SelectionBase):
     """
 
     def forward(
-        self, domains: LatentsDomainGroupT, encodings_pre_fusion: LatentsDomainGroupT
-    ) -> dict[str, torch.Tensor]:
+        self, domains: LatentsDomainGroupT, encodings_pre_fusion: torch.Tensor
+    ) -> torch.Tensor:
         """
         Forward pass of the module.
 
         Args:
             domains (`LatentsDomainGroupT`): input unimodal latent representations
-            gw_state (`torch.Tensor`): the previous GW state
+            encodings_pre_fusion (`torch.Tensor`): pre-fusion GW representation
 
         Returns:
-            `dict[str, torch.Tensor]`: whether the domain is selected for each input
-            in the batch.
+            `torch.Tensor`: whether the domain is selected for each input in the batch.
         """
-        selection: dict[str, torch.Tensor] = {}
         bs = group_batch_size(domains)
-        choice = torch.randint(len(domains), size=(bs,), device=group_device(domains))
-        for k, domain in enumerate(domains.keys()):
-            selection[domain] = (choice == k).to(torch.float32)
+        device = group_device(domains)
+        selection = torch.zeros(len(domains), bs, device=device)
+        choice = torch.randint(len(domains), size=(bs,), device=device)
+        for k in range(selection.size(0)):
+            selection[k] = (choice == k).to(torch.float32)
         return selection
 
 
@@ -120,16 +121,17 @@ class KQFixedQSelection(SelectionBase):
         self.gw_state = gw_state
 
     def forward(
-        self, domains: LatentsDomainGroupT, encodings_pre_fusion: LatentsDomainGroupT
-    ) -> dict[str, torch.Tensor]:
+        self, domains: LatentsDomainGroupT, encodings_pre_fusion: torch.Tensor
+    ) -> torch.Tensor:
         """
         Compute keys and queries, match them with dot product and softmax.
 
         Args:
             domains (`LatentsDomainGroupT`): Group of unimodal latent representations.
+            encodings_pre_fusion (`torch.Tensor`): pre-fusion GW representation
 
         Returns:
-            `dict[str, torch.Tensor]`: for each domain in the group, the fusion
+            `torch.Tensor`: for each domain in the group, the fusion
             coefficient for each item in the batch.
         """
 
@@ -149,15 +151,10 @@ class KQFixedQSelection(SelectionBase):
             for domain, key in keys.items()
         }
 
-        dot_products_tensor = torch.stack(list(dot_products.values()), dim=1)
+        dot_products_tensor = torch.stack(list(dot_products.values()), dim=0)
+        attention_scores = torch.softmax(dot_products_tensor, dim=0)
 
-        attention_scores = torch.softmax(dot_products_tensor, dim=1)
-
-        attention_dict = {
-            domain: attention_scores[:, i : i + 1] for i, domain in enumerate(keys)
-        }
-
-        return attention_dict
+        return attention_scores
 
 
 class RandomSelection(SelectionBase):
@@ -177,8 +174,8 @@ class RandomSelection(SelectionBase):
         self.temperature = temperature
 
     def forward(
-        self, domains: LatentsDomainGroupT, encodings_pre_fusion: LatentsDomainGroupT
-    ) -> dict[str, torch.Tensor]:
+        self, domains: LatentsDomainGroupT, encodings_pre_fusion: torch.Tensor
+    ) -> torch.Tensor:
         """
         Generate uniform-then-domain-wise-softmaxed samples for each domain.
 
@@ -186,9 +183,10 @@ class RandomSelection(SelectionBase):
             domains (`LatentsDomainGroupT`): Group of unimodal latent representations.
                 This is not used in the function directly but determines the structure
                 of the returned attention coefficients.
+            encodings_pre_fusion (`torch.Tensor`): pre-fusion GW representation
 
         Returns:
-            `dict[str, torch.Tensor]`: For each domain in the group, the fusion
+            `torch.Tensor`: For each domain in the group, the fusion
             coefficient for each item in the batch, based solely on
             uniform-softmax scores.
         """
@@ -197,17 +195,10 @@ class RandomSelection(SelectionBase):
         device = group_device(domains)
 
         # Generate uniform scores
-        uniform_scores = torch.rand(batch_size, num_domains, device=device)
+        uniform_scores = torch.rand(num_domains, batch_size, device=device)
 
         # Apply softmax across domains with temperature scaling
-        softmax_scores = torch.softmax(uniform_scores / self.temperature, dim=1)
-
-        # Create attention dictionary for each domain
-        attention_dict = {
-            domain: softmax_scores[:, i] for i, domain in enumerate(domains)
-        }
-
-        return attention_dict
+        return torch.softmax(uniform_scores / self.temperature, dim=0)
 
 
 class DynamicQueryAttention(SelectionBase):
@@ -237,54 +228,37 @@ class DynamicQueryAttention(SelectionBase):
         self.gw_state = torch.rand(batch_size, domain_dim)
 
     def calculate_attention_dict(
-        self, keys: dict, query: torch.Tensor
-    ) -> dict[str, torch.Tensor]:
+        self, keys: dict[str, torch.Tensor], query: torch.Tensor
+    ) -> torch.Tensor:
         dot_products = {
             domain: torch.bmm(key.unsqueeze(1), query.unsqueeze(2)).squeeze()
             for domain, key in keys.items()
         }
 
-        dot_products_tensor = torch.stack(list(dot_products.values()), dim=1)
+        dot_products_tensor = torch.stack(list(dot_products.values()), dim=0)
 
-        attention_scores = torch.softmax(dot_products_tensor, dim=1)
-
-        attention_dict = {
-            domain: attention_scores[:, i : i + 1] for i, domain in enumerate(keys)
-        }
-        return attention_dict
+        return torch.softmax(dot_products_tensor, dim=0)
 
     def fuse_weighted_encodings(
-        self, encodings: LatentsDomainGroupT, attention_dict: dict[str, torch.Tensor]
+        self, encodings: torch.Tensor, attention_dict: torch.Tensor
     ) -> torch.Tensor:
-        # Apply attention scores to the encodings
-        weighted_encodings = {}
-        for key in attention_dict:
-            if key in encodings:
-                # Perform element-wise multiplication and store the result
-                weighted_encodings[key] = attention_dict[key] * encodings[key]
-
         # Stack the tensors along a new dimension (dimension 0)
-        stacked_tensors = torch.stack(list(weighted_encodings.values()))
-
-        # Apply fusion by summing along the newly created dimension
-        summed_tensor = torch.sum(stacked_tensors, dim=0)
-
-        return summed_tensor
+        stacked_tensors = attention_dict * encodings
+        return torch.sum(stacked_tensors, dim=0)
 
     def forward(
-        self, domains: LatentsDomainGroupT, encodings_pre_fusion: LatentsDomainGroupT
-    ) -> dict[str, torch.Tensor]:
+        self, domains: LatentsDomainGroupT, encodings_pre_fusion: torch.Tensor
+    ) -> torch.Tensor:
         """
         Compute keys and queries, match them with dot product and softmax.
         Does this twice, once with the static query and once with a dynamic query.
 
         Args:
             domains (`LatentsDomainGroupT`): Group of unimodal latent representations.
-            encodings (`LatentsDomainGroupT`): Group of pre-fusion encodings.
+            encodings_pre_fusion (`torch.Tensor`): Group of pre-fusion encodings.
 
         Returns:
-            `dict[str, torch.Tensor]`: the attention scores for each domain in the
-            group.
+            `torch.Tensor`: the attention scores for each domain in the group.
         """
 
         # Encoding with pytorch
@@ -295,9 +269,10 @@ class DynamicQueryAttention(SelectionBase):
 
         # This for training (cpu or gpu)
         device = group_device(domains)
+        self.gw_state = self.gw_state.to(device)
 
         # Retrieve query
-        query = self.query_layer(self.gw_state.to(device))
+        query = self.query_layer(self.gw_state)
 
         # Calculate the attention scores
         static_attention_dict = self.calculate_attention_dict(keys, query)
@@ -308,9 +283,7 @@ class DynamicQueryAttention(SelectionBase):
         )
 
         # Retrieve query (now it is dependent on the new gw state)
-        query = self.query_layer(summed_tensor.to(device))
+        query = self.query_layer(summed_tensor)
 
         # Calculate the attention scores again
-        dynamic_attention_dict = self.calculate_attention_dict(keys, query)
-
-        return dynamic_attention_dict
+        return self.calculate_attention_dict(keys, query)
