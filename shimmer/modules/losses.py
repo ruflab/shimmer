@@ -530,6 +530,7 @@ def broadcast_loss(
         encoded_latents = gw_mod.encode(latents)
         partitions = generate_partitions(len(group_domains))
         domain_names = list(latents)
+        group_name = "-".join(group_domains)
 
         for partition in partitions:
             selected_latents = {
@@ -547,7 +548,7 @@ def broadcast_loss(
             decoded_latents = gw_mod.decode(fused_latents)
 
             num_active_domains = sum(partition)
-            num_total_domains = len(partition)
+            num_total_domains = len(decoded_latents)
 
             for domain, pred in decoded_latents.items():
                 if domain not in group_domains:  # if we don't have ground truth
@@ -594,7 +595,8 @@ def broadcast_loss(
                     )
                     loss_label = (
                         f"from_{selected_group_label}_"
-                        f"through_{inverse_selected_group_label}_to_{domain}"
+                        f"through_{inverse_selected_group_label}_to_{domain}_"
+                        f"case_{group_name}"
                     )
                     losses[loss_label + "_loss"] = re_loss_output.loss
                     metrics.update(
