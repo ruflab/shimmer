@@ -16,6 +16,7 @@ from shimmer.types import (
     LatentsDomainGroupsDT,
     LatentsDomainGroupsT,
     RawDomainGroupsT,
+    RawDomainGroupT,
 )
 
 
@@ -61,7 +62,7 @@ class DynamicAttention(LightningModule):
         domain_dim: int,
         head_size: int,
         domain_names: Sequence[str],
-        criterion: Callable[[torch.Tensor, RawDomainGroupsT], torch.Tensor],
+        criterion: Callable[[torch.Tensor, RawDomainGroupT], torch.Tensor],
         optim_lr: float,
         scheduler_args: SchedulerArgs | None = None,
     ):
@@ -101,15 +102,22 @@ class DynamicAttention(LightningModule):
             },
         }
 
-    def forward(self, single_domain_input, prefusion_encodings):
-        return self.attention(single_domain_input, prefusion_encodings)
+    def forward(
+        self,
+        single_domain_input: LatentsDomainGroupsT,
+        prefusion_encodings: LatentsDomainGroupsT,
+    ) -> LatentsDomainGroupsDT:
+        return {
+            domains: self.attention(latents, prefusion_encodings[domains])
+            for domains, latents in single_domain_input.items()
+        }
 
     def apply_corruption(
         self,
         batch: LatentsDomainGroupsT,
         corruption_vector: torch.Tensor | None = None,
         corrupted_domain: str | None = None,
-    ) -> LatentsDomainGroupsT:
+    ) -> LatentsDomainGroupsDT:
         """
         Apply corruption to the batch.
 
@@ -141,39 +149,54 @@ class DynamicAttention(LightningModule):
 
         return matched_data_dict
 
-    def generic_step(
-        self, batch: RawDomainGroupsT, batch_idx: int
-    ) -> Tensor | Mapping[str, Any] | None:
+    def generic_step(self, batch: RawDomainGroupsT, mode: str) -> Tensor:
         latent_domains = self.gw_module.encode_domains(batch)
 
         corrupted_batch = self.apply_corruption(latent_domains)
 
         prefusion_encodings = self.gw_module.encode(corrupted_batch)
         attention_scores = self.forward(corrupted_batch, prefusion_encodings)
-        merged_gw_representation = self.gw_module.gw_mod.fuse(
+        merged_gw_representation = self.gw_module.fuse(
             prefusion_encodings, attention_scores
         )
-
-        loss = self.criterion(merged_gw_representation, batch)
-
-        for name, metric in loss.all.items():
+        losses = []
+        for domain_names, domains in merged_gw_representation.items():
+            losses.append(self.criterion(domains, batch[domain_names]))
             self.log(
-                f"{name}",
-                metric,
-                batch_size=self.batch_size,
-                add_dataloader_idx=False,
+                f"{mode}/{domain_names}_loss",
+                losses[-1],
+                batch_size=domains.size(0),
             )
+        loss = torch.stack(losses).mean()
+        self.log("loss", loss, on_step=True, on_epoch=True)
+
         return loss
 
     def training_step(
         self, batch: RawDomainGroupsT, batch_idx: int
     ) -> Tensor | Mapping[str, Any] | None:  # type: ignore
-        return self.generic_step(batch, batch_idx)
+        return self.generic_step(batch, "train")
 
-    def validation_step(
-        self, *args: Any, **kwargs: Any
-    ) -> Tensor | Mapping[str, Any] | None:
-        return super().validation_step(*args, **kwargs)
+    def validation_step(  # type: ignore
+        self, data: RawDomainGroupT, batch_idx: int, dataloader_idx: int = 0
+    ) -> torch.Tensor:
+        """Validation step used by lightning"""
 
-    def test_step(self, *args: Any, **kwargs: Any) -> Tensor | Mapping[str, Any] | None:
-        return super().test_step(*args, **kwargs)
+        batch = {frozenset(data.keys()): data}
+        for domain in data:
+            batch[frozenset([domain])] = {domain: data[domain]}
+        if dataloader_idx == 0:
+            return self.generic_step(batch, mode="val")
+        return self.generic_step(batch, mode="val/ood")
+
+    def test_step(  # type: ignore
+        self, data: Mapping[str, Any], batch_idx: int, dataloader_idx: int = 0
+    ) -> torch.Tensor:
+        """Test step used by lightning"""
+
+        batch = {frozenset(data.keys()): data}
+        for domain in data:
+            batch[frozenset([domain])] = {domain: data[domain]}
+        if dataloader_idx == 0:
+            return self.generic_step(batch, mode="test")
+        return self.generic_step(batch, mode="test/ood")
