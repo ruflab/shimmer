@@ -84,11 +84,13 @@ def test_training():
     assert unimodal_latents["v"].size() == (32, 128)
 
     selection_module = SingleDomainSelection()
-    workspace_latent = gw.encode_and_fuse(unimodal_latents, selection_module)
+    workspace_latent = gw.gw_mod.encode_and_fuse(unimodal_latents, selection_module)
 
     assert workspace_latent.size() == (32, 16)
 
-    reconstructed_unimodal_latents = gw.decode(workspace_latent, domains={"v", "a"})
+    reconstructed_unimodal_latents = gw.gw_mod.decode(
+        workspace_latent, domains={"v", "a"}
+    )
 
     assert reconstructed_unimodal_latents.keys() == {"v", "a"}
     assert reconstructed_unimodal_latents["v"].size() == (32, 128)

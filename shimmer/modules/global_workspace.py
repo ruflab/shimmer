@@ -32,7 +32,6 @@ from shimmer.modules.utils import batch_cycles, batch_demi_cycles, batch_transla
 from shimmer.types import (
     LatentsDomainGroupsDT,
     LatentsDomainGroupsT,
-    LatentsDomainGroupT,
     ModelModeT,
     RawDomainGroupsDT,
     RawDomainGroupsT,
@@ -136,52 +135,63 @@ class GlobalWorkspaceBase(
         return self.gw_mod.workspace_dim
 
     def encode_and_fuse(
-        self, x: LatentsDomainGroupT, selection_module: SelectionBase
-    ) -> torch.Tensor:
+        self, x: LatentsDomainGroupsT, selection_module: SelectionBase
+    ) -> dict[frozenset[str], torch.Tensor]:
         """
-        Encode latent representations into the GW representation.
-
-        This directly calls `GWModuleBase.encode_and_fuse` and is a convenient proxy to
-        ```python
-        self.gw_mod.encode_and_fuse(x, selection_scores)
-        ```
+        Encode a group of latent representations into the GW representation.
 
         Args:
-            x (`LatentsDomainGroupT`): the input domain representations.
+            x (`LatentsDomainGroupsT`): the input domain representations.
             selection_scores (`Mapping[str, torch.Tensor]`):
 
         Returns:
-            `torch.Tensor`: the GW representations.
+            `dict[frozenset[str], torch.Tensor]`: the GW representations.
         """
-        return self.gw_mod.encode_and_fuse(x, selection_module)
+        return {
+            domains: self.gw_mod.encode_and_fuse(latents, selection_module)
+            for domains, latents in x.items()
+        }
 
-    def encode(self, x: LatentsDomainGroupT) -> LatentsDomainGroupT:
+    def encode(self, x: LatentsDomainGroupsT) -> LatentsDomainGroupsDT:
         """
-        Encode latent representations into the pre-fusion GW representation.
-
-        This directly calls `GWModuleBase.encode` and is a convenient proxy to
-        ```python
-        self.gw_mod.encode(x)
-        ```
+        Encode a group of latent representations into the pre-fusion GW representation.
 
         Args:
-            x (`LatentsDomainGroupT`): the input domain representations.
+            x (`LatentsDomainGroupsT`): the input domain representations.
 
         Returns:
-            `LatensDomainGroupT`: the GW representations.
+            `LatensDomainGroupsDT`: the GW representations.
         """
-        return self.gw_mod.encode(x)
+        return {domains: self.gw_mod.encode(latents) for domains, latents in x.items()}
+
+    def fuse(
+        self,
+        x: LatentsDomainGroupsT,
+        selection_scores: Mapping[frozenset[str], Mapping[str, torch.Tensor]],
+    ) -> dict[frozenset[str], torch.Tensor]:
+        """
+        Fuses a group of latent representations into the GW representation.
+
+        Args:
+            x (`LatentsDomainGroupsT`): the pre-fusion latent representations
+            selection_scores (`Mapping[frozenset[str], Mapping[str, torch.Tensor]]`):
+                selection scores for each group
+
+        Returns:
+            `dict[frozenset[str], torch.Tensor]`: GW representation of each group
+        """
+        return {
+            domains: self.gw_mod.fuse(latents, selection_scores[domains])
+            for domains, latents in x.items()
+        }
 
     def decode(
-        self, z: torch.Tensor, domains: Iterable[str] | None = None
-    ) -> dict[str, torch.Tensor]:
+        self,
+        z: Mapping[frozenset[str], torch.Tensor],
+        domains: Iterable[str] | None = None,
+    ) -> LatentsDomainGroupsDT:
         """
-        Decode the GW representation into given `domains`.
-
-        This directly calls `GWModuleBase.decode` and is a convenient proxy to
-        ```python
-        self.gw_mod.decode(x)
-        ```
+        Decode the group GW representation into given `domains`.
 
         Args:
             z (`torch.Tensor`): the GW representation.
@@ -190,7 +200,10 @@ class GlobalWorkspaceBase(
         Returns:
             `dict[str, torch.Tensor]`: the decoded unimodal representations.
         """
-        return self.gw_mod.decode(z, domains)
+        return {
+            domain_names: self.gw_mod.decode(gw_rep, domains)
+            for domain_names, gw_rep in z.items()
+        }
 
     def forward(  # type: ignore
         self,

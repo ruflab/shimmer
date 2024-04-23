@@ -158,7 +158,7 @@ class GWModuleBase(nn.Module, ABC):
         ...
 
     @abstractmethod
-    def encode(self, x: LatentsDomainGroupT) -> LatentsDomainGroupT:
+    def encode(self, x: LatentsDomainGroupT) -> LatentsDomainGroupDT:
         """
         Encode the latent representation infos to the pre-fusion GW representation.
 
@@ -264,7 +264,7 @@ class GWModule(GWModuleBase):
             )
         )
 
-    def encode(self, x: LatentsDomainGroupT) -> LatentsDomainGroupT:
+    def encode(self, x: LatentsDomainGroupT) -> LatentsDomainGroupDT:
         """
         Encode the latent representation infos to the pre-fusion GW representation.
 
