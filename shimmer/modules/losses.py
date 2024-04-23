@@ -7,7 +7,11 @@ import torch
 
 from shimmer.modules.contrastive_loss import ContrastiveLossType
 from shimmer.modules.domain import DomainModule, LossOutput
-from shimmer.modules.gw_module import GWModule, GWModuleBase, GWModuleWithConfidence
+from shimmer.modules.gw_module import (
+    GWModule,
+    GWModuleBase,
+    GWModuleWithConfidence,
+)
 from shimmer.modules.selection import SelectionBase
 from shimmer.types import LatentsDomainGroupsT, ModelModeT
 
@@ -297,7 +301,7 @@ def contrastive_loss_with_confidence(
             continue
         for domain1_name, domain1 in latents.items():
             z1 = gw_mod.encode({domain1_name: domain1})[domain1_name]
-            z1_confidence = gw_mod.get_precision(domain1_name, domain1)
+            z1_precision = gw_mod.get_precision(domain1_name, domain1)
             for domain2_name, domain2 in latents.items():
                 selected_domains = {domain1_name, domain2_name}
                 if domain1_name == domain2_name or selected_domains in keys:
@@ -307,8 +311,8 @@ def contrastive_loss_with_confidence(
 
                 loss_name = f"contrastive_{domain1_name}_and_{domain2_name}"
                 z2 = gw_mod.encode({domain2_name: domain2})[domain2_name]
-                z2_confidence = gw_mod.get_precision(domain2_name, domain2)
-                coef = torch.stack([z1_confidence, z2_confidence]).softmax(dim=0)
+                z2_precision = gw_mod.get_precision(domain2_name, domain2)
+                coef = torch.stack([z1_precision, z2_precision]).softmax(dim=0)
                 loss_output = contrastive_fn(
                     z1 * coef[0] * coef[1], z2 * coef[0] * coef[1]
                 )

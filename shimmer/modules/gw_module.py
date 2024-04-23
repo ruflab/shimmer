@@ -299,33 +299,31 @@ class GWModule(GWModuleBase):
 
 
 def compute_fusion_scores(
-    selection_scores: torch.Tensor,
-    precision_scores: torch.Tensor,
-    sensitivity_selection: float,
-    sensitivity_precision: float,
+    score_1: torch.Tensor,
+    score_2: torch.Tensor,
+    sensitivity_1: float = 1.0,
+    sensitivity_2: float = 1.0,
+    eps: float = 1e-6,
 ) -> torch.Tensor:
     """
     Combine precision scores using std summation in quadrature
 
-    In the following, D is the number of domains, N the batch size, and d the dimension
-    of the GW.
+    The two scores should have the same dimension.
 
     Args:
-        selection_scores (`torch.Tensor`): scores givent by the selection module.
-            Size: $D \\times N$
-        precision_scores (`torch.Tensor`): precision scores predicted by the model.
-            Size: $D \\times N \\times d$.
-        sensitivity_selection (`float`): sensitivity for the selection
-        sensitivity_precision (`float`): sensitivity for the precision
+        score_1 (`torch.Tensor`): First scores.
+        score_2 (`torch.Tensor`): Second scores.
+        sensitivity_1 (`float`): sensitivity for the first score
+        sensitivity_2 (`float`): sensitivity for the second score
+        eps (`float`): a value added to avoid numerical unstability.
 
     Returns:
         `torch.Tensor`: the combined scores
     """
-    total_uncertainty = (
-        sensitivity_selection / selection_scores.unsqueeze(-1)
-        + sensitivity_precision / precision_scores
+    total_uncertainty = sensitivity_1 / (eps + score_1) + sensitivity_2 / (
+        eps + score_2
     )
-    final_scores = 1 / total_uncertainty
+    final_scores = 1 / (eps + total_uncertainty)
     return final_scores / final_scores.sum(dim=0, keepdim=True)
 
 
@@ -438,7 +436,7 @@ class GWModuleWithConfidence(GWModule):
             precisions.append(self.get_precision(domain, x[domain]))
             domains.append(x[domain])
         combined_scores = compute_fusion_scores(
-            torch.stack(scores),
+            torch.stack(scores).unsqueeze(-1),
             torch.softmax(torch.stack(precisions), dim=0),
             self.sensitivity_selection,
             self.sensitivity_confidence,
