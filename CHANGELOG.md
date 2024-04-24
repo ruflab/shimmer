@@ -62,4 +62,4 @@ refers to `DeterministicGlobalWorkspace`.
     loss functions.
 * Remove many _with_uncertainty functions. The GWModuleWithUncertainty now behaves like
     the other GWModules.
-* Rename all "with_uncertainty" stuff to "with_confidence"
+* Rename all "with_uncertainty" stuff to "bayesian"

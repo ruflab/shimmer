@@ -10,7 +10,7 @@ from shimmer.modules.domain import DomainModule, LossOutput
 from shimmer.modules.gw_module import (
     GWModule,
     GWModuleBase,
-    GWModuleWithConfidence,
+    GWModuleBayesian,
 )
 from shimmer.modules.selection import SelectionBase
 from shimmer.types import LatentsDomainGroupsT, ModelModeT
@@ -266,13 +266,13 @@ def contrastive_loss(
     return losses
 
 
-def contrastive_loss_with_confidence(
-    gw_mod: GWModuleWithConfidence,
+def contrastive_loss_bayesian(
+    gw_mod: GWModuleBayesian,
     latent_domains: LatentsDomainGroupsT,
     contrastive_fn: ContrastiveLossType,
 ) -> dict[str, torch.Tensor]:
     """
-    Computes the contrastive loss with confidence.
+    Computes the contrastive loss with a Bayesian based uncertainty prediction.
 
     This return multiple metrics:
         * `contrastive_{domain_1}_and_{domain_2}` with the contrastive
@@ -284,9 +284,9 @@ def contrastive_loss_with_confidence(
             `contrastive_{domain_1}_and_{domain_2}` values.
 
     Args:
-        gw_mod (`GWModuleWithConfidence`): The GWModule to use
+        gw_mod (`GWModuleBayesian`): The GWModule to use
         latent_domains (`LatentsDomainGroupsT`): the latent unimodal groups
-        contrastive_fn (`ContrastiveLossWithConfidenceType`): the contrastive function
+        contrastive_fn (`ContrastiveLossBayesianType`): the contrastive function
             to apply
 
     Returns:
@@ -751,24 +751,24 @@ class GWLossesFusion(GWLossesBase):
         return LossOutput(loss, metrics)
 
 
-class GWLossesWithConfidence(GWLossesBase):
+class GWLossesBayesian(GWLossesBase):
     """
-    Implementation of `GWLossesBase` used for `GWModuleWithConfidence`.
+    Implementation of `GWLossesBase` used for `GWModuleBayesian`.
     """
 
     def __init__(
         self,
-        gw_mod: GWModuleWithConfidence,
+        gw_mod: GWModuleBayesian,
         selection_mod: SelectionBase,
         domain_mods: dict[str, DomainModule],
         loss_coefs: BroadcastLossCoefs,
         contrastive_fn: ContrastiveLossType,
     ):
         """
-        Loss module with confidence to use with the GlobalWorkspaceWithConfidence
+        Loss module with uncertainty prediction to use with the GlobalWorkspaceBayesian
 
         Args:
-            gw_mod (`GWModuleWithConfidence`): the GWModule
+            gw_mod (`GWModuleBayesian`): the GWModule
             selection_mod (`SelectionBase`): selection module
             domain_mods (`dict[str, DomainModule]`): a dict where the key is the
                 domain name and value is the DomainModule
@@ -792,7 +792,7 @@ class GWLossesWithConfidence(GWLossesBase):
 
         self.contrastive_fn = contrastive_fn
         """
-        Contrastive loss to use without the use of confidence.
+        Contrastive loss to use.
         """
 
     def contrastive_loss(
@@ -807,7 +807,7 @@ class GWLossesWithConfidence(GWLossesBase):
         Returns:
             `dict[str, torch.Tensor]`: a dict of metrics.
         """
-        return contrastive_loss_with_confidence(
+        return contrastive_loss_bayesian(
             self.gw_mod, latent_domains, self.contrastive_fn
         )
 

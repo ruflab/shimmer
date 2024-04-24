@@ -327,8 +327,8 @@ def compute_fusion_scores(
     return final_scores / final_scores.sum(dim=0, keepdim=True)
 
 
-class GWModuleWithConfidence(GWModule):
-    """`GWModule` with confidence information."""
+class GWModuleBayesian(GWModule):
+    """`GWModule` with a Bayesian based uncertainty prediction."""
 
     def __init__(
         self,
@@ -337,10 +337,10 @@ class GWModuleWithConfidence(GWModule):
         gw_encoders: Mapping[str, nn.Module],
         gw_decoders: Mapping[str, nn.Module],
         sensitivity_selection: float = 1,
-        sensitivity_confidence: float = 1,
+        sensitivity_precision: float = 1,
     ) -> None:
         """
-        Initializes the GWModuleWithConfidence.
+        Initializes the GWModuleBayesian.
 
         Args:
             domain_modules (`Mapping[str, DomainModule]`): the domain modules.
@@ -352,7 +352,7 @@ class GWModuleWithConfidence(GWModule):
                 name to a an torch.nn.Module class that decodes a
                  GW representation to a unimodal latent representation.
             sensitivity_selection (`float`): sensivity coef $c'_1$
-            sensitivity_confidence (`float`): sensitivity coef $c'_2$
+            sensitivity_precision (`float`): sensitivity coef $c'_2$
         """
         super().__init__(domain_modules, workspace_dim, gw_encoders, gw_decoders)
 
@@ -365,7 +365,7 @@ class GWModuleWithConfidence(GWModule):
         """Precision at the neuron level for every domain."""
 
         self.sensitivity_selection = sensitivity_selection
-        self.sensitivity_confidence = sensitivity_confidence
+        self.sensitivity_precision = sensitivity_precision
 
     def get_precision(self, domain: str, x: torch.Tensor) -> torch.Tensor:
         """
@@ -439,7 +439,7 @@ class GWModuleWithConfidence(GWModule):
             torch.stack(scores).unsqueeze(-1),
             torch.softmax(torch.stack(precisions), dim=0),
             self.sensitivity_selection,
-            self.sensitivity_confidence,
+            self.sensitivity_precision,
         )
         return torch.tanh(
             torch.sum(
