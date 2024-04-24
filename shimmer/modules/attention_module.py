@@ -5,13 +5,13 @@ from typing import Any
 import torch
 from lightning.pytorch import LightningModule
 from lightning.pytorch.utilities.types import OptimizerLRSchedulerConfig
-from modules.selection import DynamicQueryAttention, SelectionBase
 from torch import Tensor, nn
 from torch.optim.lr_scheduler import OneCycleLR
 
 from shimmer.modules.global_workspace import GlobalWorkspaceBase, SchedulerArgs
 from shimmer.modules.gw_module import GWModuleBase
 from shimmer.modules.losses import GWLossesBase
+from shimmer.modules.selection import DynamicQueryAttention, SelectionBase
 from shimmer.types import (
     LatentsDomainGroupsDT,
     LatentsDomainGroupsT,

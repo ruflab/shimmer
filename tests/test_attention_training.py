@@ -1,38 +1,46 @@
+import torch
+import torch.nn as nn
 from utils import DummyDataset, DummyDomainModule
 
-from shimmer import GlobalWorkspace, GWDecoder, GWEncoder
+from shimmer import GlobalWorkspaceBase, GWDecoder, GWEncoder
 from shimmer.modules.attention_module import ClassificationHead, DynamicAttention
+
+
+class DummyCriterion(nn.Module):
+    def __init__(self, latent_dim: int):
+        super().__init__()
+        self.classification_head = ClassificationHead(
+            input_dim=latent_dim, output_dim=3
+        )
+
+    def forward(self, input, target):
+        # Calculate some dummy loss
+        loss = torch.mean(input - target)  # Dummy loss calculation
+        return loss
 
 
 def test_attention_training():
     train_dataset = DummyDataset(
         size=128,
-        domains=["v", "t"],
+        domains=["v_latents", "attr"],
     )
 
     domains = {
-        "v": DummyDomainModule(latent_dim=128),
-        "t": DummyDomainModule(latent_dim=128),
-        "a": DummyDomainModule(latent_dim=128),
+        "v_latents": DummyDomainModule(latent_dim=128),
+        "attr": DummyDomainModule(latent_dim=128),
     }
 
     workspace_dim = 16
 
     gw_encoders = {
-        "v": GWEncoder(
-            domains["v"].latent_dim,
+        "v_latents": GWEncoder(
+            domains["v_latents"].latent_dim,
             hidden_dim=64,
             out_dim=workspace_dim,
             n_layers=1,
         ),
-        "t": GWEncoder(
-            domains["t"].latent_dim,
-            hidden_dim=64,
-            out_dim=workspace_dim,
-            n_layers=1,
-        ),
-        "a": GWEncoder(
-            domains["a"].latent_dim,
+        "attr": GWEncoder(
+            domains["attr"].latent_dim,
             hidden_dim=64,
             out_dim=workspace_dim,
             n_layers=1,
@@ -40,45 +48,36 @@ def test_attention_training():
     }
 
     gw_decoders = {
-        "v": GWDecoder(
+        "v_latents": GWDecoder(
             workspace_dim,
             hidden_dim=64,
-            out_dim=domains["v"].latent_dim,
+            out_dim=domains["v_latents"].latent_dim,
             n_layers=1,
         ),
-        "t": GWDecoder(
+        "attr": GWDecoder(
             workspace_dim,
             hidden_dim=64,
-            out_dim=domains["t"].latent_dim,
-            n_layers=1,
-        ),
-        "a": GWDecoder(
-            workspace_dim,
-            hidden_dim=64,
-            out_dim=domains["a"].latent_dim,
+            out_dim=domains["attr"].latent_dim,
             n_layers=1,
         ),
     }
 
-    gw = GlobalWorkspace(
-        domains,
-        gw_encoders,
-        gw_decoders,
-        workspace_dim=16,
-        loss_coefs={},
-    )
+    gw = GlobalWorkspaceBase(domains, gw_encoders, gw_decoders)
 
-    batch_size = 32
+    # Initialize attention mechanism
     domain_dim = 12
-    head_size = 6
-    domain_names = ["v_latents", "attr"]
+    head_size = 5
+    batch_size = 2056
+    domains = ("v_latents", "attr")
 
-    criterion = ClassificationHead(domain_dim)
+    criterion = DummyCriterion(domain_dim)
     optim_lr = 1e-3
 
     attention_module = DynamicAttention(
-        gw, batch_size, domain_dim, head_size, domain_names, criterion, optim_lr
+        gw, batch_size, domain_dim, head_size, domains, criterion, optim_lr
     )
+
+    # # Test forward pass
 
     # # Test apply corruption
 
