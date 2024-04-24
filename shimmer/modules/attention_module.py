@@ -62,7 +62,7 @@ class DynamicAttention(LightningModule):
         domain_dim: int,
         head_size: int,
         domain_names: Sequence[str],
-        criterion: Callable[[torch.Tensor, RawDomainGroupT], torch.Tensor],
+        criterion: Callable[[torch.Tensor, RawDomainGroupT, Any], torch.Tensor],
         optim_lr: float = 1e-3,
         optim_weight_decay: float = 0.0,
         scheduler_args: SchedulerArgs | None = None,
@@ -171,9 +171,13 @@ class DynamicAttention(LightningModule):
             prefusion_encodings, attention_scores
         )
         losses = []
+        # Assuming merged_gw_representation is a dictionary
+        num_items = len(merged_gw_representation.items())
+
+        print("Number of items:", num_items)
         for domain_names, domains in merged_gw_representation.items():
-            print(domains.size(0))
-            losses.append(self.criterion(domains, batch[domain_names]))
+            assert domains.size(0) == 2056, "Tensor size is not 2056"
+            losses.append(self.criterion(domains, batch[domain_names], domain_names))
             self.log(
                 f"{mode}/{domain_names}_loss",
                 losses[-1],
