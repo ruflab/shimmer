@@ -142,7 +142,7 @@ class DynamicAttention(LightningModule):
         """
         if corrupted_domain is None:
             # Specify which domain will be corrupted
-            corrupted_domain = random.choice(self.domain_names)
+            corrupted_domain = random.choice(list(self.domain_names))
 
         matched_data_dict: LatentsDomainGroupsDT = {}
         for domain_names, domains in batch.items():
