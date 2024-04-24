@@ -63,7 +63,8 @@ class DynamicAttention(LightningModule):
         head_size: int,
         domain_names: Sequence[str],
         criterion: Callable[[torch.Tensor, RawDomainGroupT], torch.Tensor],
-        optim_lr: float,
+        optim_lr: float = 1e-3,
+        optim_weight_decay: float = 0.0,
         scheduler_args: SchedulerArgs | None = None,
     ):
         super().__init__()
@@ -76,7 +77,10 @@ class DynamicAttention(LightningModule):
         self.domain_names = domain_names
         self.criterion = criterion
         self.optim_lr = optim_lr
+        self.optim_weight_decay = optim_weight_decay
         self.scheduler_args = SchedulerArgs(max_lr=optim_lr, total_steps=1)
+        if scheduler_args is not None:
+            self.scheduler_args.update(scheduler_args)
 
     def configure_optimizers(self) -> OptimizerLRSchedulerConfig:
         """
