@@ -171,9 +171,8 @@ class DynamicAttention(LightningModule):
             prefusion_encodings, attention_scores
         )
         losses = []
-        print(merged_gw_representation)
         for domain_names, domains in merged_gw_representation.items():
-            assert domains.size(0) == 2056, "Tensor size is not 2056"
+            print(domains.size(0))
             losses.append(self.criterion(domains, batch[domain_names]))
             self.log(
                 f"{mode}/{domain_names}_loss",
