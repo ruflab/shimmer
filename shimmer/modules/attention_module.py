@@ -68,7 +68,20 @@ class DynamicAttention(LightningModule):
         scheduler_args: SchedulerArgs | None = None,
     ):
         super().__init__()
-        self.save_hyperparameters(ignore=["criterion"])
+        self.save_hyperparameters(
+            ignore=[
+                "gw_mod",
+                "selection_mod",
+                "domain_mods",
+                "loss_mod",
+                "domain_descriptions",
+                "contrastive_loss",
+                "cont_loss_with_uncertainty",
+                "gw_encoders",
+                "gw_decoders",
+                "criterion",
+            ]
+        )
 
         self.gw_module = gw_module
         self.attention = DynamicQueryAttention(
