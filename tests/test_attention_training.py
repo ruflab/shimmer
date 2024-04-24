@@ -2,8 +2,13 @@ import torch
 import torch.nn as nn
 from utils import DummyDataset, DummyDomainModule
 
-from shimmer import GlobalWorkspaceBase, GWDecoder, GWEncoder
+from shimmer import GWDecoder, GWEncoder
 from shimmer.modules.attention_module import ClassificationHead, DynamicAttention
+from shimmer.modules.global_workspace import (
+    GlobalWorkspaceFusion,
+    SchedulerArgs,
+)
+from shimmer.modules.losses import BroadcastLossCoefs
 
 
 class DummyCriterion(nn.Module):
@@ -61,8 +66,30 @@ def test_attention_training():
             n_layers=1,
         ),
     }
+    latent_dim = 12
+    # loss_coefs_fusion: BroadcastLossCoefs = {
+    #     "contrastives": 0.05,
+    #     "broadcast": 1.0,
+    # }
+    loss_coefs_fusion: BroadcastLossCoefs = {"contrastives": 0.05}
+    optim_lr = 0.005
+    weight_decay = 1e-06
 
-    gw = GlobalWorkspaceBase(domains, gw_encoders, gw_decoders)
+    module = GlobalWorkspaceFusion(
+        domains,
+        gw_encoders,
+        gw_decoders,
+        latent_dim,
+        loss_coefs_fusion,
+        optim_lr,
+        weight_decay,
+        scheduler_args=SchedulerArgs(
+            max_lr=0.005,
+            total_steps=100000,
+        ),
+        learn_logit_scale=False,
+        contrastive_loss=None,
+    )
 
     # Initialize attention mechanism
     domain_dim = 12
@@ -74,9 +101,21 @@ def test_attention_training():
     optim_lr = 1e-3
 
     attention_module = DynamicAttention(
-        gw, batch_size, domain_dim, head_size, domains, criterion, optim_lr
+        module, batch_size, domain_dim, head_size, domains, criterion, optim_lr
     )
 
+    # trainer = Trainer(
+    #     logger=wandb_logger,
+    #     fast_dev_run=config.training.fast_dev_run,
+    #     max_steps=config.training.max_steps,
+    #     enable_progress_bar=config.training.enable_progress_bar,
+    #     default_root_dir=config.default_root_dir,
+    #     callbacks=callbacks,
+    #     precision=config.training.precision,
+    #     accelerator=config.training.accelerator,
+    #     devices=config.training.devices,
+    # )
+    # trainer.fit(attention_module, train_dataloader)
     # # Test forward pass
 
     # # Test apply corruption
