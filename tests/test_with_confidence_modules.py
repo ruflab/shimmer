@@ -54,7 +54,10 @@ def test_confidence_fusion():
         precisions.append(gw_module.get_precision(domain, pre_fusion_reps[domain]))
         domains_.append(pre_fusion_reps[domain])
     combined_scores = compute_fusion_scores(
-        torch.stack(scores), torch.softmax(torch.stack(precisions), dim=0), 1, 1
+        torch.stack(scores).unsqueeze(-1),
+        torch.softmax(torch.stack(precisions), dim=0),
+        1,
+        1,
     )
     assert torch.allclose(
         combined_scores.sum(dim=0), torch.ones_like(combined_scores.sum(dim=0))
