@@ -5,7 +5,7 @@ from utils import DummyDataset, DummyDomainModule
 from shimmer import GWDecoder, GWEncoder
 from shimmer.modules.attention_module import ClassificationHead, DynamicAttention
 from shimmer.modules.global_workspace import (
-    GlobalWorkspaceFusion,
+    GlobalWorkspaceBase,
     SchedulerArgs,
 )
 from shimmer.modules.losses import BroadcastLossCoefs
@@ -75,7 +75,7 @@ def test_attention_training():
     optim_lr = 0.005
     weight_decay = 1e-06
 
-    module = GlobalWorkspaceFusion(
+    module = GlobalWorkspaceBase(
         domains,
         gw_encoders,
         gw_decoders,
@@ -101,8 +101,13 @@ def test_attention_training():
     optim_lr = 1e-3
 
     attention_module = DynamicAttention(
-        module, batch_size, domain_dim, head_size, domains, criterion, optim_lr
+        module, batch_size, domain_dim, head_size, domains, criterion
     )
+    for batch in train_dataset:
+        print(batch)
+        return
+        module.encode_domains(batch)
+        corrupted_vector = attention_module.apply_corruption(batch)
 
     # trainer = Trainer(
     #     logger=wandb_logger,
