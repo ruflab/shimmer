@@ -70,15 +70,11 @@ class DynamicAttention(LightningModule):
         super().__init__()
         self.save_hyperparameters(
             ignore=[
-                "gw_mod",
-                "selection_mod",
-                "domain_mods",
-                "loss_mod",
-                "domain_descriptions",
-                "contrastive_loss",
-                "cont_loss_with_uncertainty",
-                "gw_encoders",
-                "gw_decoders",
+                "gw_module",
+                "batch_size",
+                "domain_dim",
+                "head_size",
+                "domain_names",
                 "criterion",
             ]
         )
