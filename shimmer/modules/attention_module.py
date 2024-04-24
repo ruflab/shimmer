@@ -155,22 +155,14 @@ class DynamicAttention(LightningModule):
 
     def generic_step(self, batch: RawDomainGroupsT, mode: str) -> Tensor:
         latent_domains = self.gw_module.encode_domains(batch)
-        print(f"latent_domains: {latent_domains}")
-        # corrupted_batch = self.apply_corruption(latent_domains)
-        # print(f"corrupted_batch: {corrupted_batch}")
-        corrupted_batch = latent_domains
+        corrupted_batch = self.apply_corruption(latent_domains)
         prefusion_encodings = self.gw_module.encode(corrupted_batch)
-        print(f"prefusion_encodings: {prefusion_encodings}")
         attention_scores = self.forward(corrupted_batch, prefusion_encodings)
-        print(f"attention_scores: {attention_scores}")
         merged_gw_representation = self.gw_module.fuse(
             prefusion_encodings, attention_scores
         )
-        print(f"merged_gw_representation: {merged_gw_representation}")
         losses = []
         for domain_names, domains in merged_gw_representation.items():
-            print(f"domain_names: {domain_names}")
-            print(f"domains: {domains}")
             losses.append(self.criterion(domains, batch[domain_names]))
             self.log(
                 f"{mode}/{domain_names}_loss",
