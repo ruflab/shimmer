@@ -249,7 +249,7 @@ class DynamicQueryAttention(SelectionBase):
         attention_scores = torch.softmax(dot_products_tensor, dim=1)
 
         attention_dict = {
-            domain: attention_scores[:, i : i + 1] for i, domain in enumerate(keys)
+            domain: attention_scores[:, i] for i, domain in enumerate(keys)
         }
         return attention_dict
 
