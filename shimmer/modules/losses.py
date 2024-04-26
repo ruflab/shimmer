@@ -299,9 +299,10 @@ def contrastive_loss_bayesian(
     for latents in latent_domains.values():
         if len(latents) < 2:
             continue
+        precisions = gw_mod.get_precision(latents)
         for domain1_name, domain1 in latents.items():
             z1 = gw_mod.encode({domain1_name: domain1})[domain1_name]
-            z1_precision = gw_mod.get_precision(domain1_name, domain1)
+            z1_precision = precisions[domain1_name]
             for domain2_name, domain2 in latents.items():
                 selected_domains = {domain1_name, domain2_name}
                 if domain1_name == domain2_name or selected_domains in keys:
@@ -311,10 +312,9 @@ def contrastive_loss_bayesian(
 
                 loss_name = f"contrastive_{domain1_name}_and_{domain2_name}"
                 z2 = gw_mod.encode({domain2_name: domain2})[domain2_name]
-                z2_precision = gw_mod.get_precision(domain2_name, domain2)
-                coef = torch.stack([z1_precision, z2_precision]).softmax(dim=0)
+                z2_precision = precisions[domain2_name]
                 loss_output = contrastive_fn(
-                    z1 * coef[0] * coef[1], z2 * coef[0] * coef[1]
+                    z1 * z1_precision * z2_precision, z2 * z1_precision * z2_precision
                 )
                 losses[loss_name] = loss_output.loss
                 metrics.update(

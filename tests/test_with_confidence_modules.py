@@ -2,7 +2,6 @@ import torch
 from utils import DummyDomainModule
 
 from shimmer import GWDecoder, GWEncoder, GWModuleBayesian
-from shimmer.modules.gw_module import compute_fusion_scores
 
 
 def test_bayesian_fusion():
@@ -42,23 +41,5 @@ def test_bayesian_fusion():
         for domain_name, domain in domains.items()
     }
 
-    pre_fusion_reps = gw_module.encode(batch)
-    selection_scores = {
-        domain: torch.full((batch_size,), 1.0 / 3.0) for domain in gw_encoders
-    }
-    scores: list[torch.Tensor] = []
-    precisions: list[torch.Tensor] = []
-    domains_: list[torch.Tensor] = []
-    for domain, score in selection_scores.items():
-        scores.append(score)
-        precisions.append(gw_module.get_precision(domain, pre_fusion_reps[domain]))
-        domains_.append(pre_fusion_reps[domain])
-    combined_scores = compute_fusion_scores(
-        torch.stack(scores).unsqueeze(-1),
-        torch.softmax(torch.stack(precisions), dim=0),
-        1,
-        1,
-    )
-    assert torch.allclose(
-        combined_scores.sum(dim=0), torch.ones_like(combined_scores.sum(dim=0))
-    )
+    precisions = torch.stack(list(gw_module.get_precision(batch).values()))
+    assert torch.allclose(precisions.sum(dim=0), torch.ones_like(precisions.sum(dim=0)))

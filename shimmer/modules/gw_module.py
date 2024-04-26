@@ -8,6 +8,7 @@ from torch import nn
 from shimmer.modules.domain import DomainModule
 from shimmer.modules.selection import SelectionBase
 from shimmer.types import LatentsDomainGroupDT, LatentsDomainGroupT
+from shimmer.utils import group_batch_size
 
 
 def get_n_layers(n_layers: int, hidden_dim: int) -> list[nn.Module]:
@@ -367,18 +368,21 @@ class GWModuleBayesian(GWModule):
         self.sensitivity_selection = sensitivity_selection
         self.sensitivity_precision = sensitivity_precision
 
-    def get_precision(self, domain: str, x: torch.Tensor) -> torch.Tensor:
+    def get_precision(self, x: LatentsDomainGroupT) -> dict[str, torch.Tensor]:
         """
         Get the precision vector of given domain and batch
-
-        Args:
-            domain (`str`):
-            x (`torch.Tensor`): batch of inputs
 
         Returns:
             `torch.Tensor`: batch of precision
         """
-        return self.precisions[domain].unsqueeze(0).expand(x.size(0), -1)
+        batch_size = group_batch_size(x)
+        precisions = (
+            torch.stack([precision for precision in self.precisions.values()], dim=0)
+            .softmax(dim=0)
+            .unsqueeze(1)
+            .expand(-1, batch_size, -1)
+        )
+        return {domain: precisions[k] for k, domain in enumerate(self.precisions)}
 
     def fuse(
         self,
@@ -431,19 +435,14 @@ class GWModuleBayesian(GWModule):
         scores: list[torch.Tensor] = []
         precisions: list[torch.Tensor] = []
         domains: list[torch.Tensor] = []
+        precision_scores = self.get_precision(x)
         for domain, score in selection_scores.items():
             scores.append(score)
-            precisions.append(self.get_precision(domain, x[domain]))
+            precisions.append(precision_scores[domain])
             domains.append(x[domain])
-        combined_scores = compute_fusion_scores(
-            torch.stack(scores).unsqueeze(-1),
-            torch.softmax(torch.stack(precisions), dim=0),
-            self.sensitivity_selection,
-            self.sensitivity_precision,
-        )
         return torch.tanh(
             torch.sum(
-                combined_scores * torch.stack(domains),
+                torch.stack(precisions) * torch.stack(domains),
                 dim=0,
             )
         )
