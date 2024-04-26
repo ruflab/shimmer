@@ -1,10 +1,11 @@
 import torch
 from utils import DummyDomainModule
 
-from shimmer import GWDecoder, GWEncoder, GWModuleWithUncertainty
+from shimmer import GWDecoder, GWEncoder, GWModuleBayesian
+from shimmer.modules.gw_module import compute_fusion_scores
 
 
-def test_uncertainty_fusion():
+def test_bayesian_fusion():
     domains = {
         "v": DummyDomainModule(latent_dim=2),
         "t": DummyDomainModule(latent_dim=4),
@@ -33,9 +34,7 @@ def test_uncertainty_fusion():
         for domain_name, domain in domains.items()
     }
 
-    gw_module = GWModuleWithUncertainty(
-        domains, workspace_dim, gw_encoders, gw_decoders
-    )
+    gw_module = GWModuleBayesian(domains, workspace_dim, gw_encoders, gw_decoders)
 
     batch_size = 32
     batch = {
@@ -47,5 +46,19 @@ def test_uncertainty_fusion():
     selection_scores = {
         domain: torch.full((batch_size,), 1.0 / 3.0) for domain in gw_encoders
     }
-    _, scores = gw_module._fuse_and_scores(pre_fusion_reps, selection_scores)
-    assert torch.allclose(scores.sum(dim=0), torch.ones_like(scores.sum(dim=0)))
+    scores: list[torch.Tensor] = []
+    precisions: list[torch.Tensor] = []
+    domains_: list[torch.Tensor] = []
+    for domain, score in selection_scores.items():
+        scores.append(score)
+        precisions.append(gw_module.get_precision(domain, pre_fusion_reps[domain]))
+        domains_.append(pre_fusion_reps[domain])
+    combined_scores = compute_fusion_scores(
+        torch.stack(scores).unsqueeze(-1),
+        torch.softmax(torch.stack(precisions), dim=0),
+        1,
+        1,
+    )
+    assert torch.allclose(
+        combined_scores.sum(dim=0), torch.ones_like(combined_scores.sum(dim=0))
+    )

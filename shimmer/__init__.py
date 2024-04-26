@@ -8,7 +8,7 @@ from shimmer.modules.domain import DomainModule, LossOutput
 from shimmer.modules.global_workspace import (
     GlobalWorkspace,
     GlobalWorkspaceBase,
-    GlobalWorkspaceWithUncertainty,
+    GlobalWorkspaceBayesian,
     GWPredictions,
     SchedulerArgs,
     pretrained_global_workspace,
@@ -19,13 +19,13 @@ from shimmer.modules.gw_module import (
     GWEncoderLinear,
     GWModule,
     GWModuleBase,
-    GWModuleWithUncertainty,
+    GWModuleBayesian,
 )
 from shimmer.modules.losses import (
     BroadcastLossCoefs,
     GWLosses,
     GWLossesBase,
-    GWLossesWithUncertainty,
+    GWLossesBayesian,
     LossCoefs,
 )
 from shimmer.modules.selection import (
@@ -69,7 +69,7 @@ __all__ = [
     "GWPredictions",
     "GlobalWorkspaceBase",
     "GlobalWorkspace",
-    "GlobalWorkspaceWithUncertainty",
+    "GlobalWorkspaceBayesian",
     "pretrained_global_workspace",
     "LossOutput",
     "DomainModule",
@@ -78,7 +78,7 @@ __all__ = [
     "GWEncoderLinear",
     "GWModuleBase",
     "GWModule",
-    "GWModuleWithUncertainty",
+    "GWModuleBayesian",
     "ContrastiveLossType",
     "contrastive_loss",
     "ContrastiveLoss",
@@ -86,7 +86,7 @@ __all__ = [
     "BroadcastLossCoefs",
     "GWLossesBase",
     "GWLosses",
-    "GWLossesWithUncertainty",
+    "GWLossesBayesian",
     "RepeatedDataset",
     "batch_cycles",
     "batch_demi_cycles",

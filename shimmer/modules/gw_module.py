@@ -298,8 +298,37 @@ class GWModule(GWModuleBase):
         }
 
 
-class GWModuleWithUncertainty(GWModule):
-    """`GWModule` with uncertainty information."""
+def compute_fusion_scores(
+    score_1: torch.Tensor,
+    score_2: torch.Tensor,
+    sensitivity_1: float = 1.0,
+    sensitivity_2: float = 1.0,
+    eps: float = 1e-6,
+) -> torch.Tensor:
+    """
+    Combine precision scores using std summation in quadrature
+
+    The two scores should have the same dimension.
+
+    Args:
+        score_1 (`torch.Tensor`): First scores.
+        score_2 (`torch.Tensor`): Second scores.
+        sensitivity_1 (`float`): sensitivity for the first score
+        sensitivity_2 (`float`): sensitivity for the second score
+        eps (`float`): a value added to avoid numerical unstability.
+
+    Returns:
+        `torch.Tensor`: the combined scores
+    """
+    total_uncertainty = sensitivity_1 / (eps + score_1) + sensitivity_2 / (
+        eps + score_2
+    )
+    final_scores = 1 / (eps + total_uncertainty)
+    return final_scores / final_scores.sum(dim=0, keepdim=True)
+
+
+class GWModuleBayesian(GWModule):
+    """`GWModule` with a Bayesian based uncertainty prediction."""
 
     def __init__(
         self,
@@ -307,9 +336,11 @@ class GWModuleWithUncertainty(GWModule):
         workspace_dim: int,
         gw_encoders: Mapping[str, nn.Module],
         gw_decoders: Mapping[str, nn.Module],
+        sensitivity_selection: float = 1,
+        sensitivity_precision: float = 1,
     ) -> None:
         """
-        Initializes the GWModuleWithUncertainty.
+        Initializes the GWModuleBayesian.
 
         Args:
             domain_modules (`Mapping[str, DomainModule]`): the domain modules.
@@ -320,55 +351,34 @@ class GWModuleWithUncertainty(GWModule):
             gw_decoders (`Mapping[str, torch.nn.Module]`): mapping for each domain
                 name to a an torch.nn.Module class that decodes a
                  GW representation to a unimodal latent representation.
+            sensitivity_selection (`float`): sensivity coef $c'_1$
+            sensitivity_precision (`float`): sensitivity coef $c'_2$
         """
         super().__init__(domain_modules, workspace_dim, gw_encoders, gw_decoders)
 
-        self.log_uncertainties = cast(
+        self.precisions = cast(
             dict[str, torch.Tensor],
             nn.ParameterDict(
                 {domain: torch.randn(workspace_dim) for domain in gw_encoders}
             ),
         )
-        """Log-uncertainty (logvar) at the neuron level for every domain."""
+        """Precision at the neuron level for every domain."""
 
-    def _fuse_and_scores(
-        self,
-        x: LatentsDomainGroupT,
-        selection_scores: Mapping[str, torch.Tensor],
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+        self.sensitivity_selection = sensitivity_selection
+        self.sensitivity_precision = sensitivity_precision
+
+    def get_precision(self, domain: str, x: torch.Tensor) -> torch.Tensor:
         """
-        Merge function used to combine domains and return fusion scores.
-
-        This is used for testing purposes.
+        Get the precision vector of given domain and batch
 
         Args:
-            x (`LatentsDomainGroupT`): the group of latent representation.
-            selection_score (`Mapping[str, torch.Tensor]`): attention scores to
-                use to encode the reprensetation.
-        Returns:
-            `torch.Tensor`: The merged representation.
-        """
-        scores: list[torch.Tensor] = []
-        uncertainties: list[torch.Tensor] = []
-        domains: list[torch.Tensor] = []
-        for domain, score in selection_scores.items():
-            scores.append(score)
-            uncertainties.append(self.log_uncertainties[domain])
-            domains.append(x[domain])
-        # Size: D x d  (D: number of domains, d: workspace dim)
-        uncertainty_scores = torch.softmax(
-            torch.sigmoid(-torch.stack(uncertainties)), dim=0
-        )
-        scores_ = torch.stack(scores)  # Size: D x N (N: batch size)
-        final_scores = torch.bmm(
-            scores_.unsqueeze(-1), uncertainty_scores.unsqueeze(1)
-        )  # Size: D x N x d
-        coef = final_scores.sum(dim=0)
-        final_scores = final_scores / coef
+            domain (`str`):
+            x (`torch.Tensor`): batch of inputs
 
-        return torch.tanh(
-            torch.sum(final_scores * torch.stack(domains), dim=0)
-        ), final_scores
+        Returns:
+            `torch.Tensor`: batch of precision
+        """
+        return self.precisions[domain].unsqueeze(0).expand(x.size(0), -1)
 
     def fuse(
         self,
@@ -382,25 +392,34 @@ class GWModuleWithUncertainty(GWModule):
         dimension of the Global Workspace.
 
         This function needs to merge two kind of scores:
-        * the selection scores $s\\in [0,1]^{D\\times N}$;
-        * the uncertainty scores $\\sigma \\in R_+^{D\\times N \\times d}$.
+        * the selection scores $a\\in [0,1]^{D\\times N}$;
+        * the precision scores $b \\in [0,1]^{D\\times N \\times d}$.
 
-        The uncertainty scores are computed from the
-        log-variances $\\log(\\sigma)$ with:
-        $$\\mu = \\text{softmax}(\\text{sigmoid}(-\\log(\\sigma)))$$
+        .. note::
+            The precision score is obtained by predicting logits and using a softmax
 
-        To combine this score with the selection scores, we multiply the two
-        scores:
-        $$S = \\frac{s @ \\mu}{M} \\in [0,1]^{D \\times N \\times d}$$
+        We can obtain associated uncertainties to the scores by introducing a std
+        variable and using bayesian integration:
 
-        And for domain $k$, batch element $i$ and workspace neuron $j$:
-        $$S_{k,i,j} = \\frac{s_{k,i} \\mu_{k,i,j}}{M_{i,j}}$$
+        $$a_k = \\frac{M_1}{\\sigma_k^2}$$
+        where $M_1 = \\frac{1}{\\sum_{i=1}^D \\frac{1}{\\sigma_i^2}}$.
 
-        To select the normalization coef $M_{i,j}$, we use the following requirement:
-        $$\\sum_k S_{k,i,j} = 1$$
-        which yields:
-        $$M{i,j} = \\sum_k s_{k,i}\\mu_{k,i,j}$$
+        Similarly,
+        $$b_k = \\frac{M_2}{\\mu_k^2}$$
+        where $M_2 = \\frac{1}{\\sum_{i=1}^D \\frac{1}{\\mu_i^2}}$.
 
+        The we can sum the variances to obtain the final uncertainty (squared) $\\xi$:
+        $$\\xi_k^2 = c_1 \\sigma_k^2 + c_2 \\mu_k^2$$
+
+        which, in terms of $a_k$ and $b_k$ yields:
+        $$\\xi_k^2 = \\frac{c'_1}{a_k} + \\frac{c'_2}{b_k}$$
+        where $c'_1 = c_1 \\cdot M_1$ and $c'_2 = c_2 \\cdot M_2$.
+
+        Finally, the finale combined coefficient is
+        $$\\lambda_k = \\frac{M_3}{\\frac{c'_1}{a_k} + \\frac{c'_2}{b_k}}$$
+        where
+        $$M_3 = \\frac{1}{\\sum_{i=1}^D
+            \\frac{1}{\\frac{c'_1}{a_i} + \\frac{c'_2}{b_i}}$$
 
         Args:
             x (`LatentsDomainGroupT`): the group of latent representation.
@@ -409,4 +428,22 @@ class GWModuleWithUncertainty(GWModule):
         Returns:
             `torch.Tensor`: The merged representation.
         """
-        return self._fuse_and_scores(x, selection_scores)[0]
+        scores: list[torch.Tensor] = []
+        precisions: list[torch.Tensor] = []
+        domains: list[torch.Tensor] = []
+        for domain, score in selection_scores.items():
+            scores.append(score)
+            precisions.append(self.get_precision(domain, x[domain]))
+            domains.append(x[domain])
+        combined_scores = compute_fusion_scores(
+            torch.stack(scores).unsqueeze(-1),
+            torch.softmax(torch.stack(precisions), dim=0),
+            self.sensitivity_selection,
+            self.sensitivity_precision,
+        )
+        return torch.tanh(
+            torch.sum(
+                combined_scores * torch.stack(domains),
+                dim=0,
+            )
+        )
