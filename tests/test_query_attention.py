@@ -3,6 +3,45 @@ import torch
 from shimmer.modules.selection import DynamicQueryAttention
 
 
+def test_things():
+    x = {
+        frozenset(["vision"]): {
+            "vision": torch.Tensor([[1.0, 0.0, 0.3], [1.0, 0.0, 0.3]]),
+        },
+        frozenset(["language"]): {
+            "language": torch.Tensor([[1.0, 0.2, 0.9], [1.0, 0.2, 0.9]]),
+        },
+        frozenset(["vision", "language"]): {
+            "vision": torch.Tensor([[1.0, 0.0, 0.3], [1.0, 0.0, 0.3]]),
+            "language": torch.Tensor([[1.0, 0.2, 0.9], [1.0, 0.2, 0.9]]),
+        },
+    }
+
+    y = {
+        frozenset(["vision"]): {
+            "vision": torch.Tensor([[1.0, 0.0, 0.3], [1.0, 0.0, 0.3]]),
+        },
+        frozenset(["language"]): {
+            "language": torch.Tensor([[1.0, 0.2, 0.9], [1.0, 0.2, 0.9]]),
+        },
+        frozenset(["vision", "language"]): {
+            "vision": torch.Tensor([[1.0, 0.0, 0.3], [1.0, 0.0, 0.3]]),
+            "language": torch.Tensor([[1.0, 0.2, 0.9], [1.0, 0.2, 0.9]]),
+        },
+    }
+    domain_dim = 3
+    head_size = 5
+    batch_size = 2
+    domains = ["vision", "language"]
+
+    attention = DynamicQueryAttention(batch_size, domain_dim, head_size, domains)
+
+    attention_scores = {
+        domains: attention(latents, y[domains]) for domains, latents in x.items()
+    }
+    print(attention_scores)
+
+
 def test_single_domain():
     domain_dim = 12
     head_size = 6
