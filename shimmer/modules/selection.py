@@ -231,8 +231,10 @@ class DynamicQueryAttention(SelectionBase):
         self.key_layers = nn.ModuleDict(
             {domain: nn.Linear(domain_dim, head_size) for domain in domains}
         )
-        # Start with a random gw state
-        self.gw_state = torch.nn.Parameter(torch.rand(batch_size, domain_dim))
+        # Start with a random gw state (or maybe change it to zeros?)
+        self.initial_gw_state = torch.nn.Parameter(
+            torch.rand(domain_dim), requires_grad=False
+        )
 
     def calculate_attention_dict(
         self,
@@ -300,8 +302,10 @@ class DynamicQueryAttention(SelectionBase):
             for domain, encoding in domains.items()
         }
 
+        # Initial state
+        batch_size = group_batch_size(domains)
         # Retrieve query
-        query = self.query_layer(self.gw_state)
+        query = self.query_layer(self.initial_gw_state.expand(batch_size, -1))
 
         # Calculate the attention scores
         static_attention_dict = self.calculate_attention_dict(domains, keys, query)

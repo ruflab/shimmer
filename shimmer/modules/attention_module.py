@@ -165,7 +165,7 @@ class DynamicAttention(LightningModule):
     def generic_step(self, batch: RawDomainGroupsT, mode: str) -> Tensor:
         latent_domains = self.gw_module.encode_domains(batch)
         corrupted_batch = self.apply_corruption(latent_domains)
-        prefusion_encodings = self.gw_module.encode(latent_domains)
+        prefusion_encodings = self.gw_module.encode(corrupted_batch)
         attention_scores = self.forward(corrupted_batch, prefusion_encodings)
         merged_gw_representation = self.gw_module.fuse(
             prefusion_encodings, attention_scores
