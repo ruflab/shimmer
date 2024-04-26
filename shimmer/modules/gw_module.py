@@ -7,6 +7,7 @@ from torch import nn
 
 from shimmer.modules.domain import DomainModule
 from shimmer.modules.selection import SelectionBase
+from shimmer.modules.vae import reparameterize
 from shimmer.types import LatentsDomainGroupDT, LatentsDomainGroupT
 from shimmer.utils import group_batch_size
 
@@ -357,7 +358,7 @@ class GWModuleBayesian(GWModule):
         """
         super().__init__(domain_modules, workspace_dim, gw_encoders, gw_decoders)
 
-        self.precisions = cast(
+        self.log_var = cast(
             dict[str, torch.Tensor],
             nn.ParameterDict(
                 {domain: torch.randn(workspace_dim) for domain in gw_encoders}
@@ -365,10 +366,7 @@ class GWModuleBayesian(GWModule):
         )
         """Precision at the neuron level for every domain."""
 
-        self.sensitivity_selection = sensitivity_selection
-        self.sensitivity_precision = sensitivity_precision
-
-    def get_precision(self, x: LatentsDomainGroupT) -> dict[str, torch.Tensor]:
+    def get_log_var(self, x: LatentsDomainGroupT) -> dict[str, torch.Tensor]:
         """
         Get the precision vector of given domain and batch
 
@@ -376,73 +374,27 @@ class GWModuleBayesian(GWModule):
             `torch.Tensor`: batch of precision
         """
         batch_size = group_batch_size(x)
-        precisions = (
-            torch.stack([precision for precision in self.precisions.values()], dim=0)
-            .softmax(dim=0)
-            .unsqueeze(1)
-            .expand(-1, batch_size, -1)
-        )
-        return {domain: precisions[k] for k, domain in enumerate(self.precisions)}
+        return {
+            domain: log_var.unsqueeze(0).expand(batch_size, -1)
+            for domain, log_var in self.log_var.items()
+        }
 
-    def fuse(
-        self,
-        x: LatentsDomainGroupT,
-        selection_scores: Mapping[str, torch.Tensor],
-    ) -> torch.Tensor:
+    def encode(self, x: LatentsDomainGroupT) -> LatentsDomainGroupDT:
         """
-        Merge function used to combine domains.
-
-        In the following, $D$ is the number of domains, $N$ the batch size, and $d$ the
-        dimension of the Global Workspace.
-
-        This function needs to merge two kind of scores:
-        * the selection scores $a\\in [0,1]^{D\\times N}$;
-        * the precision scores $b \\in [0,1]^{D\\times N \\times d}$.
-
-        .. note::
-            The precision score is obtained by predicting logits and using a softmax
-
-        We can obtain associated uncertainties to the scores by introducing a std
-        variable and using bayesian integration:
-
-        $$a_k = \\frac{M_1}{\\sigma_k^2}$$
-        where $M_1 = \\frac{1}{\\sum_{i=1}^D \\frac{1}{\\sigma_i^2}}$.
-
-        Similarly,
-        $$b_k = \\frac{M_2}{\\mu_k^2}$$
-        where $M_2 = \\frac{1}{\\sum_{i=1}^D \\frac{1}{\\mu_i^2}}$.
-
-        The we can sum the variances to obtain the final uncertainty (squared) $\\xi$:
-        $$\\xi_k^2 = c_1 \\sigma_k^2 + c_2 \\mu_k^2$$
-
-        which, in terms of $a_k$ and $b_k$ yields:
-        $$\\xi_k^2 = \\frac{c'_1}{a_k} + \\frac{c'_2}{b_k}$$
-        where $c'_1 = c_1 \\cdot M_1$ and $c'_2 = c_2 \\cdot M_2$.
-
-        Finally, the finale combined coefficient is
-        $$\\lambda_k = \\frac{M_3}{\\frac{c'_1}{a_k} + \\frac{c'_2}{b_k}}$$
-        where
-        $$M_3 = \\frac{1}{\\sum_{i=1}^D
-            \\frac{1}{\\frac{c'_1}{a_i} + \\frac{c'_2}{b_i}}}$$
+        Encode the latent representation infos to the pre-fusion GW representation.
 
         Args:
-            x (`LatentsDomainGroupT`): the group of latent representation.
-            selection_score (`Mapping[str, torch.Tensor]`): attention scores to
-                use to encode the reprensetation.
+            x (`LatentsDomainGroupT`): the input domain representations.
+
         Returns:
-            `torch.Tensor`: The merged representation.
+            `LatentsDomainGroupT`: pre-fusion representation
         """
-        scores: list[torch.Tensor] = []
-        precisions: list[torch.Tensor] = []
-        domains: list[torch.Tensor] = []
-        precision_scores = self.get_precision(x)
-        for domain, score in selection_scores.items():
-            scores.append(score)
-            precisions.append(precision_scores[domain])
-            domains.append(x[domain])
-        return torch.tanh(
-            torch.sum(
-                torch.stack(precisions) * torch.stack(domains),
-                dim=0,
-            )
-        )
+        domains = {
+            domain_name: self.gw_encoders[domain_name](domain)
+            for domain_name, domain in x.items()
+        }
+        log_vars = self.get_log_var(domains)
+        return {
+            domain_name: reparameterize(domains[domain_name], log_vars[domain_name])
+            for domain_name in domains
+        }
