@@ -171,10 +171,6 @@ class DynamicAttention(LightningModule):
             prefusion_encodings, attention_scores
         )
         losses = []
-        # Assuming merged_gw_representation is a dictionary
-        num_items = len(merged_gw_representation.items())
-
-        print("Number of items:", num_items)
         for domain_names, domains in merged_gw_representation.items():
             losses.append(self.criterion(domains, batch[domain_names], domain_names))
             self.log(
