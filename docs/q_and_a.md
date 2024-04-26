@@ -19,7 +19,7 @@ To get insipiration, you can look at the source code of
 ## How can I change the loss function?
 If you are using pre-made GW architecture
 ([`GlobalWorkspace`](https://bdvllrs.github.io/shimmer/shimmer/modules/global_workspace.html#GlobalWorkspace),
-[`GlobalWorkspaceWithUncertainty`](https://bdvllrs.github.io/shimmer/shimmer/modules/global_workspace.html#GlobalWorkspaceWithUncertainty),
+[`GlobalWorkspaceBayesian`](https://bdvllrs.github.io/shimmer/shimmer/modules/global_workspace.html#GlobalWorkspaceBayesian),
 [`GlobalWorkspaceFusion`](https://bdvllrs.github.io/shimmer/shimmer/modules/global_workspace.html#GlobalWorkspaceFusion)) and want to update the loss
 used for demi-cycles, cycles, translations or broadcast, you can do so directly from
 your definition of the

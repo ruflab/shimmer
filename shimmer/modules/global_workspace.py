@@ -13,14 +13,14 @@ from shimmer.modules.domain import DomainModule
 from shimmer.modules.gw_module import (
     GWModule,
     GWModuleBase,
-    GWModuleWithUncertainty,
+    GWModuleBayesian,
 )
 from shimmer.modules.losses import (
     BroadcastLossCoefs,
     GWLosses,
     GWLossesBase,
+    GWLossesBayesian,
     GWLossesFusion,
-    GWLossesWithUncertainty,
     LossCoefs,
 )
 from shimmer.modules.selection import (
@@ -104,7 +104,7 @@ class GlobalWorkspaceBase(
                 "loss_mod",
                 "domain_descriptions",
                 "contrastive_loss",
-                "cont_loss_with_uncertainty",
+                "cont_loss_bayesian",
                 "gw_encoders",
                 "gw_decoders",
             ]
@@ -630,13 +630,12 @@ class GlobalWorkspaceFusion(
         )
 
 
-class GlobalWorkspaceWithUncertainty(
-    GlobalWorkspaceBase[
-        GWModuleWithUncertainty, RandomSelection, GWLossesWithUncertainty
-    ]
+class GlobalWorkspaceBayesian(
+    GlobalWorkspaceBase[GWModuleBayesian, RandomSelection, GWLossesBayesian]
 ):
     """
-    A simple 2-domains max GlobalWorkspaceBase with uncertainty.
+    A simple 2-domains max GlobalWorkspaceBase with a Bayesian base uncertainty
+    prediction.
 
     This is used to simplify a Global Workspace instanciation and only overrides the
     `__init__` method.
@@ -650,6 +649,8 @@ class GlobalWorkspaceWithUncertainty(
         workspace_dim: int,
         loss_coefs: BroadcastLossCoefs,
         selection_temperature: float = 0.2,
+        sensitivity_selection: float = 1,
+        sensitivity_precision: float = 1,
         optim_lr: float = 1e-3,
         optim_weight_decay: float = 0.0,
         scheduler_args: SchedulerArgs | None = None,
@@ -672,6 +673,8 @@ class GlobalWorkspaceWithUncertainty(
             workspace_dim (`int`): dimension of the GW.
             loss_coefs (`LossCoefs`): loss coefficients
             selection_temperature (`float`): temperature for `RandomSelection`
+            sensitivity_selection (`float`): sensivity coef $c'_1$
+            sensitivity_precision (`float`): sensitivity coef $c'_2$
             optim_lr (`float`): learning rate
             optim_weight_decay (`float`): weight decay
             scheduler_args (`SchedulerArgs | None`): optimization scheduler's arguments
@@ -683,8 +686,13 @@ class GlobalWorkspaceWithUncertainty(
         """
         domain_mods = freeze_domain_modules(domain_mods)
 
-        gw_mod = GWModuleWithUncertainty(
-            domain_mods, workspace_dim, gw_encoders, gw_decoders
+        gw_mod = GWModuleBayesian(
+            domain_mods,
+            workspace_dim,
+            gw_encoders,
+            gw_decoders,
+            sensitivity_selection,
+            sensitivity_precision,
         )
 
         selection_mod = RandomSelection(selection_temperature)
@@ -693,7 +701,7 @@ class GlobalWorkspaceWithUncertainty(
             torch.tensor([1]).log(), "mean", learn_logit_scale
         )
 
-        loss_mod = GWLossesWithUncertainty(
+        loss_mod = GWLossesBayesian(
             gw_mod,
             selection_mod,
             domain_mods,
