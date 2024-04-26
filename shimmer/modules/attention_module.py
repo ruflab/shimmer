@@ -165,7 +165,7 @@ class DynamicAttention(LightningModule):
     def generic_step(self, batch: RawDomainGroupsT, mode: str) -> Tensor:
         latent_domains = self.gw_module.encode_domains(batch)
         corrupted_batch = self.apply_corruption(latent_domains)
-        prefusion_encodings = self.gw_module.encode(corrupted_batch)
+        prefusion_encodings = self.gw_module.encode(latent_domains)
         attention_scores = self.forward(corrupted_batch, prefusion_encodings)
         merged_gw_representation = self.gw_module.fuse(
             prefusion_encodings, attention_scores
@@ -176,7 +176,6 @@ class DynamicAttention(LightningModule):
 
         print("Number of items:", num_items)
         for domain_names, domains in merged_gw_representation.items():
-            assert domains.size(0) == 2056, "Tensor size is not 2056"
             losses.append(self.criterion(domains, batch[domain_names], domain_names))
             self.log(
                 f"{mode}/{domain_names}_loss",
