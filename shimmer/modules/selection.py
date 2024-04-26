@@ -242,16 +242,10 @@ class DynamicQueryAttention(SelectionBase):
         keys: dict[str, torch.Tensor],
         query: torch.Tensor,
     ) -> dict[str, torch.Tensor]:
-        print("keys")
-        print(keys)
-        print("query")
-        print(query)
         dot_products = {
             domain: torch.bmm(key.unsqueeze(1), query.unsqueeze(2)).squeeze()
             for domain, key in keys.items()
         }
-        print("dot_products")
-        print(dot_products)
 
         dot_products_tensor = torch.stack(list(dot_products.values()), dim=1)
 
