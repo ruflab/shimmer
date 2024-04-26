@@ -419,7 +419,7 @@ class GWModuleBayesian(GWModule):
         $$\\lambda_k = \\frac{M_3}{\\frac{c'_1}{a_k} + \\frac{c'_2}{b_k}}$$
         where
         $$M_3 = \\frac{1}{\\sum_{i=1}^D
-            \\frac{1}{\\frac{c'_1}{a_i} + \\frac{c'_2}{b_i}}$$
+            \\frac{1}{\\frac{c'_1}{a_i} + \\frac{c'_2}{b_i}}}$$
 
         Args:
             x (`LatentsDomainGroupT`): the group of latent representation.
