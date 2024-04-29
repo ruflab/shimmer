@@ -215,7 +215,7 @@ class DynamicQueryAttention(SelectionBase):
     """
 
     def __init__(
-        self, batch_size: int, domain_dim: int, head_size: int, domains: Iterable[str]
+        self, head_size: int, domain_dim: int, domain_names: Iterable[str]
     ):
         """
         Args:
@@ -229,12 +229,10 @@ class DynamicQueryAttention(SelectionBase):
         self.head_size = head_size
         self.query_layer = nn.Linear(domain_dim, head_size)
         self.key_layers = nn.ModuleDict(
-            {domain: nn.Linear(domain_dim, head_size) for domain in domains}
+            {domain: nn.Linear(domain_dim, head_size) for domain in domain_names}
         )
         # Start with a random gw state (or maybe change it to zeros?)
-        self.initial_gw_state = torch.nn.Parameter(
-            torch.rand(domain_dim), requires_grad=False
-        )
+        self.register_buffer("initial_gw_state", torch.rand(domain_dim))
 
     def calculate_attention_dict(
         self,
@@ -242,6 +240,11 @@ class DynamicQueryAttention(SelectionBase):
         keys: dict[str, torch.Tensor],
         query: torch.Tensor,
     ) -> dict[str, torch.Tensor]:
+        """
+        Args:
+            domains (`LatentsDomainGroupT`): Group of unimodal latent representations.
+
+        """
         dot_products = {
             domain: torch.bmm(key.unsqueeze(1), query.unsqueeze(2)).squeeze()
             for domain, key in keys.items()

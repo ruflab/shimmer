@@ -20,7 +20,7 @@ from shimmer.types import (
 )
 
 
-class ClassificationHead(nn.Module):
+class ShapesClassifier(nn.Module):
     def __init__(self, input_dim, output_dim):
         super().__init__()
         # Increasing the number of layers for more complexity
@@ -58,11 +58,10 @@ class DynamicAttention(LightningModule):
     def __init__(
         self,
         gw_module: GlobalWorkspaceBase[GWModuleBase, SelectionBase, GWLossesBase],
-        batch_size: int,
         domain_dim: int,
         head_size: int,
         domain_names: Sequence[str],
-        criterion: Callable[[torch.Tensor, RawDomainGroupT, Any], torch.Tensor],
+        criterion: Callable[[torch.Tensor, RawDomainGroupT], torch.Tensor],
         optim_lr: float = 1e-3,
         optim_weight_decay: float = 0.0,
         scheduler_args: SchedulerArgs | None = None,
@@ -71,7 +70,6 @@ class DynamicAttention(LightningModule):
         self.save_hyperparameters(
             ignore=[
                 "gw_module",
-                "batch_size",
                 "domain_dim",
                 "head_size",
                 "domain_names",
@@ -80,9 +78,7 @@ class DynamicAttention(LightningModule):
         )
 
         self.gw_module = gw_module
-        self.attention = DynamicQueryAttention(
-            batch_size, domain_dim, head_size, domain_names
-        )
+        self.attention = DynamicQueryAttention(head_size, domain_dim, domain_names)
         self.domain_names = domain_names
         self.criterion = criterion
         self.optim_lr = optim_lr
@@ -172,7 +168,7 @@ class DynamicAttention(LightningModule):
         )
         losses = []
         for domain_names, domains in merged_gw_representation.items():
-            losses.append(self.criterion(domains, batch[domain_names], domain_names))
+            losses.append(self.criterion(domains, batch[domain_names]))
             self.log(
                 f"{mode}/{domain_names}_loss",
                 losses[-1],
