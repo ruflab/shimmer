@@ -649,7 +649,6 @@ class GlobalWorkspaceBayesian(
         gw_decoders: Mapping[str, Module],
         workspace_dim: int,
         loss_coefs: BroadcastLossCoefs,
-        selection_temperature: float = 0.2,
         sensitivity_selection: float = 1,
         sensitivity_precision: float = 1,
         optim_lr: float = 1e-3,
@@ -673,7 +672,6 @@ class GlobalWorkspaceBayesian(
                 GW representation into a unimodal latent representations.
             workspace_dim (`int`): dimension of the GW.
             loss_coefs (`LossCoefs`): loss coefficients
-            selection_temperature (`float`): temperature for `RandomSelection`
             sensitivity_selection (`float`): sensivity coef $c'_1$
             sensitivity_precision (`float`): sensitivity coef $c'_2$
             optim_lr (`float`): learning rate
