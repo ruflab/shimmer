@@ -17,10 +17,10 @@ from shimmer.modules.gw_module import (
 )
 from shimmer.modules.losses import (
     BroadcastLossCoefs,
+    GWLosses,
     GWLosses2Domains,
     GWLossesBase,
     GWLossesBayesian,
-    GWLossesFusion,
     LossCoefs,
 )
 from shimmer.modules.selection import (
@@ -561,9 +561,7 @@ class GlobalWorkspace2Domains(
         )
 
 
-class GlobalWorkspaceFusion(
-    GlobalWorkspaceBase[GWModule, RandomSelection, GWLossesFusion]
-):
+class GlobalWorkspace(GlobalWorkspaceBase[GWModule, RandomSelection, GWLosses]):
     """The 2-domain fusion (with broadcast loss) flavor of GlobalWorkspaceBase.
 
     This is used to simplify a Global Workspace instanciation and only overrides the
@@ -619,7 +617,7 @@ class GlobalWorkspaceFusion(
             )
 
         selection_mod = RandomSelection(selection_temperature)
-        loss_mod = GWLossesFusion(
+        loss_mod = GWLosses(
             gw_mod, selection_mod, domain_mods, loss_coefs, contrastive_loss
         )
 

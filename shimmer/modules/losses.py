@@ -659,7 +659,7 @@ class BroadcastLossCoefs(TypedDict, total=False):
     """translation loss coefficient. Translation, like cycles, can be many-to-one."""
 
 
-class GWLossesFusion(GWLossesBase):
+class GWLosses(GWLossesBase):
     """
     Implementation of `GWLossesBase` for fusion-based models.
     """
