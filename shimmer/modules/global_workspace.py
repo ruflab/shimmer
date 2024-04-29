@@ -17,7 +17,7 @@ from shimmer.modules.gw_module import (
 )
 from shimmer.modules.losses import (
     BroadcastLossCoefs,
-    GWLosses,
+    GWLosses2Domains,
     GWLossesBase,
     GWLossesBayesian,
     GWLossesFusion,
@@ -466,7 +466,9 @@ class GWPredictions(GWPredictionsBase):
     """
 
 
-class GlobalWorkspace(GlobalWorkspaceBase[GWModule, SingleDomainSelection, GWLosses]):
+class GlobalWorkspace2Domains(
+    GlobalWorkspaceBase[GWModule, SingleDomainSelection, GWLosses2Domains]
+):
     """
     A simple 2-domains max flavor of GlobalWorkspaceBase.
 
@@ -519,7 +521,7 @@ class GlobalWorkspace(GlobalWorkspaceBase[GWModule, SingleDomainSelection, GWLos
                 torch.tensor([1 / 0.07]).log(), "mean", learn_logit_scale
             )
         selection_mod = SingleDomainSelection()
-        loss_mod = GWLosses(
+        loss_mod = GWLosses2Domains(
             gw_mod, selection_mod, domain_mods, loss_coefs, contrastive_loss
         )
 
@@ -753,7 +755,7 @@ def pretrained_global_workspace(
     loss_coefs: LossCoefs,
     contrastive_fn: ContrastiveLossType,
     **kwargs,
-) -> GlobalWorkspace:
+) -> GlobalWorkspace2Domains:
     """
     Load a `GlobalWorkspace` flavor of `GlobalWorkspaceBase` from a checkpoint.
 
@@ -785,9 +787,11 @@ def pretrained_global_workspace(
     domain_mods = freeze_domain_modules(domain_mods)
     gw_mod = GWModule(domain_mods, workspace_dim, gw_encoders, gw_decoders)
     selection_mod = SingleDomainSelection()
-    loss_mod = GWLosses(gw_mod, selection_mod, domain_mods, loss_coefs, contrastive_fn)
+    loss_mod = GWLosses2Domains(
+        gw_mod, selection_mod, domain_mods, loss_coefs, contrastive_fn
+    )
 
-    gw = GlobalWorkspace.load_from_checkpoint(
+    gw = GlobalWorkspace2Domains.load_from_checkpoint(
         checkpoint_path,
         gw_mod=gw_mod,
         selection_mid=selection_mod,
@@ -795,6 +799,6 @@ def pretrained_global_workspace(
         loss_mod=loss_mod,
         **kwargs,
     )
-    if not isinstance(gw, GlobalWorkspace):
+    if not isinstance(gw, GlobalWorkspace2Domains):
         raise TypeError("model should be of type GlobalWorkspace")
     return gw

@@ -348,7 +348,7 @@ class LossCoefs(TypedDict, total=False):
     """Contrastive loss coefficient."""
 
 
-class GWLosses(GWLossesBase):
+class GWLosses2Domains(GWLossesBase):
     """
     Implementation of `GWLossesBase` used for `GWModule`.
     """
