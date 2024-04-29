@@ -316,10 +316,13 @@ def contrastive_loss_bayesian(
                 loss_output = contrastive_fn(
                     z1 * coef[0] * coef[1], z2 * coef[0] * coef[1]
                 )
+                loss_output_no_norm = contrastive_fn(z1, z2)
+
                 losses[loss_name] = loss_output.loss
                 metrics.update(
                     {f"{loss_name}_{k}": v for k, v in loss_output.metrics.items()}
                 )
+                metrics[f"unnorm_{loss_name}"] = loss_output_no_norm.loss
 
     losses["contrastives"] = torch.stack(list(losses.values()), dim=0).mean()
     losses.update(metrics)
