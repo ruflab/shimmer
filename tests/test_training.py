@@ -1,7 +1,7 @@
 import torch.utils.data
 from utils import DummyData, DummyDataset, DummyDomainModule
 
-from shimmer import GlobalWorkspace, GWDecoder, GWEncoder
+from shimmer import GlobalWorkspace2Domains, GWDecoder, GWEncoder
 from shimmer.modules.selection import SingleDomainSelection
 
 
@@ -61,7 +61,7 @@ def test_training():
         ),
     }
 
-    gw = GlobalWorkspace(
+    gw = GlobalWorkspace2Domains(
         domains,
         gw_encoders,
         gw_decoders,
