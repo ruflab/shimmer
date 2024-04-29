@@ -630,6 +630,33 @@ class GlobalWorkspace(GlobalWorkspaceBase[GWModule, RandomSelection, GWLosses]):
             scheduler_args,
         )
 
+    def forward(  # type: ignore
+        self,
+        latent_domains: LatentsDomainGroupsT,
+    ) -> GWPredictions:
+        """
+        Computes demi-cycles, cycles, and translations.
+
+        Args:
+            latent_domains (`LatentsT`): Groups of domains for the computation.
+
+        Returns:
+            `GWPredictions`: the predictions on the batch.
+        """
+        return GWPredictions(
+            demi_cycles=batch_demi_cycles(
+                self.gw_mod, self.selection_mod, latent_domains
+            ),
+            cycles=batch_cycles(
+                self.gw_mod, self.selection_mod, latent_domains, self.domain_mods.keys()
+            ),
+            translations=batch_translations(
+                self.gw_mod, self.selection_mod, latent_domains
+            ),
+            # TODO: add other combinations
+            **super().forward(latent_domains),
+        )
+
 
 class GlobalWorkspaceBayesian(
     GlobalWorkspaceBase[GWModuleBayesian, FixedSharedSelection, GWLossesBayesian]
