@@ -312,7 +312,11 @@ def contrastive_loss_bayesian(
                 loss_name = f"contrastive_{domain1_name}_and_{domain2_name}"
                 z2 = gw_mod.encode({domain2_name: domain2})[domain2_name]
                 z2_precision = gw_mod.get_precision(domain2_name, domain2)
-                coef = torch.stack([z1_precision, z2_precision]).softmax(dim=0)
+                coef = torch.softmax(
+                    gw_mod.precision_softmax_temp
+                    * torch.stack([z1_precision, z2_precision]),
+                    dim=0,
+                )
                 norm = torch.sqrt(coef[0] * coef[1])
                 loss_output = contrastive_fn(z1 * norm, z2 * norm)
                 loss_output_no_norm = contrastive_fn(z1, z2)
