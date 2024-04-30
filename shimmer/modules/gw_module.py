@@ -441,7 +441,9 @@ class GWModuleBayesian(GWModule):
             domains.append(x[domain])
         combined_scores = compute_fusion_scores(
             torch.stack(scores).unsqueeze(-1),
-            torch.softmax(torch.stack(precisions) * self.precision_softmax_temp, dim=0),
+            torch.softmax(
+                torch.tanh(torch.stack(precisions)) * self.precision_softmax_temp, dim=0
+            ),
             self.sensitivity_selection,
             self.sensitivity_precision,
         )
