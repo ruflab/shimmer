@@ -212,7 +212,7 @@ class RandomSelection(SelectionBase):
 class DynamicQueryAttention(SelectionBase):
     """
     Key-Query attention with a dynamic gw vector.
-    The query is updated based on the scaled gw vector (after applying attention scores).
+    The query is updated based on the scaled gw vector.
     """
 
     def __init__(self, head_size: int, domain_dim: int, domain_names: Iterable[str]):
@@ -245,7 +245,7 @@ class DynamicQueryAttention(SelectionBase):
             query (`torch.Tensor`): The query tensor.
 
         Returns:
-            `dict[str, torch.Tensor]`: The attention scores for each domain in the group.
+            `dict[str, torch.Tensor]`: The attention scores for each domain.
         """
         dot_products = {
             domain: torch.bmm(key.unsqueeze(1), query.unsqueeze(2)).squeeze()
@@ -268,7 +268,7 @@ class DynamicQueryAttention(SelectionBase):
         Fuse the weighted encodings using the attention scores.
 
         Args:
-            encodings (`LatentsDomainGroupT`): Unimodal latent representation from input domains
+            encodings (`LatentsDomainGroupT`): Unimodal latent representations.
             attention_dict (`dict[str, torch.Tensor]`): The attention scores for each
                 domain in the group.
 
