@@ -212,18 +212,16 @@ class RandomSelection(SelectionBase):
 class DynamicQueryAttention(SelectionBase):
     """
     Key-Query attention with a dynamic gw vector.
+    The query is updated based on the scaled gw vector (after applying attention scores).
     """
 
-    def __init__(
-        self, head_size: int, domain_dim: int, domain_names: Iterable[str]
-    ):
+    def __init__(self, head_size: int, domain_dim: int, domain_names: Iterable[str]):
         """
         Args:
-            batch_size (`int`) : size of the batch
+            head_size (`int`) : dimension of the key and query vectors.
             domain_dim (`int`) : dimension of the input dims (assumed to be the same
                 for now)
-            head_size (`int`) : dimension of the key and query vectors
-            domains (`Iterable[str]`) : list of input domains
+            domain_names  (`Iterable[str]`) : list of input domains
         """
         super().__init__()
         self.head_size = head_size
@@ -231,7 +229,7 @@ class DynamicQueryAttention(SelectionBase):
         self.key_layers = nn.ModuleDict(
             {domain: nn.Linear(domain_dim, head_size) for domain in domain_names}
         )
-        # Start with a random gw state (or maybe change it to zeros?)
+        # Start with a random gw state
         self.register_buffer("initial_gw_state", torch.rand(domain_dim))
 
     def calculate_attention_dict(
@@ -243,7 +241,11 @@ class DynamicQueryAttention(SelectionBase):
         """
         Args:
             domains (`LatentsDomainGroupT`): Group of unimodal latent representations.
+            keys (`dict[str, torch.Tensor]`): The keys for each domain.
+            query (`torch.Tensor`): The query tensor.
 
+        Returns:
+            `dict[str, torch.Tensor]`: The attention scores for each domain in the group.
         """
         dot_products = {
             domain: torch.bmm(key.unsqueeze(1), query.unsqueeze(2)).squeeze()
@@ -262,6 +264,17 @@ class DynamicQueryAttention(SelectionBase):
     def fuse_weighted_encodings(
         self, encodings: LatentsDomainGroupT, attention_dict: dict[str, torch.Tensor]
     ) -> torch.Tensor:
+        """
+        Fuse the weighted encodings using the attention scores.
+
+        Args:
+            encodings (`LatentsDomainGroupT`): Unimodal latent representation from input domains
+            attention_dict (`dict[str, torch.Tensor]`): The attention scores for each
+                domain in the group.
+
+        Returns:
+            `torch.Tensor`: The fused tensor.
+        """
         # Apply attention scores to the encodings
         weighted_encodings = {}
         for key in attention_dict:
@@ -299,9 +312,9 @@ class DynamicQueryAttention(SelectionBase):
             for domain, encoding in domains.items()
         }
 
-        # Initial state
         batch_size = group_batch_size(domains)
-        # Retrieve query
+
+        # Retrieve random query
         query = self.query_layer(self.initial_gw_state.expand(batch_size, -1))
 
         # Calculate the attention scores

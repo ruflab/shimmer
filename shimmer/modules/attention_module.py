@@ -52,7 +52,8 @@ class DynamicAttention(LightningModule):
     """
     Attention Lightning Module.
 
-    This is a wrapper around the DynamicQueryAttention module
+    This is a wrapper around the DynamicQueryAttention module.
+    It is used to train the Dynamic Query Attention mechanism.
     """
 
     def __init__(
@@ -131,10 +132,12 @@ class DynamicAttention(LightningModule):
         Apply corruption to the batch.
 
         Args:
-            batch: The batch of data.
-            dict_domain_names: The domain names to look for in the batch
-            gw_dim: The global workspace dimension.
-            corruption_vector: The corruption vector, if defined outside training.
+            batch: A batch of latent domains.
+            corruption_vector: A vector to be added to the corrupted domain.
+            corrupted_domain: The domain to be corrupted.
+
+        Returns:
+            A batch where one of the latent domains is corrupted.
         """
         if corrupted_domain is None:
             # Specify which domain will be corrupted
