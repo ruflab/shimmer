@@ -268,7 +268,7 @@ class DynamicQueryAttention(SelectionBase):
         Fuse the weighted encodings using the attention scores.
 
         Args:
-            encodings (`LatentsDomainGroupT`): Unimodal latent representations.
+            encodings (`LatentsDomainGroupT`): Unimodal latent representation
             attention_dict (`dict[str, torch.Tensor]`): The attention scores for each
                 domain in the group.
 
