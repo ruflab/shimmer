@@ -3,7 +3,7 @@ import torch
 from shimmer.modules.selection import DynamicQueryAttention
 
 
-def test_things():
+def test_non_random():
     x = {
         frozenset(["vision"]): {
             "vision": torch.Tensor([[1.0, 0.0, 0.3], [1.0, 0.0, 0.3]]),
@@ -31,10 +31,9 @@ def test_things():
     }
     domain_dim = 3
     head_size = 5
-    batch_size = 2
-    domains = ["vision", "language"]
+    domain_names = ["vision", "language"]
 
-    attention = DynamicQueryAttention(batch_size, domain_dim, head_size, domains)
+    attention = DynamicQueryAttention(head_size, domain_dim, domain_names)
 
     attention_scores = {
         domains: attention(latents, y[domains]) for domains, latents in x.items()
@@ -43,11 +42,11 @@ def test_things():
 
 
 def test_single_domain():
+    batch_size = 2056
     domain_dim = 12
     head_size = 6
-    batch_size = 2056
-    domains = ["v_latents"]
-    attention = DynamicQueryAttention(batch_size, domain_dim, head_size, domains)
+    domain_names = ["v_latents"]
+    attention = DynamicQueryAttention(head_size, domain_dim, domain_names)
 
     single_domain_input = {"v_latents": torch.rand(batch_size, domain_dim)}
     prefusion_encodings = {"v_latents": torch.rand(batch_size, domain_dim)}
@@ -64,9 +63,9 @@ def test_multiple_domains_sumis1():
     domain_dim = 12
     head_size = 5
     batch_size = 2056
-    domains = ["v_latents", "attr"]
+    domain_names = ["v_latents", "attr"]
 
-    attention = DynamicQueryAttention(batch_size, domain_dim, head_size, domains)
+    attention = DynamicQueryAttention(head_size, domain_dim, domain_names)
 
     multiple_domain_input = {
         "v_latents": torch.rand(batch_size, domain_dim),
@@ -96,7 +95,7 @@ def test_attention_backward():
     batch_size = 2056
     domain_names = ["v_latents", "attr"]
 
-    attention = DynamicQueryAttention(batch_size, domain_dim, head_size, domain_names)
+    attention = DynamicQueryAttention(head_size, domain_dim, domain_names)
 
     domains = {
         "v_latents": torch.rand(batch_size, domain_dim, requires_grad=True),
