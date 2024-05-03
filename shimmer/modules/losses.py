@@ -4,6 +4,7 @@ from itertools import product
 from typing import TypedDict
 
 import torch
+from torch.nn.functional import mse_loss
 
 from shimmer.modules.contrastive_loss import ContrastiveLossType
 from shimmer.modules.domain import DomainModule, LossOutput
@@ -756,6 +757,19 @@ class GWLosses(GWLossesBase):
         return LossOutput(loss, metrics)
 
 
+class BayesianLossCoefs(BroadcastLossCoefs, total=False):
+    """
+    Dict of loss coefficients used in the GWLossesBayesian.
+
+    If one is not provided, the coefficient is assumed to be 0 and will not be logged.
+    If the loss is excplicitely set to 0, it will be logged, but not take part in
+    the total loss.
+    """
+
+    precision_prior: float
+    """ Coefficient for the prior of the precision values (post-softmax) """
+
+
 class GWLossesBayesian(GWLossesBase):
     """
     Implementation of `GWLossesBase` used for `GWModuleBayesian`.
@@ -766,7 +780,7 @@ class GWLossesBayesian(GWLossesBase):
         gw_mod: GWModuleBayesian,
         selection_mod: SelectionBase,
         domain_mods: dict[str, DomainModule],
-        loss_coefs: BroadcastLossCoefs,
+        loss_coefs: BayesianLossCoefs,
         contrastive_fn: ContrastiveLossType,
         use_normalized_constrastive: bool = True,
     ):
@@ -778,7 +792,7 @@ class GWLossesBayesian(GWLossesBase):
             selection_mod (`SelectionBase`): selection module
             domain_mods (`dict[str, DomainModule]`): a dict where the key is the
                 domain name and value is the DomainModule
-            loss_coefs (`BroadcastLossCoefs`): loss coefficients
+            loss_coefs (`BayesionLossCoefs`): loss coefficients
             contrastive_fn (`ContrastiveLossType`): the contrastive function
                 to use in contrastive loss
             use_normalized_constrastive (`bool`): whether to use the normalized cont
@@ -830,6 +844,20 @@ class GWLossesBayesian(GWLossesBase):
             self.gw_mod, self.selection_mod, self.domain_mods, latent_domains
         )
 
+    def precision_prior(
+        self, latent_domains: LatentsDomainGroupsT
+    ) -> dict[str, torch.Tensor]:
+        losses = []
+        for latents in latent_domains.values():
+            precisions = []
+            for domain_name, domain in latents.items():
+                precisions.append(self.gw_mod.get_precision(domain_name, domain))
+            precision_tensor = torch.stack(precisions).softmax(dim=0)
+            losses.append(
+                mse_loss(precision_tensor, torch.full_like(precision_tensor, 0.5))
+            )
+        return {"precision_prior": torch.stack(losses).mean()}
+
     def step(
         self, domain_latents: LatentsDomainGroupsT, mode: ModelModeT
     ) -> LossOutput:
@@ -848,6 +876,7 @@ class GWLossesBayesian(GWLossesBase):
 
         metrics.update(self.contrastive_loss(domain_latents))
         metrics.update(self.broadcast_loss(domain_latents))
+        metrics.update(self.precision_prior(domain_latents))
 
         loss = torch.stack(
             [
