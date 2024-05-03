@@ -854,7 +854,10 @@ class GWLossesBayesian(GWLossesBase):
                 precisions.append(self.gw_mod.get_precision(domain_name, domain))
             precision_tensor = torch.stack(precisions).softmax(dim=0)
             losses.append(
-                mse_loss(precision_tensor, torch.full_like(precision_tensor, 0.5))
+                mse_loss(
+                    precision_tensor,
+                    torch.full_like(precision_tensor, 1.0 / len(latents)),
+                )
             )
         return {"precision_prior": torch.stack(losses).mean()}
 
