@@ -49,7 +49,7 @@ def groups_device(domain_latents: LatentsDomainGroupsT) -> int:
     """
     for data in domain_latents.values():
         for tensor in data.values():
-            return tensor.device
+            return tensor.size(0)
     raise ValueError("Empty batch.")
 
 
