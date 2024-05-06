@@ -172,14 +172,15 @@ class DynamicAttention(LightningModule):
         losses = []
         for domain_names, domains in merged_gw_representation.items():
             losses.append(self.criterion(domains, batch[domain_names]))
+            domain_names_str = ",".join(domain_names)
             self.log(
-                f"{mode}/{domain_names}_loss",
+                f"{mode}/{domain_names_str}_loss",
                 losses[-1],
                 batch_size=domains.size(0),
             )
         loss = torch.stack(losses).mean()
         print(f"loss: {loss}")
-        self.log("loss", loss, on_step=True, on_epoch=True)
+        self.log(f"{mode}/loss", loss, on_step=True, on_epoch=True)
 
         return loss
 
