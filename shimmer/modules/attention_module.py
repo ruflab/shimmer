@@ -9,7 +9,7 @@ from torch import Tensor, nn
 from torch.optim.lr_scheduler import OneCycleLR
 
 from shimmer.modules.global_workspace import GlobalWorkspaceBase, SchedulerArgs
-from shimmer.modules.gw_module import GWModuleBase
+from shimmer.modules.gw import GWModuleBase
 from shimmer.modules.losses import GWLossesBase
 from shimmer.modules.selection import DynamicQueryAttention, SelectionBase
 from shimmer.types import (
@@ -20,7 +20,7 @@ from shimmer.types import (
 )
 
 
-class ShapesClassifier(nn.Module):
+class ShapesClassifier(nn.Sequential):
     def __init__(self, input_dim, output_dim):
         super().__init__()
         # Increasing the number of layers for more complexity
@@ -58,7 +58,7 @@ class DynamicAttention(LightningModule):
 
     def __init__(
         self,
-        gw_module: GlobalWorkspaceBase[GWModuleBase, SelectionBase, GWLossesBase],
+        gw: GlobalWorkspaceBase[GWModuleBase, SelectionBase, GWLossesBase],
         domain_dim: int,
         head_size: int,
         domain_names: Sequence[str],
@@ -70,15 +70,12 @@ class DynamicAttention(LightningModule):
         super().__init__()
         self.save_hyperparameters(
             ignore=[
-                "gw_module",
-                "domain_dim",
-                "head_size",
-                "domain_names",
+                "gw",
                 "criterion",
             ]
         )
 
-        self.gw_module = gw_module
+        self.gw = gw
         self.attention = DynamicQueryAttention(head_size, domain_dim, domain_names)
         self.domain_names = domain_names
         self.criterion = criterion
@@ -162,13 +159,11 @@ class DynamicAttention(LightningModule):
         return matched_data_dict
 
     def generic_step(self, batch: RawDomainGroupsT, mode: str) -> Tensor:
-        latent_domains = self.gw_module.encode_domains(batch)
+        latent_domains = self.gw.encode_domains(batch)
         corrupted_batch = self.apply_corruption(latent_domains)
-        prefusion_encodings = self.gw_module.encode(corrupted_batch)
+        prefusion_encodings = self.gw.encode(corrupted_batch)
         attention_scores = self.forward(corrupted_batch, prefusion_encodings)
-        merged_gw_representation = self.gw_module.fuse(
-            prefusion_encodings, attention_scores
-        )
+        merged_gw_representation = self.gw.fuse(prefusion_encodings, attention_scores)
         losses = []
         for domain_names, domains in merged_gw_representation.items():
             losses.append(self.criterion(domains, batch[domain_names]))
@@ -202,7 +197,7 @@ class DynamicAttention(LightningModule):
         return self.generic_step(batch, mode="val/ood")
 
     def test_step(  # type: ignore
-        self, data: Mapping[str, Any], batch_idx: int, dataloader_idx: int = 0
+        self, data: RawDomainGroupT, batch_idx: int, dataloader_idx: int = 0
     ) -> torch.Tensor:
         """Test step used by lightning"""
 

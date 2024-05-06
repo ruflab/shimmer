@@ -280,8 +280,8 @@ class DynamicQueryAttention(SelectionBase):
         for key in attention_dict:
             if key in encodings:
                 # Perform element-wise multiplication
-                weighted_encodings[key] = torch.mul(
-                    attention_dict[key].unsqueeze(1), encodings[key]
+                weighted_encodings[key] = (
+                    attention_dict[key].unsqueeze(1) * encodings[key]
                 )
 
         # Stack the tensors along a new dimension (dimension 0)
