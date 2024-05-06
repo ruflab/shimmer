@@ -1,7 +1,7 @@
 # Q&A
 
 ## How can I customize my GlobalWorkspace
-[`GlobalWorkspaceBase`](https://bdvllrs.github.io/shimmer/shimmer/modules/global_workspace.html#GlobalWorkspaceBase) 
+[`GlobalWorkspaceBase`](https://bdvllrs.github.io/shimmer/latest/shimmer/modules/global_workspace.html#GlobalWorkspaceBase) 
 is a very generic implementation of the global workspace and uses different building
 blocks (given as arguments) to function:
 * **gw_mod**: a class implementation of `GWModuleBase` which defines how to encode, 
@@ -14,22 +14,22 @@ Different implementations have been made to initialize the Global Workspace more
 but you may need to implement a new one if you have very specific needs.
 
 To get insipiration, you can look at the source code of
-[`GlobalWorkspace`](https://bdvllrs.github.io/shimmer/shimmer/modules/global_workspace.html#GlobalWorkspace).
+[`GlobalWorkspace`](https://bdvllrs.github.io/shimmer/latest/shimmer/modules/global_workspace.html#GlobalWorkspace).
 
 ## How can I change the loss function?
 If you are using pre-made GW architecture
-([`GlobalWorkspace`](https://bdvllrs.github.io/shimmer/shimmer/modules/global_workspace.html#GlobalWorkspace),
-[`GlobalWorkspaceBayesian`](https://bdvllrs.github.io/shimmer/shimmer/modules/global_workspace.html#GlobalWorkspaceBayesian),
-[`GlobalWorkspaceFusion`](https://bdvllrs.github.io/shimmer/shimmer/modules/global_workspace.html#GlobalWorkspaceFusion)) and want to update the loss
+([`GlobalWorkspace`](https://bdvllrs.github.io/shimmer/latest/shimmer/modules/global_workspace.html#GlobalWorkspace),
+[`GlobalWorkspaceBayesian`](https://bdvllrs.github.io/shimmer/latest/shimmer/modules/global_workspace.html#GlobalWorkspaceBayesian),
+[`GlobalWorkspaceFusion`](https://bdvllrs.github.io/shimmer/latest/shimmer/modules/global_workspace.html#GlobalWorkspaceFusion)) and want to update the loss
 used for demi-cycles, cycles, translations or broadcast, you can do so directly from
 your definition of the
-[`DomainModule`](https://bdvllrs.github.io/shimmer/shimmer/modules/domain.html#DomainModule.compute_loss)
+[`DomainModule`](https://bdvllrs.github.io/shimmer/latest/shimmer/modules/domain.html#DomainModule.compute_loss)
 when defining the `compute_loss` method.
 
 You also can have different losses for demi-cycles, cycles, ... by implementing
 the corresponding methods
-([`compute_dcy_loss`](https://bdvllrs.github.io/shimmer/shimmer/modules/domain.html#DomainModule.compute_dcy_loss),
-[`compute_tr_loss`](https://bdvllrs.github.io/shimmer/shimmer/modules/domain.html#DomainModule.compute_tr_loss), ...).
+([`compute_dcy_loss`](https://bdvllrs.github.io/shimmer/latest/shimmer/modules/domain.html#DomainModule.compute_dcy_loss),
+[`compute_tr_loss`](https://bdvllrs.github.io/shimmer/latest/shimmer/modules/domain.html#DomainModule.compute_tr_loss), ...).
 
 You can use your own contrastive loss function by passing it as an argument to the
 `GlobalWorkspace` class with the `contrastive_loss` loss argument.
@@ -37,9 +37,9 @@ You can use your own contrastive loss function by passing it as an argument to t
 If you have more specific needs, like change how the different loss interact, or
 completely replace the loss combination we provide, you will need to implement a new
 Loss Module inheriting from
-[`GWLossesBase`](https://bdvllrs.github.io/shimmer/shimmer/modules/losses.html#GWLossesBase).
+[`GWLossesBase`](https://bdvllrs.github.io/shimmer/latest/shimmer/modules/losses.html#GWLossesBase).
 Then, you can create a new implementation of
-[`GlobalWorkspaceBase`](https://bdvllrs.github.io/shimmer/shimmer/modules/global_workspace.html#GlobalWorkspaceBase)
+[`GlobalWorkspaceBase`](https://bdvllrs.github.io/shimmer/latest/shimmer/modules/global_workspace.html#GlobalWorkspaceBase)
 (see section "How can I customize my GlobalWorkspace" for more details.)
 
 
