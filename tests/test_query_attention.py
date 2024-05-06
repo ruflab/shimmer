@@ -32,13 +32,18 @@ def test_non_random():
     domain_dim = 3
     head_size = 5
     domain_names = ["vision", "language"]
-
+    batch_size = 2
     attention = DynamicQueryAttention(head_size, domain_dim, domain_names)
 
     attention_scores = {
         domains: attention(latents, y[domains]) for domains, latents in x.items()
     }
-    print(attention_scores)
+    assert attention_scores[frozenset(["vision"])]["vision"].shape == torch.Size(
+        [batch_size]
+    )
+    assert attention_scores[frozenset(["vision", "language"])][
+        "vision"
+    ].shape == torch.Size([batch_size])
 
 
 def test_single_domain():
