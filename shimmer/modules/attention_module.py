@@ -8,8 +8,11 @@ from lightning.pytorch.utilities.types import OptimizerLRSchedulerConfig
 from torch import Tensor, nn
 from torch.optim.lr_scheduler import OneCycleLR
 
-from shimmer.modules.global_workspace import GlobalWorkspaceBase, SchedulerArgs
-from shimmer.modules.gw import GWModuleBase
+from shimmer.modules.global_workspace import (
+    GlobalWorkspaceBase,
+    GWModuleBase,
+    SchedulerArgs,
+)
 from shimmer.modules.losses import GWLossesBase
 from shimmer.modules.selection import (
     SelectionBase,
