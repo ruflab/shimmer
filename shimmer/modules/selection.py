@@ -201,7 +201,6 @@ class RandomSelection(SelectionBase):
 
         # Apply softmax across domains with temperature scaling
         softmax_scores = torch.softmax(uniform_scores / self.temperature, dim=1)
-
         # Create attention dictionary for each domain
         attention_dict = {
             domain: softmax_scores[:, i] for i, domain in enumerate(domains)
@@ -213,32 +212,41 @@ class RandomSelection(SelectionBase):
 class DynamicQueryAttention(SelectionBase):
     """
     Key-Query attention with a dynamic gw vector.
+    The query is updated based on the scaled gw vector.
     """
 
-    def __init__(
-        self, batch_size: int, domain_dim: int, head_size: int, domains: Iterable[str]
-    ):
+    def __init__(self, head_size: int, domain_dim: int, domain_names: Iterable[str]):
         """
         Args:
-            batch_size (`int`) : size of the batch
+            head_size (`int`) : dimension of the key and query vectors.
             domain_dim (`int`) : dimension of the input dims (assumed to be the same
                 for now)
-            head_size (`int`) : dimension of the key and query vectors
-            domains (`Iterable[str]`) : list of input domains
+            domain_names  (`Iterable[str]`) : list of input domains
         """
         super().__init__()
-        self.batch_size = batch_size
         self.head_size = head_size
         self.query_layer = nn.Linear(domain_dim, head_size)
         self.key_layers = nn.ModuleDict(
-            {domain: nn.Linear(domain_dim, head_size) for domain in domains}
+            {domain: nn.Linear(domain_dim, head_size) for domain in domain_names}
         )
         # Start with a random gw state
-        self.gw_state = torch.rand(batch_size, domain_dim)
+        self.register_buffer("initial_gw_state", torch.rand(domain_dim))
 
     def calculate_attention_dict(
-        self, keys: dict, query: torch.Tensor
+        self,
+        domains: LatentsDomainGroupT,
+        keys: dict[str, torch.Tensor],
+        query: torch.Tensor,
     ) -> dict[str, torch.Tensor]:
+        """
+        Args:
+            domains (`LatentsDomainGroupT`): Group of unimodal latent representations.
+            keys (`dict[str, torch.Tensor]`): The keys for each domain.
+            query (`torch.Tensor`): The query tensor.
+
+        Returns:
+            `dict[str, torch.Tensor]`: The attention scores for each domain.
+        """
         dot_products = {
             domain: torch.bmm(key.unsqueeze(1), query.unsqueeze(2)).squeeze()
             for domain, key in keys.items()
@@ -249,26 +257,38 @@ class DynamicQueryAttention(SelectionBase):
         attention_scores = torch.softmax(dot_products_tensor, dim=1)
 
         attention_dict = {
-            domain: attention_scores[:, i : i + 1] for i, domain in enumerate(keys)
+            domain: attention_scores[:, i] for i, domain in enumerate(domains)
         }
         return attention_dict
 
     def fuse_weighted_encodings(
         self, encodings: LatentsDomainGroupT, attention_dict: dict[str, torch.Tensor]
     ) -> torch.Tensor:
+        """
+        Fuse the weighted encodings using the attention scores.
+
+        Args:
+            encodings (`LatentsDomainGroupT`): Unimodal latent representation
+            attention_dict (`dict[str, torch.Tensor]`): The attention scores for each
+                domain in the group.
+
+        Returns:
+            `torch.Tensor`: The fused tensor.
+        """
         # Apply attention scores to the encodings
         weighted_encodings = {}
         for key in attention_dict:
             if key in encodings:
-                # Perform element-wise multiplication and store the result
-                weighted_encodings[key] = attention_dict[key] * encodings[key]
+                # Perform element-wise multiplication
+                weighted_encodings[key] = (
+                    attention_dict[key].unsqueeze(1) * encodings[key]
+                )
 
         # Stack the tensors along a new dimension (dimension 0)
         stacked_tensors = torch.stack(list(weighted_encodings.values()))
 
         # Apply fusion by summing along the newly created dimension
         summed_tensor = torch.sum(stacked_tensors, dim=0)
-
         return summed_tensor
 
     def forward(
@@ -287,20 +307,18 @@ class DynamicQueryAttention(SelectionBase):
             group.
         """
 
-        # Encoding with pytorch
         keys = {
             domain: self.key_layers[domain](encoding)
             for domain, encoding in domains.items()
         }
 
-        # This for training (cpu or gpu)
-        device = group_device(domains)
+        batch_size = group_batch_size(domains)
 
-        # Retrieve query
-        query = self.query_layer(self.gw_state.to(device))
+        # Retrieve random query
+        query = self.query_layer(self.initial_gw_state.expand(batch_size, -1))
 
         # Calculate the attention scores
-        static_attention_dict = self.calculate_attention_dict(keys, query)
+        static_attention_dict = self.calculate_attention_dict(domains, keys, query)
 
         # Apply the attention scores to the encodings
         summed_tensor = self.fuse_weighted_encodings(
@@ -308,9 +326,9 @@ class DynamicQueryAttention(SelectionBase):
         )
 
         # Retrieve query (now it is dependent on the new gw state)
-        query = self.query_layer(summed_tensor.to(device))
+        query = self.query_layer(summed_tensor)
 
         # Calculate the attention scores again
-        dynamic_attention_dict = self.calculate_attention_dict(keys, query)
+        dynamic_attention_dict = self.calculate_attention_dict(domains, keys, query)
 
         return dynamic_attention_dict
