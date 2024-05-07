@@ -29,6 +29,35 @@ class SelectionBase(torch.nn.Module, ABC):
         """
         pass
 
+    def calculate_attention_dict(
+        self,
+        domains: LatentsDomainGroupT,
+        keys: dict[str, torch.Tensor],
+        query: torch.Tensor,
+    ) -> dict[str, torch.Tensor]:
+        """
+        Args:
+            domains (`LatentsDomainGroupT`): Group of unimodal latent representations.
+            keys (`dict[str, torch.Tensor]`): The keys for each domain.
+            query (`torch.Tensor`): The query tensor.
+
+        Returns:
+            `dict[str, torch.Tensor]`: The attention scores for each domain.
+        """
+        dot_products = {
+            domain: torch.bmm(key.unsqueeze(1), query.unsqueeze(2)).squeeze()
+            for domain, key in keys.items()
+        }
+
+        dot_products_tensor = torch.stack(list(dot_products.values()), dim=1)
+
+        attention_scores = torch.softmax(dot_products_tensor, dim=1)
+
+        attention_dict = {
+            domain: attention_scores[:, i] for i, domain in enumerate(domains)
+        }
+        return attention_dict
+
     @abstractmethod
     def forward(
         self, domains: LatentsDomainGroupT, encodings_pre_fusion: LatentsDomainGroupT
@@ -124,70 +153,51 @@ class KQFixedQSelection(SelectionBase):
     Key-Query attention with a fixed gw vector.
     """
 
-    def __init__(self, domain_dim: int, head_size: int, domains: Iterable[str]):
+    def __init__(self, head_size: int, domain_dim: int, domain_names: Iterable[str]):
         """
         Args:
-            domain_dim (`int`) : dimension of the input dims
-                (assumed to be the same for now)
             head_size (`int`) : dimension of the key and query vectors.
-            domains (`Iterable[str]`) : list of input domains
+            domain_dim (`int`) : dimension of the input dims (assumed to be the same
+                for now)
+            domain_names  (`Iterable[str]`) : list of input domains
         """
         super().__init__()
         self.head_size = head_size
         self.query_layer = nn.Linear(domain_dim, head_size)
         self.key_layers = nn.ModuleDict(
-            {domain: nn.Linear(domain_dim, head_size) for domain in domains}
+            {domain: nn.Linear(domain_dim, head_size) for domain in domain_names}
         )
-        self.gw_state: torch.Tensor | None = None
-
-    def update_gw_state(self, gw_state: torch.Tensor) -> None:
-        """
-        Set the internal copy of the fixed gw state. You're meant to only call this once
-
-        Args:
-            gw_state (`torch.Tensor`): the previous GW state
-        """
-        self.gw_state = gw_state
+        # Start with a random gw state
+        self.register_buffer("initial_gw_state", torch.rand(domain_dim))
 
     def forward(
         self, domains: LatentsDomainGroupT, encodings_pre_fusion: LatentsDomainGroupT
     ) -> dict[str, torch.Tensor]:
         """
         Compute keys and queries, match them with dot product and softmax.
+        Does this twice, once with the static query and once with a dynamic query.
 
         Args:
             domains (`LatentsDomainGroupT`): Group of unimodal latent representations.
+            encodings (`LatentsDomainGroupT`): Group of pre-fusion encodings.
 
         Returns:
-            `dict[str, torch.Tensor]`: for each domain in the group, the fusion
-            coefficient for each item in the batch.
+            `dict[str, torch.Tensor]`: the attention scores for each domain in the
+            group.
         """
-
-        if self.gw_state is None:
-            raise ValueError("GW state has not been initialized.")
 
         keys = {
             domain: self.key_layers[domain](encoding)
             for domain, encoding in domains.items()
         }
 
-        device = group_device(domains)
-        query = self.query_layer(self.gw_state.to(device))
+        batch_size = group_batch_size(domains)
 
-        dot_products = {
-            domain: torch.bmm(key.unsqueeze(1), query.unsqueeze(2)).squeeze()
-            for domain, key in keys.items()
-        }
+        # Retrieve random query
+        query = self.query_layer(self.initial_gw_state.expand(batch_size, -1))
 
-        dot_products_tensor = torch.stack(list(dot_products.values()), dim=1)
-
-        attention_scores = torch.softmax(dot_products_tensor, dim=1)
-
-        attention_dict = {
-            domain: attention_scores[:, i : i + 1] for i, domain in enumerate(keys)
-        }
-
-        return attention_dict
+        # Calculate the attention scores
+        return self.calculate_attention_dict(domains, keys, query)
 
 
 class RandomSelection(SelectionBase):
@@ -261,35 +271,6 @@ class DynamicQueryAttention(SelectionBase):
         )
         # Start with a random gw state
         self.register_buffer("initial_gw_state", torch.rand(domain_dim))
-
-    def calculate_attention_dict(
-        self,
-        domains: LatentsDomainGroupT,
-        keys: dict[str, torch.Tensor],
-        query: torch.Tensor,
-    ) -> dict[str, torch.Tensor]:
-        """
-        Args:
-            domains (`LatentsDomainGroupT`): Group of unimodal latent representations.
-            keys (`dict[str, torch.Tensor]`): The keys for each domain.
-            query (`torch.Tensor`): The query tensor.
-
-        Returns:
-            `dict[str, torch.Tensor]`: The attention scores for each domain.
-        """
-        dot_products = {
-            domain: torch.bmm(key.unsqueeze(1), query.unsqueeze(2)).squeeze()
-            for domain, key in keys.items()
-        }
-
-        dot_products_tensor = torch.stack(list(dot_products.values()), dim=1)
-
-        attention_scores = torch.softmax(dot_products_tensor, dim=1)
-
-        attention_dict = {
-            domain: attention_scores[:, i] for i, domain in enumerate(domains)
-        }
-        return attention_dict
 
     def fuse_weighted_encodings(
         self, encodings: LatentsDomainGroupT, attention_dict: dict[str, torch.Tensor]

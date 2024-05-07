@@ -11,7 +11,9 @@ from torch.optim.lr_scheduler import OneCycleLR
 from shimmer.modules.global_workspace import GlobalWorkspaceBase, SchedulerArgs
 from shimmer.modules.gw import GWModuleBase
 from shimmer.modules.losses import GWLossesBase
-from shimmer.modules.selection import DynamicQueryAttention, SelectionBase
+from shimmer.modules.selection import (
+    SelectionBase,
+)
 from shimmer.types import (
     LatentsDomainGroupsDT,
     LatentsDomainGroupsT,
@@ -44,19 +46,18 @@ class ShapesClassifier(nn.Sequential):
         super().__init__(*layers)
 
 
-class DynamicAttention(LightningModule):
+class AttentionBase(LightningModule):
     """
     Attention Lightning Module.
 
-    This is a wrapper around the DynamicQueryAttention module.
-    It is used to train the Dynamic Query Attention mechanism.
+    This is a wrapper around the different attention modules.
+    It is used to train an attention/selection mechanism.
     """
 
     def __init__(
         self,
         gw: GlobalWorkspaceBase[GWModuleBase, SelectionBase, GWLossesBase],
-        domain_dim: int,
-        head_size: int,
+        attention: SelectionBase,
         domain_names: Sequence[str],
         criterion: Callable[[torch.Tensor, RawDomainGroupT], torch.Tensor],
         optim_lr: float = 1e-3,
@@ -67,12 +68,13 @@ class DynamicAttention(LightningModule):
         self.save_hyperparameters(
             ignore=[
                 "gw",
+                "attention",
                 "criterion",
             ]
         )
 
         self.gw = gw
-        self.attention = DynamicQueryAttention(head_size, domain_dim, domain_names)
+        self.attention = attention
         self.domain_names = domain_names
         self.criterion = criterion
         self.optim_lr = optim_lr
