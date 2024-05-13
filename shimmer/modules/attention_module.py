@@ -40,6 +40,17 @@ class ShapesClassifier(nn.Module):
         self.relu = nn.ReLU()
         self.dropout = nn.Dropout(p=0.5)
 
+    def forward(self, x):
+        x = self.relu(self.bn1(self.fc1(x)))
+        x = self.dropout(x)
+        x = self.relu(self.bn2(self.fc2(x)))
+        x = self.dropout(x)
+        x = self.relu(self.bn3(self.fc3(x)))
+        x = self.dropout(x)
+        x = self.relu(self.bn4(self.fc4(x)))
+        x = self.dropout(x)
+        return self.fc5(x)
+
 
 class AttentionBase(LightningModule):
     """
