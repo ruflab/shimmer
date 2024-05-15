@@ -1,6 +1,6 @@
 # Usage example
 
-We will build a Global Workspace (GW) using `shimmer`. If will have 2 domains that are random
+We will build a Global Workspace (GW) using `shimmer`. It will have 2 domains that are random
 vectors of different dimensions.
 
 You can find the final code for this tutorial in the repository in `examples/main_example`.
