@@ -89,6 +89,36 @@ class SingleDomainSelection(SelectionBase):
         return selection
 
 
+class FixedSharedSelection(SelectionBase):
+    """
+    This selection mechanism is deterministic and always shares the weights equally
+    between domains.
+
+    For example, if 2 domains, it gives 0.5 for each; 3 domains, 1/3 for each...
+    """
+
+    def forward(
+        self, domains: LatentsDomainGroupT, encodings_pre_fusion: LatentsDomainGroupT
+    ) -> dict[str, torch.Tensor]:
+        """
+        Forward pass of the module.
+
+        Args:
+            domains (`LatentsDomainGroupT`): input unimodal latent representations
+            gw_state (`torch.Tensor`): the previous GW state
+
+        Returns:
+            `dict[str, torch.Tensor]`: whether the domain is selected for each input
+            in the batch.
+        """
+        selection: dict[str, torch.Tensor] = {}
+        bs = group_batch_size(domains)
+        coef = torch.full((bs,), 1.0 / len(domains), device=group_device(domains))
+        for domain in domains:
+            selection[domain] = coef.clone()
+        return selection
+
+
 class KQFixedQSelection(SelectionBase):
     """
     Key-Query attention with a fixed gw vector.

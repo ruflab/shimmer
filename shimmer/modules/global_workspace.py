@@ -24,6 +24,7 @@ from shimmer.modules.losses import (
     LossCoefs,
 )
 from shimmer.modules.selection import (
+    FixedSharedSelection,
     RandomSelection,
     SelectionBase,
     SingleDomainSelection,
@@ -631,7 +632,7 @@ class GlobalWorkspaceFusion(
 
 
 class GlobalWorkspaceBayesian(
-    GlobalWorkspaceBase[GWModuleBayesian, RandomSelection, GWLossesBayesian]
+    GlobalWorkspaceBase[GWModuleBayesian, FixedSharedSelection, GWLossesBayesian]
 ):
     """
     A simple 2-domains max GlobalWorkspaceBase with a Bayesian base uncertainty
@@ -648,7 +649,6 @@ class GlobalWorkspaceBayesian(
         gw_decoders: Mapping[str, Module],
         workspace_dim: int,
         loss_coefs: BroadcastLossCoefs,
-        selection_temperature: float = 0.2,
         sensitivity_selection: float = 1,
         sensitivity_precision: float = 1,
         optim_lr: float = 1e-3,
@@ -672,7 +672,6 @@ class GlobalWorkspaceBayesian(
                 GW representation into a unimodal latent representations.
             workspace_dim (`int`): dimension of the GW.
             loss_coefs (`LossCoefs`): loss coefficients
-            selection_temperature (`float`): temperature for `RandomSelection`
             sensitivity_selection (`float`): sensivity coef $c'_1$
             sensitivity_precision (`float`): sensitivity coef $c'_2$
             optim_lr (`float`): learning rate
@@ -695,7 +694,7 @@ class GlobalWorkspaceBayesian(
             sensitivity_precision,
         )
 
-        selection_mod = RandomSelection(selection_temperature)
+        selection_mod = FixedSharedSelection()
 
         contrastive_loss = ContrastiveLoss(
             torch.tensor([1]).log(), "mean", learn_logit_scale
