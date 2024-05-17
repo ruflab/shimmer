@@ -8,13 +8,14 @@ You can find the final code for this tutorial in the repository in `examples/mai
 Note that we choose to type this tutorial to make explicit what each function is expecting.
 
 First, let's take a look at a schematic of the different components that you need
-to make a GW in shimmer:
+to make a GW in shimmer :
 
 ![architecture](assets/shimmer_architecture.png)
+(the indices v and t represent domain 1 and domain 2 respectively)
 
 Let's detail:
 - [`DomainModule`](https://bdvllrs.github.io/shimmer/shimmer/modules/domain.html#DomainModule)s
-    are the individual domain modules which encode domain data into a latent vector;
+    are the individual domain modules which encode domain data into a latent vector (not strictly necesary for low dimensional domains).
 - the `GWModule` has access to the domain modules, and defines how to encode, decode and merge representations of the domains into a unique GW representation.
 - finally `GlobalWorkspaceBase` takes all building blocks to make a [Pytorch Lightning](https://lightning.ai/docs/pytorch/stable/) module
 
