@@ -124,7 +124,6 @@ class AttentionBase(LightningModule):
         self,
         batch: LatentsDomainGroupsT,
         corruption_vector: torch.Tensor | None = None,
-        corrupted_domain: str | None = None,
     ) -> LatentsDomainGroupsDT:
         """
         Apply corruption to the batch.
@@ -137,12 +136,11 @@ class AttentionBase(LightningModule):
         Returns:
             A batch where one of the latent domains is corrupted.
         """
-        if corrupted_domain is None:
-            # Specify which domain will be corrupted
-            corrupted_domain = random.choice(list(self.domain_names))
 
         matched_data_dict: LatentsDomainGroupsDT = {}
         for domain_names, domains in batch.items():
+            # Randomly select a domain to be corrupted for this instance
+            corrupted_domain = random.choice(list(self.domain_names))
             for domain_name, domain in domains.items():
                 if domain_names != self.domain_names or domain_name != corrupted_domain:
                     matched_data_dict.setdefault(domain_names, {})[domain_name] = domain
