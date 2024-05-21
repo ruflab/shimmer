@@ -682,6 +682,7 @@ class GlobalWorkspaceBayesian(
         optim_weight_decay: float = 0.0,
         scheduler_args: SchedulerArgs | None = None,
         learn_logit_scale: bool = False,
+        use_normalized_constrastive: bool = True,
         contrastive_loss: ContrastiveLossType | None = None,
     ) -> None:
         """
@@ -706,6 +707,8 @@ class GlobalWorkspaceBayesian(
             scheduler_args (`SchedulerArgs | None`): optimization scheduler's arguments
             learn_logit_scale (`bool`): whether to learn the contrastive learning
                 contrastive loss when using the default contrastive loss.
+            use_normalized_constrastive (`bool`): whether to use the normalized cont
+                loss by the precision coefs
             contrastive_loss (`ContrastiveLossType | None`): a contrastive loss
                 function used for alignment. `learn_logit_scale` will not affect custom
                 contrastive losses.
@@ -733,6 +736,7 @@ class GlobalWorkspaceBayesian(
             domain_mods,
             loss_coefs,
             contrastive_loss,
+            use_normalized_constrastive,
         )
 
         super().__init__(
