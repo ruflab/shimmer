@@ -55,7 +55,7 @@ def get_domain_data(
 ```
 
 To work with Pytorch Lightning, we will create a `LightningDataModule` class which
-will contain the sets to train our model.
+will contain the sets to train and validate our model.
 
 ```python
 from lightning.pytorch import LightningDataModule
