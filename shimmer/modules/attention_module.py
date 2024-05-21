@@ -5,7 +5,7 @@ from typing import Any
 import torch
 from lightning.pytorch import LightningModule
 from lightning.pytorch.utilities.types import OptimizerLRSchedulerConfig
-from torch import Tensor, nn
+from torch import Tensor
 from torch.optim.lr_scheduler import OneCycleLR
 
 from shimmer.modules.global_workspace import (
@@ -25,30 +25,6 @@ from shimmer.types import (
 )
 
 
-class ShapeClassifier(nn.Sequential):
-    def __init__(self, input_dim, output_dim):
-        layers = [
-            nn.Linear(input_dim, 256),
-            nn.BatchNorm1d(256),
-            nn.ReLU(),
-            nn.Dropout(p=0.5),
-            nn.Linear(256, 128),
-            nn.BatchNorm1d(128),
-            nn.ReLU(),
-            nn.Dropout(p=0.5),
-            nn.Linear(128, 64),
-            nn.BatchNorm1d(64),
-            nn.ReLU(),
-            nn.Dropout(p=0.5),
-            nn.Linear(64, 32),
-            nn.BatchNorm1d(32),
-            nn.ReLU(),
-            nn.Dropout(p=0.5),
-            nn.Linear(32, output_dim),
-        ]
-        super().__init__(*layers)
-
-
 class AttentionBase(LightningModule):
     """
     Attention Lightning Module.
@@ -62,7 +38,9 @@ class AttentionBase(LightningModule):
         gw: GlobalWorkspaceBase[GWModuleBase, SelectionBase, GWLossesBase],
         attention: SelectionBase,
         domain_names: Sequence[str],
-        criterion: Callable[[torch.Tensor, RawDomainGroupT], torch.Tensor],
+        criterion: Callable[
+            [torch.Tensor, RawDomainGroupT], tuple[torch.Tensor, torch.Tensor]
+        ],
         optim_lr: float = 1e-3,
         optim_weight_decay: float = 0.0,
         scheduler_args: SchedulerArgs | None = None,
@@ -168,7 +146,7 @@ class AttentionBase(LightningModule):
         accuracies = []
 
         for domain_names, domains in merged_gw_representation.items():
-            loss, accuracy = self.criterion(domains, batch[domain_names])
+            (loss, accuracy) = self.criterion(domains, batch[domain_names])
             losses.append(loss)
             accuracies.append(accuracy)
             domain_names_str = ",".join(domain_names)
@@ -184,7 +162,6 @@ class AttentionBase(LightningModule):
             )
         loss = torch.stack(losses).mean()
         print(f"loss: {loss}")
-        print(f"accuracy: {torch.stack(accuracies).mean()}")
         self.log(f"{mode}/loss", loss, on_step=True, on_epoch=True)
         self.log(f"{mode}/accuracy", torch.stack(accuracies).mean())
 
