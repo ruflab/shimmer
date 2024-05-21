@@ -151,8 +151,6 @@ import os
 import shutil
 from typing import Literal
 
-from dataset import DomainDataModule, domain_sizes, get_domain_data
-from domains import GenericDomain
 from lightning.pytorch import Trainer
 from lightning.pytorch.callbacks import ModelCheckpoint
 
