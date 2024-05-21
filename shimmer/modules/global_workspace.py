@@ -684,6 +684,7 @@ class GlobalWorkspaceBayesian(
         learn_logit_scale: bool = False,
         use_normalized_constrastive: bool = True,
         contrastive_loss: ContrastiveLossType | None = None,
+        precision_softmax_temp: float = 0.01,
     ) -> None:
         """
         Initializes a Global Workspace
@@ -712,6 +713,8 @@ class GlobalWorkspaceBayesian(
             contrastive_loss (`ContrastiveLossType | None`): a contrastive loss
                 function used for alignment. `learn_logit_scale` will not affect custom
                 contrastive losses.
+            precision_softmax_temp (`float`): temperature to use in softmax of
+                precision
         """
         domain_mods = freeze_domain_modules(domain_mods)
 
@@ -722,6 +725,7 @@ class GlobalWorkspaceBayesian(
             gw_decoders,
             sensitivity_selection,
             sensitivity_precision,
+            precision_softmax_temp,
         )
 
         selection_mod = FixedSharedSelection()

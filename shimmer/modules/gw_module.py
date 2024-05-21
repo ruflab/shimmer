@@ -338,6 +338,7 @@ class GWModuleBayesian(GWModule):
         gw_decoders: Mapping[str, nn.Module],
         sensitivity_selection: float = 1,
         sensitivity_precision: float = 1,
+        precision_softmax_temp: float = 0.01,
     ) -> None:
         """
         Initializes the GWModuleBayesian.
@@ -353,6 +354,8 @@ class GWModuleBayesian(GWModule):
                  GW representation to a unimodal latent representation.
             sensitivity_selection (`float`): sensivity coef $c'_1$
             sensitivity_precision (`float`): sensitivity coef $c'_2$
+            precision_softmax_temp (`float`): temperature to use in softmax of
+                precision
         """
         super().__init__(domain_modules, workspace_dim, gw_encoders, gw_decoders)
 
@@ -366,6 +369,7 @@ class GWModuleBayesian(GWModule):
 
         self.sensitivity_selection = sensitivity_selection
         self.sensitivity_precision = sensitivity_precision
+        self.precision_softmax_temp = precision_softmax_temp
 
     def get_precision(self, domain: str, x: torch.Tensor) -> torch.Tensor:
         """
@@ -437,7 +441,9 @@ class GWModuleBayesian(GWModule):
             domains.append(x[domain])
         combined_scores = compute_fusion_scores(
             torch.stack(scores).unsqueeze(-1),
-            torch.softmax(torch.stack(precisions), dim=0),
+            torch.softmax(
+                torch.tanh(torch.stack(precisions)) * self.precision_softmax_temp, dim=0
+            ),
             self.sensitivity_selection,
             self.sensitivity_precision,
         )
