@@ -8,35 +8,6 @@ from shimmer.types import LatentsDomainGroupT
 from shimmer.utils import group_batch_size, group_device
 
 
-def calculate_attention_dict(
-    domains: LatentsDomainGroupT,
-    keys: dict[str, torch.Tensor],
-    query: torch.Tensor,
-) -> dict[str, torch.Tensor]:
-    """
-    Args:
-        domains (`LatentsDomainGroupT`): Group of unimodal latent representations.
-        keys (`dict[str, torch.Tensor]`): The keys for each domain.
-        query (`torch.Tensor`): The query tensor.
-
-    Returns:
-        `dict[str, torch.Tensor]`: The attention scores for each domain.
-    """
-    dot_products = {
-        domain: torch.bmm(key.unsqueeze(1), query.unsqueeze(2)).squeeze()
-        for domain, key in keys.items()
-    }
-
-    dot_products_tensor = torch.stack(list(dot_products.values()), dim=1)
-
-    attention_scores = torch.softmax(dot_products_tensor, dim=1)
-
-    attention_dict = {
-        domain: attention_scores[:, i] for i, domain in enumerate(domains)
-    }
-    return attention_dict
-
-
 class SelectionBase(torch.nn.Module, ABC):
     """
     This is the base class for the selection mechanism.
@@ -148,6 +119,35 @@ class FixedSharedSelection(SelectionBase):
         return selection
 
 
+def _calculate_attention_dict(
+    domains: LatentsDomainGroupT,
+    keys: dict[str, torch.Tensor],
+    query: torch.Tensor,
+) -> dict[str, torch.Tensor]:
+    """
+    Args:
+        domains (`LatentsDomainGroupT`): Group of unimodal latent representations.
+        keys (`dict[str, torch.Tensor]`): The keys for each domain.
+        query (`torch.Tensor`): The query tensor.
+
+    Returns:
+        `dict[str, torch.Tensor]`: The attention scores for each domain.
+    """
+    dot_products = {
+        domain: torch.bmm(key.unsqueeze(1), query.unsqueeze(2)).squeeze()
+        for domain, key in keys.items()
+    }
+
+    dot_products_tensor = torch.stack(list(dot_products.values()), dim=1)
+
+    attention_scores = torch.softmax(dot_products_tensor, dim=1)
+
+    attention_dict = {
+        domain: attention_scores[:, i] for i, domain in enumerate(domains)
+    }
+    return attention_dict
+
+
 class KQFixedQSelection(SelectionBase):
     """
     Key-Query attention with a fixed gw vector.
@@ -197,7 +197,7 @@ class KQFixedQSelection(SelectionBase):
         query = self.query_layer(self.initial_gw_state.expand(batch_size, -1))
 
         # Calculate the attention scores
-        return calculate_attention_dict(domains, keys, query)
+        return _calculate_attention_dict(domains, keys, query)
 
 
 class RandomSelection(SelectionBase):
@@ -329,7 +329,7 @@ class DynamicQueryAttention(SelectionBase):
         query = self.query_layer(self.initial_gw_state.expand(batch_size, -1))
 
         # Calculate the attention scores
-        static_attention_dict = calculate_attention_dict(domains, keys, query)
+        static_attention_dict = _calculate_attention_dict(domains, keys, query)
 
         # Apply the attention scores to the encodings
         summed_tensor = self.fuse_weighted_encodings(
@@ -340,6 +340,6 @@ class DynamicQueryAttention(SelectionBase):
         query = self.query_layer(summed_tensor)
 
         # Calculate the attention scores again
-        dynamic_attention_dict = calculate_attention_dict(domains, keys, query)
+        dynamic_attention_dict = _calculate_attention_dict(domains, keys, query)
 
         return dynamic_attention_dict
