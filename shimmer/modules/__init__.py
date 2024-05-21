@@ -7,7 +7,7 @@ from shimmer.modules.contrastive_loss import (
 )
 from shimmer.modules.domain import DomainModule, LossOutput
 from shimmer.modules.global_workspace import (
-    GlobalWorkspace,
+    GlobalWorkspace2Domains,
     GlobalWorkspaceBase,
     GlobalWorkspaceBayesian,
     GWPredictions,
@@ -24,7 +24,7 @@ from shimmer.modules.gw_module import (
 )
 from shimmer.modules.losses import (
     BroadcastLossCoefs,
-    GWLosses,
+    GWLosses2Domains,
     GWLossesBase,
     GWLossesBayesian,
     LossCoefs,
@@ -54,7 +54,7 @@ __all__ = [
     "SchedulerArgs",
     "GWPredictions",
     "GlobalWorkspaceBase",
-    "GlobalWorkspace",
+    "GlobalWorkspace2Domains",
     "GlobalWorkspaceBayesian",
     "pretrained_global_workspace",
     "LossOutput",
@@ -72,7 +72,7 @@ __all__ = [
     "LossCoefs",
     "BroadcastLossCoefs",
     "GWLossesBase",
-    "GWLosses",
+    "GWLosses2Domains",
     "GWLossesBayesian",
     "RepeatedDataset",
     "reparameterize",

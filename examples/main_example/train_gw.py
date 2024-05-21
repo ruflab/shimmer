@@ -4,7 +4,7 @@ from lightning.pytorch import Trainer
 from lightning.pytorch.callbacks import ModelCheckpoint
 from torch import nn
 
-from shimmer import GlobalWorkspace, GWDecoder, GWEncoder, LossCoefs
+from shimmer import GlobalWorkspace2Domains, GWDecoder, GWEncoder, LossCoefs
 from shimmer.modules.global_workspace import SchedulerArgs
 
 
@@ -76,7 +76,7 @@ def train_gw():
 
     n_epochs = 4
 
-    global_workspace = GlobalWorkspace(
+    global_workspace = GlobalWorkspace2Domains(
         domain_mods,
         gw_encoders,
         gw_decoders,
