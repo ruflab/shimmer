@@ -146,7 +146,7 @@ class AttentionBase(LightningModule):
         accuracies = []
 
         for domain_names, domains in merged_gw_representation.items():
-            (loss, accuracy) = self.criterion(domains, batch[domain_names])
+            loss, accuracy = self.criterion(domains, batch[domain_names])
             losses.append(loss)
             accuracies.append(accuracy)
             domain_names_str = ",".join(domain_names)
@@ -161,7 +161,6 @@ class AttentionBase(LightningModule):
                 batch_size=domains.size(0),
             )
         loss = torch.stack(losses).mean()
-        print(f"loss: {loss}")
         self.log(f"{mode}/loss", loss, on_step=True, on_epoch=True)
         self.log(f"{mode}/accuracy", torch.stack(accuracies).mean())
 
