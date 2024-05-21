@@ -41,6 +41,7 @@ class AttentionBase(LightningModule):
         criterion: Callable[
             [torch.Tensor, RawDomainGroupT], tuple[torch.Tensor, torch.Tensor]
         ],
+        corruption_scaling: list[float] | None = None,
         optim_lr: float = 1e-3,
         optim_weight_decay: float = 0.0,
         scheduler_args: SchedulerArgs | None = None,
@@ -58,6 +59,7 @@ class AttentionBase(LightningModule):
         self.attention = attention
         self.domain_names = domain_names
         self.criterion = criterion
+        self.corruption_scaling = corruption_scaling
         self.optim_lr = optim_lr
         self.optim_weight_decay = optim_weight_decay
         self.scheduler_args = SchedulerArgs(max_lr=optim_lr, total_steps=1)
@@ -124,13 +126,28 @@ class AttentionBase(LightningModule):
                     matched_data_dict.setdefault(domain_names, {})[domain_name] = domain
                     continue
 
+                amount_corruption = (
+                    random.choice(self.corruption_scaling)
+                    if self.corruption_scaling
+                    else 1.0
+                )
+                print(f"Amount of corruption: {amount_corruption}")
+
                 # If corruption vector is not fixed outside the loop
                 if corruption_vector is None:
                     corruption_vector = torch.randn_like(domain)
 
+                # Normalize the corruption vector
+                corruption_vector = (
+                    corruption_vector - corruption_vector.mean()
+                ) / corruption_vector.std()
+
+                # Scale the corruption vector based on the amount of corruption
+                scaled_corruption_vector = (corruption_vector * 50) * amount_corruption
+
                 # Apply element-wise addition to one of the domains
                 matched_data_dict.setdefault(domain_names, {})[domain_name] = (
-                    domain + corruption_vector
+                    domain + scaled_corruption_vector
                 )
 
         return matched_data_dict
