@@ -73,10 +73,6 @@ class DomainDataModule(LightningDataModule):
 
         self.batch_size = batch_size
 
-        self.n_train = 128
-        self.n_val = 128
-        self.n_paired = 64
-
         self.val_dataset = TensorDataset(val_dataset)
         self.train_dataset = TensorDataset(train_dataset)
 
