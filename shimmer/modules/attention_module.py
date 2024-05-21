@@ -131,7 +131,6 @@ class AttentionBase(LightningModule):
                     if self.corruption_scaling
                     else 1.0
                 )
-                print(f"Amount of corruption: {amount_corruption}")
 
                 # If corruption vector is not fixed outside the loop
                 if corruption_vector is None:
