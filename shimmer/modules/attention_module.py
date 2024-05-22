@@ -43,6 +43,7 @@ class AttentionBase(LightningModule):
         ],
         corruption_vector: torch.Tensor | None = None,
         corruption_scaling: list[float] | None = None,
+        corrupt_batch: bool = False,
         optim_lr: float = 1e-3,
         optim_weight_decay: float = 0.0,
         scheduler_args: SchedulerArgs | None = None,
@@ -62,6 +63,7 @@ class AttentionBase(LightningModule):
         self.criterion = criterion
         self.corruption_vector = corruption_vector
         self.corruption_scaling = corruption_scaling
+        self.corrupt_batch = corrupt_batch
         self.optim_lr = optim_lr
         self.optim_weight_decay = optim_weight_decay
         self.scheduler_args = SchedulerArgs(max_lr=optim_lr, total_steps=1)
@@ -117,11 +119,12 @@ class AttentionBase(LightningModule):
         Returns:
             A batch where one of the latent domains is corrupted.
         """
-
+        if self.corrupt_batch:
+            corrupted_domain = random.choice(self.domain_names)
         matched_data_dict: LatentsDomainGroupsDT = {}
         for domain_names, domains in batch.items():
-            # Randomly select a domain to be corrupted for this instance
-            corrupted_domain = random.choice(list(self.domain_names))
+            if not self.corrupt_batch:
+                corrupted_domain = random.choice(self.domain_names)
             for domain_name, domain in domains.items():
                 if domain_names != self.domain_names or domain_name != corrupted_domain:
                     matched_data_dict.setdefault(domain_names, {})[domain_name] = domain
