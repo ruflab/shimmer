@@ -41,6 +41,7 @@ class AttentionBase(LightningModule):
         criterion: Callable[
             [torch.Tensor, RawDomainGroupT], tuple[torch.Tensor, torch.Tensor]
         ],
+        corruption_vector: torch.Tensor | None = None,
         corruption_scaling: list[float] | None = None,
         optim_lr: float = 1e-3,
         optim_weight_decay: float = 0.0,
@@ -59,6 +60,7 @@ class AttentionBase(LightningModule):
         self.attention = attention
         self.domain_names = domain_names
         self.criterion = criterion
+        self.corruption_vector = corruption_vector
         self.corruption_scaling = corruption_scaling
         self.optim_lr = optim_lr
         self.optim_weight_decay = optim_weight_decay
@@ -103,7 +105,6 @@ class AttentionBase(LightningModule):
     def apply_corruption(
         self,
         batch: LatentsDomainGroupsT,
-        corruption_vector: torch.Tensor | None = None,
     ) -> LatentsDomainGroupsDT:
         """
         Apply corruption to the batch.
@@ -126,23 +127,25 @@ class AttentionBase(LightningModule):
                     matched_data_dict.setdefault(domain_names, {})[domain_name] = domain
                     continue
 
+                # If corruption vector is not fixed outside the loop
+                if self.corruption_vector is None:
+                    self.corruption_vector = torch.randn_like(domain)
+
+                # Normalize the corruption vector
+                self.corruption_vector = (
+                    self.corruption_vector - self.corruption_vector.mean()
+                ) / self.corruption_vector.std()
+
+                # Random choose corruption from 1 to 10
                 amount_corruption = (
                     random.choice(self.corruption_scaling)
                     if self.corruption_scaling
                     else 1.0
                 )
-
-                # If corruption vector is not fixed outside the loop
-                if corruption_vector is None:
-                    corruption_vector = torch.randn_like(domain)
-
-                # Normalize the corruption vector
-                corruption_vector = (
-                    corruption_vector - corruption_vector.mean()
-                ) / corruption_vector.std()
-
                 # Scale the corruption vector based on the amount of corruption
-                scaled_corruption_vector = (corruption_vector * 50) * amount_corruption
+                scaled_corruption_vector = (
+                    self.corruption_vector * 50
+                ) * amount_corruption
 
                 # Apply element-wise addition to one of the domains
                 matched_data_dict.setdefault(domain_names, {})[domain_name] = (
