@@ -41,7 +41,7 @@ class AttentionBase(LightningModule):
         criterion: Callable[
             [torch.Tensor, RawDomainGroupT], tuple[torch.Tensor, torch.Tensor]
         ],
-        corruption_vector: torch.Tensor | None = None,
+        fixed_corruption_vector: torch.Tensor | None = None,
         corruption_scaling: list[float] | None = None,
         corrupt_batch: bool = False,
         optim_lr: float = 1e-3,
@@ -61,7 +61,7 @@ class AttentionBase(LightningModule):
         self.attention = attention
         self.domain_names = frozenset({"attr", "v_latents"})
         self.criterion = criterion
-        self.corruption_vector = corruption_vector
+        self.fixed_corruption_vector = fixed_corruption_vector
         self.corruption_scaling = corruption_scaling
         self.corrupt_batch = corrupt_batch
         self.optim_lr = optim_lr
@@ -119,12 +119,13 @@ class AttentionBase(LightningModule):
         Returns:
             A batch where one of the latent domains is corrupted.
         """
-        if self.corruption_vector is not None:
+        if self.fixed_corruption_vector is not None:
             print(" first corruption_vector")
-            print(self.corruption_vector.shape)
+            print(self.fixed_corruption_vector.shape)
         if self.corrupt_batch:
             corrupted_domain = random.choice(list(self.domain_names))
         print(f"corrupted_domain: {corrupted_domain}")
+
         matched_data_dict: LatentsDomainGroupsDT = {}
         for domain_names, domains in batch.items():
             if not self.corrupt_batch:
@@ -138,17 +139,23 @@ class AttentionBase(LightningModule):
                     # print(corrupted_domain)
                     matched_data_dict.setdefault(domain_names, {})[domain_name] = domain
                     continue
-                print("no")
+
                 # If corruption vector is not fixed outside the loop
-                if self.corruption_vector is None:
-                    self.corruption_vector = torch.randn_like(domain)
-                    print(f"second corruption_vector: {self.corruption_vector.shape}")
+                if self.fixed_corruption_vector is None:
+                    corruption_vector = torch.randn_like(domain)
+                    print(f"second corruption_vector: {corruption_vector.shape}")
+                elif self.fixed_corruption_vector.shape != domain.shape:
+                    corruption_vector = self.fixed_corruption_vector[: domain.shape[0]]
+                else:
+                    corruption_vector = self.fixed_corruption_vector
                 # Normalize the corruption vector
-                self.corruption_vector = (
-                    self.corruption_vector - self.corruption_vector.mean()
-                ) / self.corruption_vector.std()
-                print(f"corruption_vector after normalizing: {self.corruption_vector}")
-                print(self.corruption_vector.shape)
+                normalized_corruption_vector = (
+                    corruption_vector - corruption_vector.mean()
+                ) / corruption_vector.std()
+                print(
+                    f"corruption_vector after normalizing: {normalized_corruption_vector}"
+                )
+                print(normalized_corruption_vector.shape)
                 # Random choose corruption from 1 to 10
                 amount_corruption = (
                     random.choice(self.corruption_scaling)
@@ -158,7 +165,7 @@ class AttentionBase(LightningModule):
                 print(f"amount corruption`{amount_corruption}`")
                 # Scale the corruption vector based on the amount of corruption
                 scaled_corruption_vector = (
-                    self.corruption_vector * 50
+                    normalized_corruption_vector * 50
                 ) * amount_corruption
                 print(f"scaled_corruption_vector: {scaled_corruption_vector}")
                 print(scaled_corruption_vector.shape)
