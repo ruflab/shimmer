@@ -59,7 +59,7 @@ class AttentionBase(LightningModule):
 
         self.gw = gw
         self.attention = attention
-        self.domain_names = domain_names
+        self.domain_names = frozenset({"attr", "v_latents"})
         self.criterion = criterion
         self.corruption_vector = corruption_vector
         self.corruption_scaling = corruption_scaling
