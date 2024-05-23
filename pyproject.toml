@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "shimmer"
-version = "0.5.0"
+version = "0.6.0.dev"
 description = "A light GLoW"
 authors = ["bdvllrs <bdvllrs@gmail.com>"]
 license = "MIT"
