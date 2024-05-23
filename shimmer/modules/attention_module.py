@@ -142,7 +142,7 @@ class AttentionBase(LightningModule):
                 # If corruption vector is not fixed outside the loop
                 if self.corruption_vector is None:
                     self.corruption_vector = torch.randn_like(domain)
-                print(f"second corruption_vector: {self.corruption_vector.shape}")
+                    print(f"second corruption_vector: {self.corruption_vector.shape}")
                 # Normalize the corruption vector
                 self.corruption_vector = (
                     self.corruption_vector - self.corruption_vector.mean()
