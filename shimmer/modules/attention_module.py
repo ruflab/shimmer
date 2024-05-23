@@ -120,12 +120,12 @@ class AttentionBase(LightningModule):
             A batch where one of the latent domains is corrupted.
         """
         if self.corrupt_batch:
-            corrupted_domain = random.choice(self.domain_names)
+            corrupted_domain = random.choice(list(self.domain_names))
         print(f"corrupted_domain: {corrupted_domain}")
         matched_data_dict: LatentsDomainGroupsDT = {}
         for domain_names, domains in batch.items():
             if not self.corrupt_batch:
-                corrupted_domain = random.choice(self.domain_names)
+                corrupted_domain = random.choice(list(self.domain_names))
             for domain_name, domain in domains.items():
                 if domain_names != self.domain_names or domain_name != corrupted_domain:
                     print("yes")
