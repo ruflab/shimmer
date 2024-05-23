@@ -62,4 +62,12 @@ refers to `DeterministicGlobalWorkspace`.
     loss functions.
 * Remove many _with_uncertainty functions. The GWModuleWithUncertainty now behaves like
     the other GWModules.
-* Rename all "with_uncertainty" stuff to "bayesian"
+* Rename all "with_uncertainty" methods to "bayesian". Note, BayesianGlobalWorkspaces
+  are still a work in progress.
+* Added selection mechanisms (inheriting from `SelectionBase`, [see
+  docs](https://bdvllrs.github.io/shimmer/latest/shimmer/modules/selection.html#SelectionBase))
+  to fuse representations according to different mechanisms (e.g. Attention).
+* `GlobalWorkspace` (and associated `GWModule`, `GWLosses`, ...) now uses the
+  [`RandomSelection`](https://bdvllrs.github.io/shimmer/latest/shimmer/modules/selection.html#RandomSelection)
+  mechanism. For the old behavior, use
+  [`GlobalWorkspace2Domains`](https://bdvllrs.github.io/shimmer/latest/shimmer/modules/global_workspace.html#GlobalWorkspace2Domains).
