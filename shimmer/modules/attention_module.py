@@ -119,6 +119,9 @@ class AttentionBase(LightningModule):
         Returns:
             A batch where one of the latent domains is corrupted.
         """
+        if self.corruption_vector is not None:
+            print(" first corruption_vector")
+            print(self.corruption_vector.shape)
         if self.corrupt_batch:
             corrupted_domain = random.choice(list(self.domain_names))
         print(f"corrupted_domain: {corrupted_domain}")
@@ -128,23 +131,24 @@ class AttentionBase(LightningModule):
                 corrupted_domain = random.choice(list(self.domain_names))
             for domain_name, domain in domains.items():
                 if domain_names != self.domain_names or domain_name != corrupted_domain:
-                    print("yes")
-                    print(domain_names)
-                    print(self.domain_names)
-                    print(domain_name)
-                    print(corrupted_domain)
+                    # print("yes")
+                    # print(domain_names)
+                    # print(self.domain_names)
+                    # print(domain_name)
+                    # print(corrupted_domain)
                     matched_data_dict.setdefault(domain_names, {})[domain_name] = domain
                     continue
                 print("no")
                 # If corruption vector is not fixed outside the loop
                 if self.corruption_vector is None:
                     self.corruption_vector = torch.randn_like(domain)
-                print(f"corruption_vector: {self.corruption_vector}")
+                print(f"second corruption_vector: {self.corruption_vector.shape}")
                 # Normalize the corruption vector
                 self.corruption_vector = (
                     self.corruption_vector - self.corruption_vector.mean()
                 ) / self.corruption_vector.std()
                 print(f"corruption_vector after normalizing: {self.corruption_vector}")
+                print(self.corruption_vector.shape)
                 # Random choose corruption from 1 to 10
                 amount_corruption = (
                     random.choice(self.corruption_scaling)
@@ -157,6 +161,8 @@ class AttentionBase(LightningModule):
                     self.corruption_vector * 50
                 ) * amount_corruption
                 print(f"scaled_corruption_vector: {scaled_corruption_vector}")
+                print(scaled_corruption_vector.shape)
+                print(domain.shape)
                 # Apply element-wise addition to one of the domains
                 matched_data_dict.setdefault(domain_names, {})[domain_name] = (
                     domain + scaled_corruption_vector
