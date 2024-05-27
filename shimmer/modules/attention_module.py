@@ -134,20 +134,9 @@ class AttentionBase(LightningModule):
 
                 # Create corruption vector if not given
                 if self.fixed_corruption_vector is None:
-                    print("3")
                     corruption_vector = torch.randn(domain.size(1)).to("cuda:0")
-                # elif self.fixed_corruption_vector.shape != domain.shape:
-                #     print("2")
-                #     print(self.fixed_corruption_vector.shape)
-                #     print(domain.shape)
-                #     corruption_vector = self.fixed_corruption_vector[: domain.shape[0]]
-                #     print(corruption_vector.shape)
-                #     print(corruption_vector)
                 else:
-                    print("1")
                     corruption_vector = self.fixed_corruption_vector
-                    print(corruption_vector.shape)
-                    print(corruption_vector)
 
                 normalized_corruption_vector = (
                     corruption_vector - corruption_vector.mean()
