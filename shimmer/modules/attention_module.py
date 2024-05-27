@@ -179,7 +179,6 @@ class AttentionBase(LightningModule):
 
         for domain_names, domains in merged_gw_representation.items():
             loss, accuracy = self.criterion(domains, batch[domain_names])
-            print(loss)
             losses.append(loss)
             accuracies.append(accuracy)
             domain_names_str = ",".join(domain_names)
