@@ -141,6 +141,8 @@ class AttentionBase(LightningModule):
                     print(self.fixed_corruption_vector.shape)
                     print(domain.shape)
                     corruption_vector = self.fixed_corruption_vector[: domain.shape[0]]
+                    print(corruption_vector.shape)
+                    print(corruption_vector)
                 else:
                     print("1")
                     corruption_vector = self.fixed_corruption_vector
