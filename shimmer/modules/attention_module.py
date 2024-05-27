@@ -135,6 +135,8 @@ class AttentionBase(LightningModule):
                 # Create corruption vector if not given
                 if self.fixed_corruption_vector is None:
                     corruption_vector = torch.randn_like(domain)
+                    print("dynamic corruption vector")
+                    print(corruption_vector)
                 elif self.fixed_corruption_vector.shape != domain.shape:
                     corruption_vector = self.fixed_corruption_vector[: domain.shape[0]]
                 else:
@@ -175,6 +177,7 @@ class AttentionBase(LightningModule):
 
         for domain_names, domains in merged_gw_representation.items():
             loss, accuracy = self.criterion(domains, batch[domain_names])
+            print(loss)
             losses.append(loss)
             accuracies.append(accuracy)
             domain_names_str = ",".join(domain_names)
