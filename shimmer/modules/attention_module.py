@@ -138,6 +138,7 @@ class AttentionBase(LightningModule):
                     print(domain.shape)
                     print("dynamic corruption vector")
                     print(corruption_vector)
+                    print(corruption_vector.shape)
                 elif self.fixed_corruption_vector.shape != domain.shape:
                     corruption_vector = self.fixed_corruption_vector[: domain.shape[0]]
                 else:
