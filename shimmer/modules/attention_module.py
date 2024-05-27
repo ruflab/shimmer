@@ -134,7 +134,7 @@ class AttentionBase(LightningModule):
 
                 # Create corruption vector if not given
                 if self.fixed_corruption_vector is None:
-                    corruption_vector = torch.randn_like(domain)
+                    corruption_vector = torch.randn_like(domain[:, 0])
                     print(domain.shape)
                     print("dynamic corruption vector")
                     print(corruption_vector)
