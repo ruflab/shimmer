@@ -164,14 +164,8 @@ class AttentionBase(LightningModule):
     def generic_step(self, batch: RawDomainGroupsT, mode: str) -> Tensor:
         latent_domains = self.gw.encode_domains(batch)
         corrupted_batch = self.apply_corruption(latent_domains)
-        print("corrupted_batch")
-        print(corrupted_batch)
         prefusion_encodings = self.gw.encode(corrupted_batch)
-        print("prefusion_encodings")
-        print(prefusion_encodings)
         attention_scores = self.forward(corrupted_batch, prefusion_encodings)
-        print("attention_scores")
-        print(attention_scores)
         merged_gw_representation = self.gw.fuse(prefusion_encodings, attention_scores)
         losses = []
         accuracies = []
