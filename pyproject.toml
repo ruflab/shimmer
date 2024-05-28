@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "shimmer"
-version = "0.5.0"
+version = "0.6.0.dev"
 description = "A light GLoW"
 authors = ["bdvllrs <bdvllrs@gmail.com>"]
 license = "MIT"
@@ -11,7 +11,7 @@ python = "~3.11"
 numpy = "^1.25"
 pandas = "^2.0.2"
 matplotlib = "^3.7.1"
-migrate-ckpt = {git = "https://github.com/bdvllrs/migrate-ckpt.git", rev = "main"}
+migrate-ckpt = {git = "https://github.com/bdvllrs/migrate-ckpt.git", rev = "v0.2.0"}
 click = "^8.1.7"
 lightning = "^2.1.0"
 torch = "^2.0.1"

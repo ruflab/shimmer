@@ -2,7 +2,7 @@ import torch
 from torch import nn
 
 from shimmer.modules.domain import DomainModule, LossOutput
-from shimmer.modules.global_workspace import GlobalWorkspaceFusion
+from shimmer.modules.global_workspace import GlobalWorkspace
 from shimmer.modules.losses import BroadcastLossCoefs
 
 
@@ -39,7 +39,7 @@ def test_broadcast_loss():
         "contrastives": 0.1,
     }
 
-    gw_fusion = GlobalWorkspaceFusion(
+    gw_fusion = GlobalWorkspace(
         domain_mods,
         gw_encoders,
         gw_decoders,

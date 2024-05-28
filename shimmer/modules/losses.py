@@ -312,14 +312,19 @@ def contrastive_loss_bayesian(
                 loss_name = f"contrastive_{domain1_name}_and_{domain2_name}"
                 z2 = gw_mod.encode({domain2_name: domain2})[domain2_name]
                 z2_precision = gw_mod.get_precision(domain2_name, domain2)
-                coef = torch.stack([z1_precision, z2_precision]).softmax(dim=0)
-                loss_output = contrastive_fn(
-                    z1 * coef[0] * coef[1], z2 * coef[0] * coef[1]
+                coef = torch.softmax(
+                    gw_mod.precision_softmax_temp
+                    * torch.stack([z1_precision, z2_precision]),
+                    dim=0,
                 )
+                norm = torch.sqrt(coef[0] * coef[1])
+                loss_output = contrastive_fn(z1 * norm, z2 * norm)
+                loss_output_no_norm = contrastive_fn(z1, z2)
                 losses[loss_name] = loss_output.loss
                 metrics.update(
                     {f"{loss_name}_{k}": v for k, v in loss_output.metrics.items()}
                 )
+                metrics[f"unnorm_{loss_name}"] = loss_output_no_norm.loss
 
     losses["contrastives"] = torch.stack(list(losses.values()), dim=0).mean()
     losses.update(metrics)
@@ -348,7 +353,7 @@ class LossCoefs(TypedDict, total=False):
     """Contrastive loss coefficient."""
 
 
-class GWLosses(GWLossesBase):
+class GWLosses2Domains(GWLossesBase):
     """
     Implementation of `GWLossesBase` used for `GWModule`.
     """
@@ -659,7 +664,7 @@ class BroadcastLossCoefs(TypedDict, total=False):
     """translation loss coefficient. Translation, like cycles, can be many-to-one."""
 
 
-class GWLossesFusion(GWLossesBase):
+class GWLosses(GWLossesBase):
     """
     Implementation of `GWLossesBase` for fusion-based models.
     """
@@ -763,6 +768,7 @@ class GWLossesBayesian(GWLossesBase):
         domain_mods: dict[str, DomainModule],
         loss_coefs: BroadcastLossCoefs,
         contrastive_fn: ContrastiveLossType,
+        use_normalized_constrastive: bool = True,
     ):
         """
         Loss module with uncertainty prediction to use with the GlobalWorkspaceBayesian
@@ -775,6 +781,8 @@ class GWLossesBayesian(GWLossesBase):
             loss_coefs (`BroadcastLossCoefs`): loss coefficients
             contrastive_fn (`ContrastiveLossType`): the contrastive function
                 to use in contrastive loss
+            use_normalized_constrastive (`bool`): whether to use the normalized cont
+                loss by the precision coefs
         """
         super().__init__()
 
@@ -795,6 +803,8 @@ class GWLossesBayesian(GWLossesBase):
         Contrastive loss to use.
         """
 
+        self.use_normalized_constrastive = use_normalized_constrastive
+
     def contrastive_loss(
         self, latent_domains: LatentsDomainGroupsT
     ) -> dict[str, torch.Tensor]:
@@ -807,9 +817,11 @@ class GWLossesBayesian(GWLossesBase):
         Returns:
             `dict[str, torch.Tensor]`: a dict of metrics.
         """
-        return contrastive_loss_bayesian(
-            self.gw_mod, latent_domains, self.contrastive_fn
-        )
+        if self.use_normalized_constrastive:
+            return contrastive_loss_bayesian(
+                self.gw_mod, latent_domains, self.contrastive_fn
+            )
+        return contrastive_loss(self.gw_mod, latent_domains, self.contrastive_fn)
 
     def broadcast_loss(
         self, latent_domains: LatentsDomainGroupsT

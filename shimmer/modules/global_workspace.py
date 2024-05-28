@@ -18,9 +18,9 @@ from shimmer.modules.gw_module import (
 from shimmer.modules.losses import (
     BroadcastLossCoefs,
     GWLosses,
+    GWLosses2Domains,
     GWLossesBase,
     GWLossesBayesian,
-    GWLossesFusion,
     LossCoefs,
 )
 from shimmer.modules.selection import (
@@ -466,7 +466,9 @@ class GWPredictions(GWPredictionsBase):
     """
 
 
-class GlobalWorkspace(GlobalWorkspaceBase[GWModule, SingleDomainSelection, GWLosses]):
+class GlobalWorkspace2Domains(
+    GlobalWorkspaceBase[GWModule, SingleDomainSelection, GWLosses2Domains]
+):
     """
     A simple 2-domains max flavor of GlobalWorkspaceBase.
 
@@ -519,7 +521,7 @@ class GlobalWorkspace(GlobalWorkspaceBase[GWModule, SingleDomainSelection, GWLos
                 torch.tensor([1 / 0.07]).log(), "mean", learn_logit_scale
             )
         selection_mod = SingleDomainSelection()
-        loss_mod = GWLosses(
+        loss_mod = GWLosses2Domains(
             gw_mod, selection_mod, domain_mods, loss_coefs, contrastive_loss
         )
 
@@ -559,9 +561,7 @@ class GlobalWorkspace(GlobalWorkspaceBase[GWModule, SingleDomainSelection, GWLos
         )
 
 
-class GlobalWorkspaceFusion(
-    GlobalWorkspaceBase[GWModule, RandomSelection, GWLossesFusion]
-):
+class GlobalWorkspace(GlobalWorkspaceBase[GWModule, RandomSelection, GWLosses]):
     """The 2-domain fusion (with broadcast loss) flavor of GlobalWorkspaceBase.
 
     This is used to simplify a Global Workspace instanciation and only overrides the
@@ -617,7 +617,7 @@ class GlobalWorkspaceFusion(
             )
 
         selection_mod = RandomSelection(selection_temperature)
-        loss_mod = GWLossesFusion(
+        loss_mod = GWLosses(
             gw_mod, selection_mod, domain_mods, loss_coefs, contrastive_loss
         )
 
@@ -628,6 +628,33 @@ class GlobalWorkspaceFusion(
             optim_lr,
             optim_weight_decay,
             scheduler_args,
+        )
+
+    def forward(  # type: ignore
+        self,
+        latent_domains: LatentsDomainGroupsT,
+    ) -> GWPredictions:
+        """
+        Computes demi-cycles, cycles, and translations.
+
+        Args:
+            latent_domains (`LatentsT`): Groups of domains for the computation.
+
+        Returns:
+            `GWPredictions`: the predictions on the batch.
+        """
+        return GWPredictions(
+            demi_cycles=batch_demi_cycles(
+                self.gw_mod, self.selection_mod, latent_domains
+            ),
+            cycles=batch_cycles(
+                self.gw_mod, self.selection_mod, latent_domains, self.domain_mods.keys()
+            ),
+            translations=batch_translations(
+                self.gw_mod, self.selection_mod, latent_domains
+            ),
+            # TODO: add other combinations
+            **super().forward(latent_domains),
         )
 
 
@@ -655,7 +682,9 @@ class GlobalWorkspaceBayesian(
         optim_weight_decay: float = 0.0,
         scheduler_args: SchedulerArgs | None = None,
         learn_logit_scale: bool = False,
+        use_normalized_constrastive: bool = True,
         contrastive_loss: ContrastiveLossType | None = None,
+        precision_softmax_temp: float = 0.01,
     ) -> None:
         """
         Initializes a Global Workspace
@@ -679,9 +708,13 @@ class GlobalWorkspaceBayesian(
             scheduler_args (`SchedulerArgs | None`): optimization scheduler's arguments
             learn_logit_scale (`bool`): whether to learn the contrastive learning
                 contrastive loss when using the default contrastive loss.
+            use_normalized_constrastive (`bool`): whether to use the normalized cont
+                loss by the precision coefs
             contrastive_loss (`ContrastiveLossType | None`): a contrastive loss
                 function used for alignment. `learn_logit_scale` will not affect custom
                 contrastive losses.
+            precision_softmax_temp (`float`): temperature to use in softmax of
+                precision
         """
         domain_mods = freeze_domain_modules(domain_mods)
 
@@ -692,6 +725,7 @@ class GlobalWorkspaceBayesian(
             gw_decoders,
             sensitivity_selection,
             sensitivity_precision,
+            precision_softmax_temp,
         )
 
         selection_mod = FixedSharedSelection()
@@ -706,6 +740,7 @@ class GlobalWorkspaceBayesian(
             domain_mods,
             loss_coefs,
             contrastive_loss,
+            use_normalized_constrastive,
         )
 
         super().__init__(
@@ -753,7 +788,7 @@ def pretrained_global_workspace(
     loss_coefs: LossCoefs,
     contrastive_fn: ContrastiveLossType,
     **kwargs,
-) -> GlobalWorkspace:
+) -> GlobalWorkspace2Domains:
     """
     Load a `GlobalWorkspace` flavor of `GlobalWorkspaceBase` from a checkpoint.
 
@@ -785,9 +820,11 @@ def pretrained_global_workspace(
     domain_mods = freeze_domain_modules(domain_mods)
     gw_mod = GWModule(domain_mods, workspace_dim, gw_encoders, gw_decoders)
     selection_mod = SingleDomainSelection()
-    loss_mod = GWLosses(gw_mod, selection_mod, domain_mods, loss_coefs, contrastive_fn)
+    loss_mod = GWLosses2Domains(
+        gw_mod, selection_mod, domain_mods, loss_coefs, contrastive_fn
+    )
 
-    gw = GlobalWorkspace.load_from_checkpoint(
+    gw = GlobalWorkspace2Domains.load_from_checkpoint(
         checkpoint_path,
         gw_mod=gw_mod,
         selection_mid=selection_mod,
@@ -795,6 +832,6 @@ def pretrained_global_workspace(
         loss_mod=loss_mod,
         **kwargs,
     )
-    if not isinstance(gw, GlobalWorkspace):
+    if not isinstance(gw, GlobalWorkspace2Domains):
         raise TypeError("model should be of type GlobalWorkspace")
     return gw

@@ -5,13 +5,18 @@ from typing import Any
 import torch
 from lightning.pytorch import LightningModule
 from lightning.pytorch.utilities.types import OptimizerLRSchedulerConfig
-from torch import Tensor, nn
+from torch import Tensor
 from torch.optim.lr_scheduler import OneCycleLR
 
-from shimmer.modules.global_workspace import GlobalWorkspaceBase, SchedulerArgs
-from shimmer.modules.gw import GWModuleBase
+from shimmer.modules.global_workspace import (
+    GlobalWorkspaceBase,
+    GWModuleBase,
+    SchedulerArgs,
+)
 from shimmer.modules.losses import GWLossesBase
-from shimmer.modules.selection import DynamicQueryAttention, SelectionBase
+from shimmer.modules.selection import (
+    SelectionBase,
+)
 from shimmer.types import (
     LatentsDomainGroupsDT,
     LatentsDomainGroupsT,
@@ -20,45 +25,22 @@ from shimmer.types import (
 )
 
 
-class ShapesClassifier(nn.Sequential):
-    def __init__(self, input_dim, output_dim):
-        layers = [
-            nn.Linear(input_dim, 256),
-            nn.BatchNorm1d(256),
-            nn.ReLU(),
-            nn.Dropout(p=0.5),
-            nn.Linear(256, 128),
-            nn.BatchNorm1d(128),
-            nn.ReLU(),
-            nn.Dropout(p=0.5),
-            nn.Linear(128, 64),
-            nn.BatchNorm1d(64),
-            nn.ReLU(),
-            nn.Dropout(p=0.5),
-            nn.Linear(64, 32),
-            nn.BatchNorm1d(32),
-            nn.ReLU(),
-            nn.Dropout(p=0.5),
-            nn.Linear(32, output_dim),
-        ]
-        super().__init__(*layers)
-
-
-class DynamicAttention(LightningModule):
+class AttentionBase(LightningModule):
     """
     Attention Lightning Module.
 
-    This is a wrapper around the DynamicQueryAttention module.
-    It is used to train the Dynamic Query Attention mechanism.
+    This is a wrapper around the different attention modules.
+    It is used to train an attention/selection mechanism.
     """
 
     def __init__(
         self,
         gw: GlobalWorkspaceBase[GWModuleBase, SelectionBase, GWLossesBase],
-        domain_dim: int,
-        head_size: int,
+        attention: SelectionBase,
         domain_names: Sequence[str],
-        criterion: Callable[[torch.Tensor, RawDomainGroupT], torch.Tensor],
+        criterion: Callable[
+            [torch.Tensor, RawDomainGroupT], tuple[torch.Tensor, torch.Tensor]
+        ],
         optim_lr: float = 1e-3,
         optim_weight_decay: float = 0.0,
         scheduler_args: SchedulerArgs | None = None,
@@ -67,12 +49,13 @@ class DynamicAttention(LightningModule):
         self.save_hyperparameters(
             ignore=[
                 "gw",
+                "attention",
                 "criterion",
             ]
         )
 
         self.gw = gw
-        self.attention = DynamicQueryAttention(head_size, domain_dim, domain_names)
+        self.attention = attention
         self.domain_names = domain_names
         self.criterion = criterion
         self.optim_lr = optim_lr
@@ -119,7 +102,6 @@ class DynamicAttention(LightningModule):
         self,
         batch: LatentsDomainGroupsT,
         corruption_vector: torch.Tensor | None = None,
-        corrupted_domain: str | None = None,
     ) -> LatentsDomainGroupsDT:
         """
         Apply corruption to the batch.
@@ -132,12 +114,11 @@ class DynamicAttention(LightningModule):
         Returns:
             A batch where one of the latent domains is corrupted.
         """
-        if corrupted_domain is None:
-            # Specify which domain will be corrupted
-            corrupted_domain = random.choice(list(self.domain_names))
 
         matched_data_dict: LatentsDomainGroupsDT = {}
         for domain_names, domains in batch.items():
+            # Randomly select a domain to be corrupted for this instance
+            corrupted_domain = random.choice(list(self.domain_names))
             for domain_name, domain in domains.items():
                 if domain_names != self.domain_names or domain_name != corrupted_domain:
                     matched_data_dict.setdefault(domain_names, {})[domain_name] = domain
@@ -160,18 +141,28 @@ class DynamicAttention(LightningModule):
         prefusion_encodings = self.gw.encode(corrupted_batch)
         attention_scores = self.forward(corrupted_batch, prefusion_encodings)
         merged_gw_representation = self.gw.fuse(prefusion_encodings, attention_scores)
+
         losses = []
+        accuracies = []
+
         for domain_names, domains in merged_gw_representation.items():
-            losses.append(self.criterion(domains, batch[domain_names]))
+            loss, accuracy = self.criterion(domains, batch[domain_names])
+            losses.append(loss)
+            accuracies.append(accuracy)
             domain_names_str = ",".join(domain_names)
             self.log(
                 f"{mode}/{domain_names_str}_loss",
                 losses[-1],
                 batch_size=domains.size(0),
             )
+            self.log(
+                f"{mode}/{domain_names_str}_accuracy",
+                accuracies[-1],
+                batch_size=domains.size(0),
+            )
         loss = torch.stack(losses).mean()
-        print(f"loss: {loss}")
         self.log(f"{mode}/loss", loss, on_step=True, on_epoch=True)
+        self.log(f"{mode}/accuracy", torch.stack(accuracies).mean())
 
         return loss
 

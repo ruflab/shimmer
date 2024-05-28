@@ -1,6 +1,6 @@
 # Usage example
 
-We will build a Global Workspace (GW) using `shimmer`. If will have 2 domains that are random
+We will build a Global Workspace (GW) using `shimmer`. It will have 2 domains that are random
 vectors of different dimensions.
 
 You can find the final code for this tutorial in the repository in `examples/main_example`.
@@ -13,14 +13,16 @@ to make a GW in shimmer :
 ![architecture](assets/shimmer_architecture.png)
 (the indices v and t represent domain 1 and domain 2 respectively)
 
-Let's detail:
-- [`DomainModule`](https://bdvllrs.github.io/shimmer/shimmer/modules/domain.html#DomainModule)s
-    are the individual domain modules which encode domain data into a latent vector (not strictly necesary for low dimensional domains).
-- the `GWModule` has access to the domain modules, and defines how to encode, decode and merge representations of the domains into a unique GW representation.
-- finally `GlobalWorkspaceBase` takes all building blocks to make a [Pytorch Lightning](https://lightning.ai/docs/pytorch/stable/) module
+Let's detail:   
 
-The last building block (not in the diagram) is the `GWLosses` class which
-defines how losses are computed to train the GW.
+- [`DomainModule`](https://bdvllrs.github.io/shimmer/latest/shimmer/modules/domain.html#DomainModule)s
+    are the individual domain modules which encode domain data into or decode it from a latent vector.
+
+- The `GWModule` has access to the domain modules. It encodes, merges and decodes the latent domain representations into and from a unique GW representation.
+
+- Finally, `GlobalWorkspaceBase` takes all building blocks to make a [Pytorch Lightning](https://lightning.ai/docs/pytorch/stable/) module.
+
+The last building block (not in the diagram) is the `GWLosses` class which defines how losses are computed to train the GW.
 
 Now let's build and assemble all of these blocks.
 
@@ -56,7 +58,7 @@ def get_domain_data(
 ```
 
 To work with Pytorch Lightning, we will create a `LightningDataModule` class which
-will contain the sets to train our model.
+will contain the sets to train and validate our model.
 
 ```python
 from lightning.pytorch import LightningDataModule
@@ -74,10 +76,6 @@ class DomainDataModule(LightningDataModule):
 
         self.batch_size = batch_size
 
-        self.n_train = 128
-        self.n_val = 128
-        self.n_paired = 64
-
         self.val_dataset = TensorDataset(val_dataset)
         self.train_dataset = TensorDataset(train_dataset)
 
@@ -92,7 +90,7 @@ class DomainDataModule(LightningDataModule):
 Now that our data module is defined, let's create `DomainModule`s.
 
 ## `DomainModule`
-For more details about DomainModules, see the [DomainModule API docs](https://bdvllrs.github.io/shimmer/shimmer/modules/domain.html#DomainModule).
+For more details about DomainModules, see the [DomainModule API docs](https://bdvllrs.github.io/shimmer/latest/shimmer/modules/domain.html#DomainModule).
 The `DomainModule` class extends from a LightningModule and requires you to define some
 methods:
 
@@ -152,8 +150,6 @@ import os
 import shutil
 from typing import Literal
 
-from dataset import DomainDataModule, domain_sizes, get_domain_data
-from domains import GenericDomain
 from lightning.pytorch import Trainer
 from lightning.pytorch.callbacks import ModelCheckpoint
 
@@ -429,7 +425,7 @@ class GenericDomain(DomainModule):
         return LossOutput(loss=F.mse_loss(pred, target))
 ```
 
-To learn more about LossOutput, see [API docs](https://bdvllrs.github.io/shimmer/shimmer/modules/domain.html#LossOutput).
+To learn more about LossOutput, see [API docs](https://bdvllrs.github.io/shimmer/latest/shimmer/modules/domain.html#LossOutput).
 
 ## Let's make a GW!
 
@@ -443,7 +439,7 @@ from lightning.pytorch import Trainer
 from lightning.pytorch.callbacks import ModelCheckpoint
 from torch import nn
 
-from shimmer import GlobalWorkspace, GWDecoder, GWEncoder, LossCoefs
+from shimmer import GlobalWorkspace2Domains, GWDecoder, GWEncoder, LossCoefs
 from shimmer.modules.global_workspace import SchedulerArgs
 
 
@@ -515,7 +511,7 @@ def train_gw():
 
     n_epochs = 4
 
-    global_workspace = GlobalWorkspace(
+    global_workspace = GlobalWorkspace2Domains(
         domain_mods,
         gw_encoders,
         gw_decoders,
@@ -638,7 +634,7 @@ We define loss coefficients for the different losses. Note that `LossCoefs` is a
 
 Finally we make the GlobalWorkspace and train it.
 ```python
-    global_workspace = GlobalWorkspace(
+    global_workspace = GlobalWorkspace2Domains(
         domain_mods,
         gw_encoders,
         gw_decoders,
