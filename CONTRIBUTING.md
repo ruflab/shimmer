@@ -62,3 +62,11 @@ We use [pytest](https://github.com/pytest-dev/pytest/).
 ```sh
 poetry run pytest tests/
 ```
+
+### Checkpoint Migration
+Note that among the tests, we check that old GW checkpoints can still be migrated
+automatically. If you plan on making some changes that would break old checkpoints,
+please also provide a migration script in `shimmer/ckpt_migrations`.
+
+You just need to create a new file `N_what_I_changed.py` (see
+the [store migrations in a folder](https://github.com/bdvllrs/migrate-ckpt?tab=readme-ov-file#store-migrations-in-a-folder) section).
