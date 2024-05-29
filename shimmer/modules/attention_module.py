@@ -128,6 +128,8 @@ class AttentionBase(LightningModule):
                 corrupted_domain = random.choice(list(self.domain_names))
                 print("corrupted domain")
                 print(corrupted_domain)
+            print("domains")
+            print(domains)
             for domain_name, domain in domains.items():
                 if domain_names != self.domain_names or domain_name != corrupted_domain:
                     matched_data_dict.setdefault(domain_names, {})[domain_name] = domain
