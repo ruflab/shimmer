@@ -226,7 +226,7 @@ class AttentionBase(LightningModule):
                         normalized_corruption_vector * 5
                     ) * amount_corruption
                     print(domains[domain_to_corrupt])
-                    print(domains[domain_to_corrupt][0][row])
+                    print(domains[domain_to_corrupt][row])
                     domains[domain_to_corrupt][0][row] = (
                         domains[domain_to_corrupt][0][row] + scaled_corruption_vector
                     )
