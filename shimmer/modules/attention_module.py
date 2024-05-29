@@ -201,8 +201,13 @@ class AttentionBase(LightningModule):
                     domain_to_corrupt = random.choice(list(self.domain_names))
                     # Create corruption vector if not given
                     if self.fixed_corruption_vector is None:
+                        print(domains[domain_to_corrupt])
+                        print(domains[domain_to_corrupt].size())
+                        print(domains[domain_to_corrupt].size(1))
+                        print(domains[domain_to_corrupt].size(0))
+                        print(domains[domain_to_corrupt].size(-1))
                         corruption_vector = torch.randn(
-                            domains[domain_to_corrupt].size(2)
+                            domains[domain_to_corrupt].size(0)
                         ).to("cuda:0")
                     else:
                         corruption_vector = self.fixed_corruption_vector
