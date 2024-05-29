@@ -141,23 +141,28 @@ class AttentionBase(LightningModule):
                 normalized_corruption_vector = (
                     corruption_vector - corruption_vector.mean()
                 ) / corruption_vector.std()
-
+                print("normalized corruption vector")
+                print(normalized_corruption_vector)
                 # Random choose corruption from 1 to 10 (1.0 means no scaling)
                 amount_corruption = (
                     random.choice(self.corruption_scaling)
                     if self.corruption_scaling
                     else 1.0
                 )
-
+                print("amount of corruption")
+                print(amount_corruption)
                 # Scale the corruption vector based on the amount of corruption
                 scaled_corruption_vector = (
                     normalized_corruption_vector * 5
                 ) * amount_corruption
-
+                print("scaled corruption vector")
+                print(scaled_corruption_vector)
                 # Apply element-wise addition to one of the domains
                 matched_data_dict.setdefault(domain_names, {})[domain_name] = (
                     domain + scaled_corruption_vector
                 )
+        print("matched_data_dict")
+        print(matched_data_dict)
 
         return matched_data_dict
 
