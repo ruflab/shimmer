@@ -59,7 +59,7 @@ class AttentionBase(LightningModule):
 
         self.gw = gw
         self.attention = attention
-        self.domain_names = frozenset({"attr", "v_latents"})
+        self.domain_names = frozenset({"v_latents", "attr"})
         self.criterion = criterion
         self.fixed_corruption_vector = fixed_corruption_vector
         self.corruption_scaling = corruption_scaling
@@ -126,10 +126,13 @@ class AttentionBase(LightningModule):
         print("batch")
         print(batch)
         for domain_names, domains in batch.items():
-            if not self.corrupt_batch:
-                corrupted_domain = random.choice(list(self.domain_names))
-                print("corrupted domain")
-                print(corrupted_domain)
+            if domain_names == self.domain_names:
+                for domain_name, domain in domains.items():
+                    matched_data_dict.setdefault(domain_names, {})[domain_name] = domain
+            # if not self.corrupt_batch:
+            #     corrupted_domain = random.choice(list(self.domain_names))
+            #     print("corrupted domain")
+            #     print(corrupted_domain)
             for domain_name, domain in domains.items():
                 if domain_names != self.domain_names or domain_name != corrupted_domain:
                     matched_data_dict.setdefault(domain_names, {})[domain_name] = domain
@@ -172,9 +175,69 @@ class AttentionBase(LightningModule):
 
         return matched_data_dict
 
+    def apply_corruption2(
+        self,
+        batch: LatentsDomainGroupsT,
+    ) -> LatentsDomainGroupsT:
+        """
+        Apply corruption to the batch.
+
+        Args:
+            batch: A batch of latent domains.
+            corruption_vector: A vector to be added to the corrupted domain.
+            corrupted_domain: The domain to be corrupted.
+
+        Returns:
+            A batch where one of the latent domains is corrupted.
+        """
+        # matched_data_dict: LatentsDomainGroupsDT = {}
+        print(" batch before corruption")
+        print(batch)
+        # Make a copy of the batch
+        for domain_names, domains in batch.items():
+            # Check if the domain-names are {frozenset({'v_latents', 'attr'})
+            if domain_names == self.domain_names:
+                # Iterate over each row index
+                for row in range(domains[list(self.domain_names)[0]].size(1)):
+                    # Randomly choose whether to corrupt 'v_latents' or 'attr'
+                    domain_to_corrupt = random.choice(list(self.domain_names))
+
+                    # Create corruption vector if not given
+                    if self.fixed_corruption_vector is None:
+                        corruption_vector = torch.randn(
+                            domains[domain_to_corrupt].size(2)
+                        ).to("cuda:0")
+                    else:
+                        corruption_vector = self.fixed_corruption_vector
+
+                    normalized_corruption_vector = (
+                        corruption_vector - corruption_vector.mean()
+                    ) / corruption_vector.std()
+
+                    # Random choose corruption from 1 to 10 (1.0 means no scaling)
+                    amount_corruption = (
+                        random.choice(self.corruption_scaling)
+                        if self.corruption_scaling
+                        else 1.0
+                    )
+                    print("amount of corruption")
+                    print(amount_corruption)
+                    # Scale the corruption vector based on the amount of corruption
+                    scaled_corruption_vector = (
+                        normalized_corruption_vector * 5
+                    ) * amount_corruption
+
+                    domains[domain_to_corrupt][0][row] = (
+                        domains[domain_to_corrupt][0][row] + scaled_corruption_vector
+                    )
+            batch[domain_names] = domains
+        print("batch after corruption")
+        print(batch)
+        return batch
+
     def generic_step(self, batch: RawDomainGroupsT, mode: str) -> Tensor:
         latent_domains = self.gw.encode_domains(batch)
-        corrupted_batch = self.apply_corruption(latent_domains)
+        corrupted_batch = self.apply_corruption2(latent_domains)
         prefusion_encodings = self.gw.encode(corrupted_batch)
         attention_scores = self.forward(corrupted_batch, prefusion_encodings)
         merged_gw_representation = self.gw.fuse(prefusion_encodings, attention_scores)
