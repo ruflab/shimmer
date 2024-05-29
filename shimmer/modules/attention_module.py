@@ -122,14 +122,17 @@ class AttentionBase(LightningModule):
         # Check if batch or instance corruption is applied
         if self.corrupt_batch:
             corrupted_domain = random.choice(list(self.domain_names))
-
         matched_data_dict: LatentsDomainGroupsDT = {}
         for domain_names, domains in batch.items():
             if not self.corrupt_batch:
                 corrupted_domain = random.choice(list(self.domain_names))
+                print("corrupted domain")
+                print(corrupted_domain)
             for domain_name, domain in domains.items():
                 if domain_names != self.domain_names or domain_name != corrupted_domain:
                     matched_data_dict.setdefault(domain_names, {})[domain_name] = domain
+                    print("non corrupted matched data dict")
+                    print(matched_data_dict)
                     continue
 
                 # Create corruption vector if not given
@@ -137,7 +140,8 @@ class AttentionBase(LightningModule):
                     corruption_vector = torch.randn(domain.size(1)).to("cuda:0")
                 else:
                     corruption_vector = self.fixed_corruption_vector
-
+                print("corruption vector")
+                print(corruption_vector)
                 normalized_corruption_vector = (
                     corruption_vector - corruption_vector.mean()
                 ) / corruption_vector.std()
