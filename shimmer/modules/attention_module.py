@@ -201,7 +201,7 @@ class AttentionBase(LightningModule):
                 for row in range(domains[list(self.domain_names)[0]].size(1)):
                     # Randomly choose whether to corrupt 'v_latents' or 'attr'
                     domain_to_corrupt = random.choice(list(self.domain_names))
-
+                    print(f"corrupting domain: {domain_to_corrupt}")
                     # Create corruption vector if not given
                     if self.fixed_corruption_vector is None:
                         corruption_vector = torch.randn(
@@ -209,7 +209,7 @@ class AttentionBase(LightningModule):
                         ).to("cuda:0")
                     else:
                         corruption_vector = self.fixed_corruption_vector
-
+                    print(f"corruption vector: {corruption_vector}")
                     normalized_corruption_vector = (
                         corruption_vector - corruption_vector.mean()
                     ) / corruption_vector.std()
@@ -220,16 +220,17 @@ class AttentionBase(LightningModule):
                         if self.corruption_scaling
                         else 1.0
                     )
-                    print("amount of corruption")
-                    print(amount_corruption)
+                    print(f"amount of corruption: {amount_corruption}")
                     # Scale the corruption vector based on the amount of corruption
                     scaled_corruption_vector = (
                         normalized_corruption_vector * 5
                     ) * amount_corruption
-
+                    print(domains[domain_to_corrupt])
+                    print(domains[domain_to_corrupt][0][row])
                     domains[domain_to_corrupt][0][row] = (
                         domains[domain_to_corrupt][0][row] + scaled_corruption_vector
                     )
+
             batch[domain_names] = domains
         print("batch after corruption")
         print(batch)
