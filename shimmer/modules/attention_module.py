@@ -190,9 +190,7 @@ class AttentionBase(LightningModule):
         Returns:
             A batch where one of the latent domains is corrupted.
         """
-        # matched_data_dict: LatentsDomainGroupsDT = {}
-        print(" batch before corruption")
-        print(batch)
+        # TODO matched_data_dict: LatentsDomainGroupsDT = {}
         # Make a copy of the batch
         for domain_names, domains in batch.items():
             # Check if the domain-names are {frozenset({'v_latents', 'attr'})
@@ -201,7 +199,6 @@ class AttentionBase(LightningModule):
                 for row in range(domains[list(self.domain_names)[0]].size(1)):
                     # Randomly choose whether to corrupt 'v_latents' or 'attr'
                     domain_to_corrupt = random.choice(list(self.domain_names))
-                    print(f"corrupting domain: {domain_to_corrupt}")
                     # Create corruption vector if not given
                     if self.fixed_corruption_vector is None:
                         corruption_vector = torch.randn(
@@ -209,7 +206,6 @@ class AttentionBase(LightningModule):
                         ).to("cuda:0")
                     else:
                         corruption_vector = self.fixed_corruption_vector
-                    print(f"corruption vector: {corruption_vector}")
                     normalized_corruption_vector = (
                         corruption_vector - corruption_vector.mean()
                     ) / corruption_vector.std()
@@ -220,20 +216,15 @@ class AttentionBase(LightningModule):
                         if self.corruption_scaling
                         else 1.0
                     )
-                    print(f"amount of corruption: {amount_corruption}")
                     # Scale the corruption vector based on the amount of corruption
                     scaled_corruption_vector = (
                         normalized_corruption_vector * 5
                     ) * amount_corruption
-                    print(domains[domain_to_corrupt])
-                    print(domains[domain_to_corrupt][row])
                     domains[domain_to_corrupt][row] = (
                         domains[domain_to_corrupt][row] + scaled_corruption_vector
                     )
 
             batch[domain_names] = domains
-        print("batch after corruption")
-        print(batch)
         return batch
 
     def generic_step(self, batch: RawDomainGroupsT, mode: str) -> Tensor:
