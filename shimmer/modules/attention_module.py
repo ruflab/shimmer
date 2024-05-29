@@ -123,13 +123,13 @@ class AttentionBase(LightningModule):
         if self.corrupt_batch:
             corrupted_domain = random.choice(list(self.domain_names))
         matched_data_dict: LatentsDomainGroupsDT = {}
+        print("batch")
+        print(batch)
         for domain_names, domains in batch.items():
             if not self.corrupt_batch:
                 corrupted_domain = random.choice(list(self.domain_names))
                 print("corrupted domain")
                 print(corrupted_domain)
-            print("domains")
-            print(domains)
             for domain_name, domain in domains.items():
                 if domain_names != self.domain_names or domain_name != corrupted_domain:
                     matched_data_dict.setdefault(domain_names, {})[domain_name] = domain
