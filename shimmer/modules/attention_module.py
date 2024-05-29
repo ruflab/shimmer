@@ -218,7 +218,7 @@ class AttentionBase(LightningModule):
                     )
                     # Scale the corruption vector based on the amount of corruption
                     scaled_corruption_vector = (
-                        normalized_corruption_vector * 5
+                        normalized_corruption_vector * 50
                     ) * amount_corruption
                     domains[domain_to_corrupt][row] = (
                         domains[domain_to_corrupt][row] + scaled_corruption_vector
