@@ -257,12 +257,16 @@ class AttentionBase(LightningModule):
                     continue
 
                 # If corruption vector is not fixed outside the loop
-                if corruption_vector is None:
-                    corruption_vector = torch.randn_like(domain)
+                if self.fixed_corruption_vector is None:
+                    corruption_vector = torch.randn(domain.size(1)).to("cuda:0")
+                else:
+                    corruption_vector = self.fixed_corruption_vector
+
                 # Normalize the corruption vector
                 corruption_vector = (
                     corruption_vector - corruption_vector.mean()
                 ) / corruption_vector.std()
+
                 # Scale the corruption vector based on the amount of corruption
                 scaled_corruption_vector = (corruption_vector * 5) * amount_corruption
 
