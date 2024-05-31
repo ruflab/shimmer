@@ -201,6 +201,7 @@ class AttentionBase(LightningModule):
                 continue
         device = group_device(domains)
         batch_size = groups_batch_size(batch)
+
         n_domains = len(self.domain_names)
         domain_size = 12
 
@@ -238,17 +239,45 @@ class AttentionBase(LightningModule):
         scaled_corruption_vector = (corruption_vector * 5) * 1.0
         # print(scaled_corruption_vector)
         for k, (domain_names, domains) in enumerate(matched_data_dict.items()):
+            print(f"k: {k}")
+            print(f"domain_names: {domain_names}")
+            print(f"domains: {domains}")
             if domain_names == self.domain_names:
                 for domain_name, domain in domains.items():
+                    print(f"domain_name: {domain_name}")
+                    print(f"domain: {domain}")
                     if domain_name == "v_latents":
-                        print("v_latents")
-                        print(domain[masked_domains[:, k]])
+                        print(f"domain_name: {domain_name}")
+                        print(f"domain: {domain}")
+                        print(f"masked_domains[:, k]: {masked_domains[:, k]}")
+                        print(
+                            f"scaled_corruption_vector[masked_domains[:, k]]: {scaled_corruption_vector[masked_domains[:, k]]}"
+                        )
+                        print(
+                            f"domain[masked_domains[:, k]]: {domain[masked_domains[:, k]]}"
+                        )
+                        print(
+                            f"domain[masked_domains[:, k]] + scaled_corruption_vector[masked_domains[:, k]]: {domain[masked_domains[:, k]] + scaled_corruption_vector[masked_domains[:, k]]}"
+                        )
+
                         domain[masked_domains[:, k]] += scaled_corruption_vector[
                             masked_domains[:, k]
                         ]
                     if domain_name == "attr":
-                        print("attr")
-                        print(domain[masked_domains_inversed[:, k]])
+                        print(f"domain_name: {domain_name}")
+                        print(f"domain: {domain}")
+                        print(
+                            f"masked_domains_inversed[:, k]: {masked_domains_inversed[:, k]}"
+                        )
+                        print(
+                            f"scaled_corruption_vector[masked_domains_inversed[:, k]]: {scaled_corruption_vector[masked_domains_inversed[:, k]]}"
+                        )
+                        print(
+                            f"domain[masked_domains_inversed[:, k]]: {domain[masked_domains_inversed[:, k]]}"
+                        )
+                        print(
+                            f"domain[masked_domains_inversed[:, k]] + scaled_corruption_vector[masked_domains_inversed[:, k]]: {domain[masked_domains_inversed[:, k]] + scaled_corruption_vector[masked_domains_inversed[:, k]]}"
+                        )
                         domain[masked_domains_inversed[:, k]] += (
                             scaled_corruption_vector[masked_domains_inversed[:, k]]
                         )
