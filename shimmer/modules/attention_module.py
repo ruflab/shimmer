@@ -165,6 +165,8 @@ class AttentionBase(LightningModule):
                 for domain_name, domain in domains.items():
                     if domain_name == self.list_domain_names[0]:
                         print(self.list_domain_names[0])
+                        print(domain[masked_domains])
+                        print(domain[masked_domains[:, k]])
                         domain[masked_domains[:, k]] += scaled_corruption_vector[
                             masked_domains[:, k]
                         ]
