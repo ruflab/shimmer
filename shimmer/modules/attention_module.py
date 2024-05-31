@@ -164,6 +164,84 @@ class AttentionBase(LightningModule):
             if domain_names == self.domain_names:
                 for domain_name, domain in domains.items():
                     if domain_name == "v_latents":
+                        print(domain)
+                        print(domain.shape)
+                        domain[masked_domains[:, k]] += scaled_corruption_vector[
+                            masked_domains[:, k]
+                        ]
+                    if domain_name == "attr":
+                        print(domain)
+                        print(domain.shape)
+                        domain[masked_domains_inversed[:, k]] += (
+                            scaled_corruption_vector[masked_domains_inversed[:, k]]
+                        )
+
+        return matched_data_dict
+
+    def apply_row_corruption(
+        self,
+        batch: LatentsDomainGroupsT,
+    ) -> LatentsDomainGroupsDT:
+        """
+        Apply corruption to the batch.
+
+        Args:
+            batch: A batch of latent domains.
+            corruption_vector: A vector to be added to the corrupted domain.
+            corrupted_domain: The domain to be corrupted.
+
+        Returns:
+            A batch where one of the latent domains is corrupted.
+        """
+        matched_data_dict: LatentsDomainGroupsDT = {}
+        # Make a copy of the batch
+        for domain_names, domains in batch.items():
+            for domain_name, domain in domains.items():
+                matched_data_dict.setdefault(domain_names, {})[domain_name] = domain
+                continue
+        device = group_device(domains)
+        batch_size = groups_batch_size(batch)
+        n_domains = len(self.domain_names)
+        domain_size = 12
+
+        selected_domains = torch.randint(0, n_domains, (batch_size,), device=device)
+        masked_domains = torch.nn.functional.one_hot(selected_domains, n_domains).to(
+            device, torch.bool
+        )
+        # Inverse
+        masked_domains_inversed = ~masked_domains
+        corruption_vector = torch.tensor(
+            [
+                0.2146,
+                -0.1659,
+                -1.3089,
+                0.6493,
+                0.5529,
+                -0.8427,
+                -0.8761,
+                -0.1472,
+                -0.3247,
+                0.3215,
+                0.0212,
+                -0.7116,
+            ]
+        ).to(device)
+        # Expand
+        corruption_vector = corruption_vector.expand(batch_size, domain_size)
+        # corruption_vector = torch.randn((batch_size, domain_size), device=device)
+        # corruption_vector = torch.randn((batch_size, domain_size), device=device)
+        # Normalize the corruption vector
+        corruption_vector = (
+            corruption_vector - corruption_vector.mean(dim=1, keepdim=True)
+        ) / corruption_vector.std(dim=1, keepdim=True)
+        # Scale the corruption vector based on the amount of corruption
+        scaled_corruption_vector = (corruption_vector * 5) * 1.0
+        print(scaled_corruption_vector.shape)
+        # print(scaled_corruption_vector)
+        for k, (domain_names, domains) in enumerate(matched_data_dict.items()):
+            if domain_names == self.domain_names:
+                for domain_name, domain in domains.items():
+                    if domain_name == "v_latents":
                         domain[masked_domains[:, k]] += scaled_corruption_vector[
                             masked_domains[:, k]
                         ]
@@ -231,7 +309,7 @@ class AttentionBase(LightningModule):
 
     def generic_step(self, batch: RawDomainGroupsT, mode: str) -> Tensor:
         latent_domains = self.gw.encode_domains(batch)
-        corrupted_batch = self.apply_corruption(latent_domains)
+        corrupted_batch = self.apply_row_corruption(latent_domains)
         prefusion_encodings = self.gw.encode(corrupted_batch)
         attention_scores = self.forward(corrupted_batch, prefusion_encodings)
         merged_gw_representation = self.gw.fuse(prefusion_encodings, attention_scores)
