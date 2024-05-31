@@ -236,21 +236,19 @@ class AttentionBase(LightningModule):
         ) / corruption_vector.std(dim=1, keepdim=True)
         # Scale the corruption vector based on the amount of corruption
         scaled_corruption_vector = (corruption_vector * 5) * 1.0
-        print(scaled_corruption_vector.shape)
         # print(scaled_corruption_vector)
         for k, (domain_names, domains) in enumerate(matched_data_dict.items()):
             if domain_names == self.domain_names:
                 for domain_name, domain in domains.items():
                     if domain_name == "v_latents":
-                        print(domain)
-                        print(masked_domains[:, k])
+                        print("v_latents")
+                        print(domain[masked_domains[:, k]])
                         domain[masked_domains[:, k]] += scaled_corruption_vector[
                             masked_domains[:, k]
                         ]
                     if domain_name == "attr":
-                        print(domain)
-                        print(masked_domains_inversed[:, k])
-                        exit()
+                        print("attr")
+                        print(domain[masked_domains_inversed[:, k]])
                         domain[masked_domains_inversed[:, k]] += (
                             scaled_corruption_vector[masked_domains_inversed[:, k]]
                         )
