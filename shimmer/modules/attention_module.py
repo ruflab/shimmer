@@ -129,14 +129,16 @@ class AttentionBase(LightningModule):
         device = group_device(domains)
         batch_size = groups_batch_size(batch)
         n_domains = len(self.domain_names)
+        print(n_domains)
 
         selected_domains = torch.randint(0, n_domains, (batch_size,), device=device)
         masked_domains = torch.nn.functional.one_hot(selected_domains, n_domains).to(
             device, torch.bool
         )
+        print(masked_domains)
         # Inverse (which means this only works for two domains now)
         masked_domains_inversed = ~masked_domains
-
+        print(masked_domains_inversed)
         if self.fixed_corruption_vector is not None:
             corruption_vector = self.fixed_corruption_vector.expand(
                 batch_size, self.domain_dim
@@ -162,10 +164,13 @@ class AttentionBase(LightningModule):
             if domain_names == self.domain_names:
                 for domain_name, domain in domains.items():
                     if domain_name == self.list_domain_names[0]:
+                        print(self.list_domain_names[0])
                         domain[masked_domains[:, k]] += scaled_corruption_vector[
                             masked_domains[:, k]
                         ]
                     if domain_name == self.list_domain_names[1]:
+                        print(self.list_domain_names[1])
+                        print(domain[masked_domains_inversed])
                         domain[masked_domains_inversed[:, k]] += (
                             scaled_corruption_vector[masked_domains_inversed[:, k]]
                         )
