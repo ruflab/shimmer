@@ -157,7 +157,7 @@ class AttentionBase(LightningModule):
         )
         # Scale the corruption vector based on the amount of corruption
         scaled_corruption_vector = (corruption_vector * 5) * amount_corruption
-
+        print(batch)
         for k, (domain_names, domains) in enumerate(matched_data_dict.items()):
             if domain_names == self.domain_names:
                 for domain_name, domain in domains.items():
@@ -169,7 +169,8 @@ class AttentionBase(LightningModule):
                         domain[~masked_domains[:, 0]] += scaled_corruption_vector[
                             ~masked_domains[:, 0]
                         ]
-
+        print(matched_data_dict)
+        exit()
         return matched_data_dict
 
     def apply_batch_corruption(
