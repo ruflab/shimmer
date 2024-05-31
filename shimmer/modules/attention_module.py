@@ -137,7 +137,7 @@ class AttentionBase(LightningModule):
         # Inverse (which means this only works for two domains now)
         masked_domains_inversed = ~masked_domains
 
-        if self.fixed_corruption_vector:
+        if self.fixed_corruption_vector is not None:
             corruption_vector = self.fixed_corruption_vector.expand(
                 batch_size, self.domain_dim
             )
