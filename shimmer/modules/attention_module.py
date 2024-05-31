@@ -243,11 +243,13 @@ class AttentionBase(LightningModule):
                 for domain_name, domain in domains.items():
                     if domain_name == "v_latents":
                         print(domain)
+                        print(masked_domains[:, k])
                         domain[masked_domains[:, k]] += scaled_corruption_vector[
                             masked_domains[:, k]
                         ]
                     if domain_name == "attr":
                         print(domain)
+                        print(masked_domains_inversed[:, k])
                         exit()
                         domain[masked_domains_inversed[:, k]] += (
                             scaled_corruption_vector[masked_domains_inversed[:, k]]
