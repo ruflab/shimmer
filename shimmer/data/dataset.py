@@ -1,5 +1,4 @@
 from collections.abc import Callable, Mapping
-from enum import Enum
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -8,16 +7,19 @@ from torch.utils.data import Dataset
 from shimmer.data.domain import DataDomain
 
 
-class _SizedDataset(Protocol):
+class SizedDataset(Protocol):
     def __getitem__(self, k: int) -> Any: ...
 
     def __len__(self) -> int: ...
 
 
-class DomainType(Enum):
+class DomainType:
     def __init__(self, base: str, kind: str) -> None:
         self.base = base
         self.kind = kind
+
+    def __str__(self):
+        return f"{self.base}/{self.kind}"
 
 
 class RepeatedDataset(Dataset):
@@ -27,7 +29,7 @@ class RepeatedDataset(Dataset):
     the min_size ≤ size < min_size + len(dataset).
     """
 
-    def __init__(self, dataset: _SizedDataset, min_size: int, drop_last: bool = False):
+    def __init__(self, dataset: SizedDataset, min_size: int, drop_last: bool = False):
         """
         Args:
             dataset (SizedDataset): dataset to repeat. The dataset should have a size
@@ -57,7 +59,7 @@ class RepeatedDataset(Dataset):
         return self.dataset[index % self.dataset_size]
 
 
-class ShimmerDataset(_SizedDataset):
+class ShimmerDataset(Dataset):
     """
     Dataset class to obtain a ShimmerDataset.
     """
