@@ -1,5 +1,5 @@
 from shimmer.data.dataset import (
-    DomainType,
+    DomainDesc,
     RepeatedDataset,
     ShimmerDataset,
     SizedDataset,
@@ -105,7 +105,7 @@ __all__ = [
     "RandomSelection",
     "SelectionBase",
     "SingleDomainSelection",
-    "DomainType",
+    "DomainDesc",
     "RepeatedDataset",
     "ShimmerDataset",
     "DataDomain",

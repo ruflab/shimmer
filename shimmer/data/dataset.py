@@ -14,7 +14,7 @@ class SizedDataset(Protocol):
     def __len__(self) -> int: ...
 
 
-@dataclass
+@dataclass(frozen=True)
 class DomainDesc:
     base: str
     kind: str
