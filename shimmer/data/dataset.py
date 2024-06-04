@@ -1,4 +1,5 @@
 from collections.abc import Callable, Mapping
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -13,13 +14,10 @@ class SizedDataset(Protocol):
     def __len__(self) -> int: ...
 
 
-class DomainType:
-    def __init__(self, base: str, kind: str) -> None:
-        self.base = base
-        self.kind = kind
-
-    def __str__(self):
-        return f"{self.base}/{self.kind}"
+@dataclass
+class DomainDesc:
+    base: str
+    kind: str
 
 
 class RepeatedDataset(Dataset):
@@ -68,7 +66,7 @@ class ShimmerDataset(Dataset):
         self,
         dataset_path: str | Path,
         split: str,
-        domain_classes: Mapping[DomainType, type[DataDomain]],
+        domain_classes: Mapping[DomainDesc, type[DataDomain]],
         max_size: int = -1,
         transforms: Mapping[str, Callable[[Any], Any]] | None = None,
         domain_args: Mapping[str, Any] | None = None,
