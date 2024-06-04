@@ -137,7 +137,7 @@ class AttentionBase(LightningModule):
         if self.corrupt_side is not None:
             corrupted_domain_index = self.list_domain_names.index(self.corrupt_side)
             masked_domains = torch.zeros(batch_size, n_domains, dtype=torch.bool)
-            masked_domains[:, corrupted_domain_index] = True
+            masked_domains[:, corrupted_domain_index] = False
         else:
             selected_domains = torch.randint(0, n_domains, (batch_size,), device=device)
             masked_domains = torch.nn.functional.one_hot(
