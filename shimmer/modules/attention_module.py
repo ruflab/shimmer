@@ -137,7 +137,7 @@ class AttentionBase(LightningModule):
         if self.corrupt_side is not None:
             corrupted_domain_index = self.list_domain_names.index(self.corrupt_side)
             masked_domains = torch.zeros(batch_size, n_domains, dtype=torch.bool)
-            masked_domains[:, corrupted_domain_index] = False
+            masked_domains[:, corrupted_domain_index] = True
         else:
             selected_domains = torch.randint(0, n_domains, (batch_size,), device=device)
             masked_domains = torch.nn.functional.one_hot(
@@ -164,16 +164,16 @@ class AttentionBase(LightningModule):
         )
         # Scale the corruption vector based on the amount of corruption
         scaled_corruption_vector = (corruption_vector * 5) * amount_corruption
-        for k, (domain_names, domains) in enumerate(matched_data_dict.items()):
+        for _, (domain_names, domains) in enumerate(matched_data_dict.items()):
             if domain_names == self.domain_names:
                 for domain_name, domain in domains.items():
                     if domain_name == self.list_domain_names[0]:
-                        domain[masked_domains[:, 0]] += scaled_corruption_vector[
-                            masked_domains[:, 0]
-                        ]
-                    if domain_name == self.list_domain_names[1]:
                         domain[~masked_domains[:, 0]] += scaled_corruption_vector[
                             ~masked_domains[:, 0]
+                        ]
+                    if domain_name == self.list_domain_names[1]:
+                        domain[masked_domains[:, 0]] += scaled_corruption_vector[
+                            masked_domains[:, 0]
                         ]
         print("matched_data_dict", matched_data_dict)
         return matched_data_dict
