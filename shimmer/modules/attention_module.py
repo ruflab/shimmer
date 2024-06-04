@@ -175,7 +175,6 @@ class AttentionBase(LightningModule):
                         domain[masked_domains[:, 0]] += scaled_corruption_vector[
                             masked_domains[:, 0]
                         ]
-        print("matched_data_dict", matched_data_dict)
         return matched_data_dict
 
     def apply_batch_corruption(
@@ -233,11 +232,9 @@ class AttentionBase(LightningModule):
 
     def generic_step(self, batch: RawDomainGroupsT, mode: str) -> Tensor:
         latent_domains = self.gw.encode_domains(batch)
-        print(f"latent_domains{latent_domains}")
         corrupted_batch = self.apply_row_corruption(latent_domains)
         prefusion_encodings = self.gw.encode(corrupted_batch)
         attention_scores = self.forward(corrupted_batch, prefusion_encodings)
-        print(f"attention scores{attention_scores}")
         merged_gw_representation = self.gw.fuse(prefusion_encodings, attention_scores)
         losses = []
         accuracies = []
