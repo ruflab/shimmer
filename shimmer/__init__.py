@@ -1,4 +1,5 @@
-from shimmer.dataset import RepeatedDataset
+from shimmer.data.dataset import DomainType, RepeatedDataset, ShimmerDataset
+from shimmer.data.domain import DataDomain
 from shimmer.modules.contrastive_loss import (
     ContrastiveLoss,
     ContrastiveLossType,
@@ -99,4 +100,8 @@ __all__ = [
     "RandomSelection",
     "SelectionBase",
     "SingleDomainSelection",
+    "DomainType",
+    "RepeatedDataset",
+    "ShimmerDataset",
+    "DataDomain",
 ]
