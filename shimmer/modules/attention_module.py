@@ -157,7 +157,7 @@ class AttentionBase(LightningModule):
         )
         # Scale the corruption vector based on the amount of corruption
         scaled_corruption_vector = (corruption_vector * 5) * amount_corruption
-
+        print(scaled_corruption_vector)
         for k, (domain_names, domains) in enumerate(matched_data_dict.items()):
             if domain_names == self.domain_names:
                 for domain_name, domain in domains.items():
@@ -201,9 +201,7 @@ class AttentionBase(LightningModule):
                 if self.fixed_corruption_vector is None:
                     corruption_vector = torch.randn_like(domain)
                     corruption_vector = torch.randn_like(domain[:, 0])
-                    print(domain.shape)
-                    print("dynamic corruption vector")
-                    print(corruption_vector)
+
                 elif self.fixed_corruption_vector.shape != domain.shape:
                     corruption_vector = self.fixed_corruption_vector[: domain.shape[0]]
                 else:
@@ -232,6 +230,7 @@ class AttentionBase(LightningModule):
         corrupted_batch = self.apply_row_corruption(latent_domains)
         prefusion_encodings = self.gw.encode(corrupted_batch)
         attention_scores = self.forward(corrupted_batch, prefusion_encodings)
+        print(attention_scores)
         merged_gw_representation = self.gw.fuse(prefusion_encodings, attention_scores)
         losses = []
         accuracies = []
