@@ -1,4 +1,4 @@
-from shimmer.dataset import RepeatedDataset
+from shimmer.data.dataset import RepeatedDataset
 from shimmer.modules.contrastive_loss import (
     ContrastiveLoss,
     ContrastiveLossType,
