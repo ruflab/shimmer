@@ -46,6 +46,7 @@ class AttentionBase(LightningModule):
         fixed_corruption_vector: torch.Tensor | None = None,
         corruption_scaling: list[float] | None = None,
         corrupt_batch: bool = False,
+        corrupt_side: str | None = None,
         optim_lr: float = 1e-3,
         optim_weight_decay: float = 0.0,
         scheduler_args: SchedulerArgs | None = None,
@@ -68,6 +69,7 @@ class AttentionBase(LightningModule):
         self.fixed_corruption_vector = fixed_corruption_vector
         self.corruption_scaling = corruption_scaling
         self.corrupt_batch = corrupt_batch
+        self.corrupt_side = corrupt_side
         self.optim_lr = optim_lr
         self.optim_weight_decay = optim_weight_decay
         self.scheduler_args = SchedulerArgs(max_lr=optim_lr, total_steps=1)
@@ -132,10 +134,15 @@ class AttentionBase(LightningModule):
         batch_size = groups_batch_size(batch)
         n_domains = len(self.domain_names)
 
-        selected_domains = torch.randint(0, n_domains, (batch_size,), device=device)
-        masked_domains = torch.nn.functional.one_hot(selected_domains, n_domains).to(
-            device, torch.bool
-        )
+        if self.corrupt_side is not None:
+            corrupted_domain_index = self.list_domain_names.index(self.corrupt_side)
+            masked_domains = torch.zeros(batch_size, n_domains, dtype=torch.bool)
+            masked_domains[:, corrupted_domain_index] = True
+        else:
+            selected_domains = torch.randint(0, n_domains, (batch_size,), device=device)
+            masked_domains = torch.nn.functional.one_hot(
+                selected_domains, n_domains
+            ).to(device, torch.bool)
 
         if self.fixed_corruption_vector is not None:
             corruption_vector = self.fixed_corruption_vector.expand(
@@ -157,8 +164,6 @@ class AttentionBase(LightningModule):
         )
         # Scale the corruption vector based on the amount of corruption
         scaled_corruption_vector = (corruption_vector * 5) * amount_corruption
-        print(f"amount corruption: {amount_corruption}")
-        print(f"scaled_corruption_vector: {scaled_corruption_vector}")
         for k, (domain_names, domains) in enumerate(matched_data_dict.items()):
             if domain_names == self.domain_names:
                 for domain_name, domain in domains.items():
