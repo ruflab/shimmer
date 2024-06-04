@@ -175,7 +175,7 @@ class AttentionBase(LightningModule):
                         domain[~masked_domains[:, 0]] += scaled_corruption_vector[
                             ~masked_domains[:, 0]
                         ]
-
+        print("matched_data_dict", matched_data_dict)
         return matched_data_dict
 
     def apply_batch_corruption(
