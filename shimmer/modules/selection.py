@@ -145,7 +145,6 @@ def _calculate_attention_dict(
     attention_dict = {
         domain: attention_scores[:, i] for i, domain in enumerate(domains)
     }
-    print(f"attentiondict: {attention_dict}")
     return attention_dict
 
 
