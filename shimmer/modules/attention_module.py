@@ -168,12 +168,12 @@ class AttentionBase(LightningModule):
             if domain_names == self.domain_names:
                 for domain_name, domain in domains.items():
                     if domain_name == self.list_domain_names[0]:
-                        domain[~masked_domains[:, 0]] += scaled_corruption_vector[
-                            ~masked_domains[:, 0]
-                        ]
-                    if domain_name == self.list_domain_names[1]:
                         domain[masked_domains[:, 0]] += scaled_corruption_vector[
                             masked_domains[:, 0]
+                        ]
+                    if domain_name == self.list_domain_names[1]:
+                        domain[~masked_domains[:, 0]] += scaled_corruption_vector[
+                            ~masked_domains[:, 0]
                         ]
         return matched_data_dict
 
