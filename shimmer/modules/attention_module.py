@@ -230,6 +230,25 @@ class AttentionBase(LightningModule):
                 )
         return matched_data_dict
 
+    def calculate_mean_attention(
+        self,
+        attention_scores: dict[frozenset[str], dict[str, Tensor]],
+    ) -> dict:
+        """
+        Calculate the mean attention scores for each domain.
+        """
+        # Initialize variables to accumulate mean scores
+        mean_attention_dict = {}
+        # Iterate through attention_dicts
+        for _, scores in attention_scores.items():
+            # Check if more than 1 domains are present
+            if len(scores) > 1:
+                for key, values in scores.items():
+                    # Accumulate mean scores for each key
+                    mean_score = values.mean().item()
+                    mean_attention_dict[key] = mean_score
+        return mean_attention_dict
+
     def generic_step(self, batch: RawDomainGroupsT, mode: str) -> Tensor:
         latent_domains = self.gw.encode_domains(batch)
         corrupted_batch = self.apply_row_corruption(latent_domains)
@@ -254,10 +273,9 @@ class AttentionBase(LightningModule):
                 accuracies[-1],
                 batch_size=domains.size(0),
             )
-        self.log(
-            f"{mode}/{self.corrupt_side}_attention_scores",
-            attention_scores,
-        )
+        mean_attention_scores = self.calculate_mean_attention(attention_scores)
+        for domain_name, score in mean_attention_scores.items():
+            self.log(f"{mode}/{domain_name}_mean_attention_score", score)
         loss = torch.stack(losses).mean()
         self.log(f"{mode}/loss", loss, on_step=True, on_epoch=True)
         self.log(f"{mode}/accuracy", torch.stack(accuracies).mean())
