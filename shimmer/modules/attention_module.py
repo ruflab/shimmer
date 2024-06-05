@@ -258,7 +258,6 @@ class AttentionBase(LightningModule):
         merged_gw_representation = self.gw.fuse(prefusion_encodings, attention_scores)
         losses = []
         accuracies = []
-        attention_scores = {}
 
         for domain_names, domains in merged_gw_representation.items():
             loss, accuracy = self.criterion(domains, batch[domain_names])
