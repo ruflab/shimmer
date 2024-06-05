@@ -254,9 +254,11 @@ class AttentionBase(LightningModule):
         corrupted_batch = self.apply_row_corruption(latent_domains)
         prefusion_encodings = self.gw.encode(corrupted_batch)
         attention_scores = self.forward(corrupted_batch, prefusion_encodings)
+        print(attention_scores)
         merged_gw_representation = self.gw.fuse(prefusion_encodings, attention_scores)
         losses = []
         accuracies = []
+        attention_scores = {}
 
         for domain_names, domains in merged_gw_representation.items():
             loss, accuracy = self.criterion(domains, batch[domain_names])
@@ -276,6 +278,7 @@ class AttentionBase(LightningModule):
         mean_attention_scores = self.calculate_mean_attention(attention_scores)
         for domain_name, score in mean_attention_scores.items():
             self.log(f"{mode}/{domain_name}_mean_attention_score", score)
+
         loss = torch.stack(losses).mean()
         self.log(f"{mode}/loss", loss, on_step=True, on_epoch=True)
         self.log(f"{mode}/accuracy", torch.stack(accuracies).mean())
