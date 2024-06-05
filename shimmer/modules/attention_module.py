@@ -254,7 +254,6 @@ class AttentionBase(LightningModule):
         corrupted_batch = self.apply_row_corruption(latent_domains)
         prefusion_encodings = self.gw.encode(corrupted_batch)
         attention_scores = self.forward(corrupted_batch, prefusion_encodings)
-        print(attention_scores)
         merged_gw_representation = self.gw.fuse(prefusion_encodings, attention_scores)
         losses = []
         accuracies = []
