@@ -254,6 +254,10 @@ class AttentionBase(LightningModule):
                 accuracies[-1],
                 batch_size=domains.size(0),
             )
+        self.log(
+            f"{mode}/{self.corrupt_side}_attention_scores",
+            attention_scores,
+        )
         loss = torch.stack(losses).mean()
         self.log(f"{mode}/loss", loss, on_step=True, on_epoch=True)
         self.log(f"{mode}/accuracy", torch.stack(accuracies).mean())
