@@ -1,17 +1,15 @@
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sized
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol
 
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, Subset
 
 from shimmer.data.domain import DataDomain
 
 
-class SizedDataset(Protocol):
-    def __getitem__(self, index) -> Any: ...
-
-    def __len__(self) -> int: ...
+class SizedDataset(Sized, Protocol):
+    def __getitem__(self, index): ...
 
 
 @dataclass(frozen=True)
@@ -130,3 +128,20 @@ class ShimmerDataset(Dataset):
         return {
             domain_name: domain[index] for domain_name, domain in self.domains.items()
         }
+
+
+class Test(Dataset):
+    def __len__(self):
+        return 1
+
+
+RepeatedDataset(
+    Subset(
+        Test(),
+        [
+            0,
+            1,
+        ],
+    ),
+    4,
+)
