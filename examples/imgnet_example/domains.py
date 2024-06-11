@@ -8,22 +8,25 @@ from shimmer import DomainModule, LossOutput
 
 
 class ImageDomain(DomainModule):
-    def __init__(self, vae_model: Module, latent_dim: int):
+    def __init__(self, latent_dim: int):
         super().__init__(latent_dim)
         # load the model parameters
         checkpoint_path = "vae_model.pth"
-        model = VanillaVAE(
+        self.vae_model = VanillaVAE(
             in_channels=3, latent_dim=384, upsampling="nearest", loss_type="lpips"
         )
-        model.load_state_dict(torch.load(checkpoint_path))
+        self.vae_model.load_state_dict(torch.load(checkpoint_path))
+        self.vae_model.eval()
 
     def encode(self, x: torch.Tensor) -> torch.Tensor:
         # Just pass through the embedding
         return x
 
     def decode(self, z: torch.Tensor) -> torch.Tensor:
+        self.eval()
         # Decode using VAE model
-        return self.vae_model.decode(z)
+        val = self.vae_model.decode(z)
+        return val
 
     def training_step(self, batch: torch.Tensor, batch_idx: int):
         (domain,) = batch
@@ -41,6 +44,10 @@ class ImageDomain(DomainModule):
 
     def configure_optimizers(self):
         return AdamW(self.parameters(), lr=1e-3, weight_decay=1e-6)
+
+    def compute_loss(self, pred: torch.Tensor, target: torch.Tensor) -> LossOutput:
+        # Computes an illustrative loss, can be tailored for specific use cases
+        return LossOutput(loss=F.mse_loss(pred, target))
 
 
 class TextDomain(DomainModule):

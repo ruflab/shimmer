@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import lpips
 
 
 class ResidualBlock(nn.Module):
@@ -34,6 +35,7 @@ class VanillaVAE(nn.Module):
         self.beta = beta
         self.upsampling = upsampling
         self.loss_type = loss_type
+        self.lpips_model = lpips.LPIPS(net='vgg', lpips=False) if loss_type == 'lpips' else None
 
         # Encoder setup
         modules = []
@@ -114,10 +116,12 @@ class VanillaVAE(nn.Module):
         return nn.Sequential(*layers)
 
     def encode(self, input):
+        self.eval()
         result = torch.flatten(self.encoder(input), start_dim=1)
         return self.fc_mu(result), self.fc_var(result)
 
     def decode(self, z):
+        self.eval()
         result = self.decoder_input(z).view(-1, 512, 4, 4)
         return self.decoder(result)
 
