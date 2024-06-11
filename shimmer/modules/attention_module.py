@@ -179,6 +179,68 @@ class AttentionBase(LightningModule):
                         ]
         return matched_data_dict
 
+    def apply_variable_row_corruption(
+        self,
+        batch: LatentsDomainGroupsT,
+    ) -> LatentsDomainGroupsDT:
+        """
+            Apply corruption to each tensor of the matched data
+            by use of masking. Only for two domains.
+
+        Args:
+            batch: A batch of latent domains.
+        Returns:
+            A batch where either one (of the domains) of each tensor is corrupted.
+        """
+        matched_data_dict: LatentsDomainGroupsDT = {}
+
+        # Make a copy of the batch
+        for domain_names, domains in batch.items():
+            for domain_name, domain in domains.items():
+                matched_data_dict.setdefault(domain_names, {})[domain_name] = domain
+                continue
+        device = group_device(domains)
+        batch_size = groups_batch_size(batch)
+        n_domains = len(self.domain_names)
+        selected_domains = torch.randint(0, n_domains, (batch_size,), device=device)
+        masked_domains = torch.nn.functional.one_hot(selected_domains, n_domains).to(
+            device, torch.bool
+        )
+
+        if self.fixed_corruption_vector is not None:
+            corruption_vector = self.fixed_corruption_vector.expand(
+                batch_size, self.domain_dim
+            )
+        else:
+            corruption_vector = torch.randn(
+                (batch_size, self.domain_dim), device=device
+            )
+
+        # Normalize the corruption vector
+        normalized_corruption_vector = (
+            corruption_vector - corruption_vector.mean(dim=1, keepdim=True)
+        ) / corruption_vector.std(dim=1, keepdim=True)
+
+        corruption_vectors = {}
+        for domain_name, amount_corruption in self.variable_corruption.items():
+            scaled_corruption_vector = (
+                normalized_corruption_vector * 5
+            ) * amount_corruption
+            corruption_vectors[domain_name] = scaled_corruption_vector
+
+        for _, (domain_names, domains) in enumerate(matched_data_dict.items()):
+            if domain_names == self.domain_names:
+                for domain_name, domain in domains.items():
+                    if domain_name == self.list_domain_names[0]:
+                        domain[masked_domains[:, 0]] += corruption_vectors[domain_name][
+                            masked_domains[:, 0]
+                        ]
+                    if domain_name == self.list_domain_names[1]:
+                        domain[~masked_domains[:, 0]] += corruption_vectors[
+                            domain_name
+                        ][~masked_domains[:, 0]]
+        return matched_data_dict
+
     def apply_batch_corruption(
         self,
         batch: LatentsDomainGroupsT,
@@ -232,7 +294,7 @@ class AttentionBase(LightningModule):
                 )
         return matched_data_dict
 
-    def apply_variable_row_corruption(
+    def apply_probabilistic_row_corruption(
         self,
         batch: LatentsDomainGroupsT,
     ) -> LatentsDomainGroupsDT:
