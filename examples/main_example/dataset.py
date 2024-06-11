@@ -49,7 +49,7 @@ class DomainDataModule(LightningDataModule):
         self.train_dataset = TensorDataset(train_dataset)
 
     def train_dataloader(self) -> DataLoader:
-        return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True)
+        return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=False)
 
     def val_dataloader(self) -> DataLoader:
         return DataLoader(self.val_dataset, batch_size=self.batch_size)
@@ -124,7 +124,7 @@ class GWDataModule(LightningDataModule):
         assert self.train_datasets is not None
 
         dataloaders: dict[frozenset[str], DataLoader] = {}
-        max_sized_dataset = max(
+        max_sized_dataset = max( 
             len(dataset) for dataset in self.train_datasets.values()
         )
         for domain, dataset in self.train_datasets.items():
@@ -136,7 +136,7 @@ class GWDataModule(LightningDataModule):
                 batch_size=self.batch_size,
                 num_workers=0,
                 pin_memory=True,
-                shuffle=True,
+                shuffle=False,
                 drop_last=True,
             )
         # This Loader will retrieve a batch from each dataloader at each batch.
