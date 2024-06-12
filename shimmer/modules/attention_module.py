@@ -162,7 +162,7 @@ class AttentionBase(LightningModule):
 
         # Choose randomly from corruption scaling
         amount_corruption = (
-            random.choice(self.corruption_scaling) if self.corruption_scaling else 1.0
+            random.choice(self.corruption_scaling) if self.corruption_scaling else 0.0
         )
         # Scale the corruption vector based on the amount of corruption
         scaled_corruption_vector = (corruption_vector * 5) * amount_corruption
@@ -227,7 +227,8 @@ class AttentionBase(LightningModule):
                 normalized_corruption_vector * 5
             ) * amount_corruption
             corruption_vectors[domain_name] = scaled_corruption_vector
-
+        print(f"corruption_vectors: {corruption_vectors}")
+        print(f"batch: {batch}")
         for _, (domain_names, domains) in enumerate(matched_data_dict.items()):
             if domain_names == self.domain_names:
                 for domain_name, domain in domains.items():
@@ -239,6 +240,7 @@ class AttentionBase(LightningModule):
                         domain[~masked_domains[:, 0]] += corruption_vectors[
                             domain_name
                         ][~masked_domains[:, 0]]
+        print(f"matched_data_dict: {matched_data_dict}")
         return matched_data_dict
 
     def apply_batch_corruption(
