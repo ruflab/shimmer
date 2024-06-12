@@ -232,15 +232,16 @@ class AttentionBase(LightningModule):
         for _, (domain_names, domains) in enumerate(matched_data_dict.items()):
             if domain_names == self.domain_names:
                 for domain_name, domain in domains.items():
-                    if domain_name == self.list_domain_names[0]:
-                        domain[masked_domains[:, 0]] += corruption_vectors[domain_name][
-                            masked_domains[:, 0]
-                        ]
-                    # Hier zat een ~ voor masked_domains
-                    if domain_name == self.list_domain_names[1]:
-                        domain[masked_domains[:, 0]] += corruption_vectors[domain_name][
-                            masked_domains[:, 0]
-                        ]
+                    domain += corruption_vectors[domain_name]
+
+                    #     domain[masked_domains[:, 0]] += corruption_vectors[domain_name][
+                    #         masked_domains[:, 0]
+                    #     ]
+                    # # Hier zat een ~ voor masked_domains
+                    # if domain_name == self.list_domain_names[1]:
+                    #     domain[~masked_domains[:, 0]] += corruption_vectors[domain_name][
+                    #         ~masked_domains[:, 0]
+                    #     ]
         print(f"matched_data_dict: {matched_data_dict}")
         return matched_data_dict
 
