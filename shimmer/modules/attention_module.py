@@ -45,7 +45,6 @@ class AttentionBase(LightningModule):
         domain_dim: int,
         fixed_corruption_vector: torch.Tensor | None = None,
         corruption_scaling: list[float] | None = None,
-        corrupt_batch: bool = False,
         corrupt_single_side: str | None = None,
         corrupt_sides: bool = False,
         test_variable_corruption: dict[str, float] | None = None,
@@ -70,7 +69,6 @@ class AttentionBase(LightningModule):
         self.domain_dim = domain_dim
         self.fixed_corruption_vector = fixed_corruption_vector
         self.corruption_scaling = corruption_scaling
-        self.corrupt_batch = corrupt_batch
         self.corrupt_single_side = corrupt_single_side
         self.corrupt_sides = corrupt_sides
         self.test_variable_corruption = test_variable_corruption
