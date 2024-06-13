@@ -46,8 +46,9 @@ class AttentionBase(LightningModule):
         fixed_corruption_vector: torch.Tensor | None = None,
         corruption_scaling: list[float] | None = None,
         corrupt_batch: bool = False,
-        corrupt_side: str | None = None,
-        variable_corruption: dict[str, float] | None = None,
+        corrupt_single_side: str | None = None,
+        corrupt_sides: bool = False,
+        test_variable_corruption: dict[str, float] | None = None,
         optim_lr: float = 1e-3,
         optim_weight_decay: float = 0.0,
         scheduler_args: SchedulerArgs | None = None,
@@ -70,8 +71,9 @@ class AttentionBase(LightningModule):
         self.fixed_corruption_vector = fixed_corruption_vector
         self.corruption_scaling = corruption_scaling
         self.corrupt_batch = corrupt_batch
-        self.corrupt_side = corrupt_side
-        self.variable_corruption = variable_corruption
+        self.corrupt_single_side = corrupt_single_side
+        self.corrupt_sides = corrupt_sides
+        self.test_variable_corruption = test_variable_corruption
         self.optim_lr = optim_lr
         self.optim_weight_decay = optim_weight_decay
         self.scheduler_args = SchedulerArgs(max_lr=optim_lr, total_steps=1)
@@ -222,13 +224,26 @@ class AttentionBase(LightningModule):
         ) / corruption_vector.std(dim=1, keepdim=True)
 
         corruption_vectors = {}
-        for domain_name, amount_corruption in self.variable_corruption.items():
-            scaled_corruption_vector = (
-                normalized_corruption_vector * 5
-            ) * amount_corruption
-            corruption_vectors[domain_name] = scaled_corruption_vector
-        # print(f"corruption_vectors: {corruption_vectors}")
-        # print(f"batch: {batch}")
+        if self.test_variable_corruption is not None:
+            for domain_name, amount_corruption in self.variable_corruption.items():
+                scaled_corruption_vector = (
+                    normalized_corruption_vector * 5
+                ) * amount_corruption
+                corruption_vectors[domain_name] = scaled_corruption_vector
+        else:
+            for domain in self.list_domain_names:
+                amount_corruption = (
+                    random.choice(self.corruption_scaling)
+                    if self.corruption_scaling
+                    else 1.0
+                )
+                scaled_corruption_vector = (
+                    normalized_corruption_vector * 5
+                ) * amount_corruption
+                corruption_vectors[domain] = scaled_corruption_vector
+
+        print(f"corruption_vectors: {corruption_vectors}")
+        print(f"batch: {batch}")
         for _, (domain_names, domains) in enumerate(matched_data_dict.items()):
             if domain_names == self.domain_names:
                 for domain_name, domain in domains.items():
@@ -242,7 +257,7 @@ class AttentionBase(LightningModule):
                     #     domain[~masked_domains[:, 0]] += corruption_vectors[domain_name][
                     #         ~masked_domains[:, 0]
                     #     ]
-        # print(f"matched_data_dict: {matched_data_dict}")
+        print(f"matched_data_dict: {matched_data_dict}")
         return matched_data_dict
 
     def apply_probabilistic_row_corruption(
@@ -339,7 +354,7 @@ class AttentionBase(LightningModule):
 
     def generic_step(self, batch: RawDomainGroupsT, mode: str) -> Tensor:
         latent_domains = self.gw.encode_domains(batch)
-        if self.variable_corruption is not None:
+        if self.corrupt_sides is True:
             corrupted_batch = self.apply_variable_row_corruption(latent_domains)
         else:
             corrupted_batch = self.apply_row_corruption(latent_domains)
