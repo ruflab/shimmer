@@ -138,8 +138,10 @@ class AttentionBase(LightningModule):
         batch_size = groups_batch_size(batch)
         n_domains = len(self.domain_names)
 
-        if self.corrupt_side is not None:
-            corrupted_domain_index = self.list_domain_names.index(self.corrupt_side)
+        if self.corrupt_single_side is not None:
+            corrupted_domain_index = self.list_domain_names.index(
+                self.corrupt_single_side
+            )
             masked_domains = torch.zeros(batch_size, n_domains, dtype=torch.bool)
             masked_domains[:, corrupted_domain_index] = True
         else:
