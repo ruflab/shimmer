@@ -353,4 +353,15 @@ class DynamicQueryAttention(SelectionBase):
         # Calculate the attention scores again
         dynamic_attention_dict = _calculate_attention_dict(domains, keys, query)
 
+        # ADDED step 3 for experimentation
+        summed_tensor = self.fuse_weighted_encodings(
+            encodings_pre_fusion, dynamic_attention_dict
+        )
+
+        # Retrieve query (now it is dependent on the new gw state)
+        query = self.query_layer(summed_tensor)
+
+        # Calculate the attention scores again
+        dynamic_attention_dict = _calculate_attention_dict(domains, keys, query)
+
         return dynamic_attention_dict
