@@ -164,7 +164,7 @@ class AttentionBase(LightningModule):
 
         # Choose randomly from corruption scaling
         amount_corruption = (
-            random.choice(self.corruption_scaling) if self.corruption_scaling else 0.0
+            random.choice(self.corruption_scaling) if self.corruption_scaling else 1.0
         )
         # Scale the corruption vector based on the amount of corruption
         scaled_corruption_vector = (corruption_vector * 5) * amount_corruption
@@ -212,7 +212,7 @@ class AttentionBase(LightningModule):
         if self.fixed_corruption_vector is not None:
             corruption_vector = self.fixed_corruption_vector.expand(
                 batch_size, self.domain_dim
-            )
+            ).to(device)
         else:
             corruption_vector = torch.randn(
                 (batch_size, self.domain_dim), device=device
