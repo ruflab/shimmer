@@ -255,13 +255,20 @@ class DynamicQueryAttention(SelectionBase):
     The query is updated based on the scaled gw vector.
     """
 
-    def __init__(self, head_size: int, domain_dim: int, domain_names: Iterable[str]):
+    def __init__(
+        self,
+        head_size: int,
+        domain_dim: int,
+        domain_names: Iterable[str],
+        n_steps: int = 1,
+    ):
         """
         Args:
             head_size (`int`) : dimension of the key and query vectors.
             domain_dim (`int`) : dimension of the input dims (assumed to be the same
                 for now)
             domain_names  (`Iterable[str]`) : list of input domains
+            n_steps (`int`) : number of steps to update the query vector
         """
         super().__init__()
         self.head_size = head_size
@@ -269,6 +276,7 @@ class DynamicQueryAttention(SelectionBase):
         self.key_layers = nn.ModuleDict(
             {domain: nn.Linear(domain_dim, head_size) for domain in domain_names}
         )
+        self.n_steps = n_steps
         # Start with a random gw state
         self.register_buffer("initial_gw_state", torch.rand(domain_dim))
 
@@ -329,17 +337,19 @@ class DynamicQueryAttention(SelectionBase):
         query = self.query_layer(self.initial_gw_state.expand(batch_size, -1))
 
         # Calculate the attention scores
-        static_attention_dict = _calculate_attention_dict(domains, keys, query)
+        attention_dict = _calculate_attention_dict(domains, keys, query)
 
-        # Apply the attention scores to the encodings
-        summed_tensor = self.fuse_weighted_encodings(
-            encodings_pre_fusion, static_attention_dict
-        )
+        # Update the query based on the static attention scores
+        for _ in range(self.n_steps):
+            # Apply the attention scores to the encodings
+            summed_tensor = self.fuse_weighted_encodings(
+                encodings_pre_fusion, attention_dict
+            )
 
-        # Retrieve query (now it is dependent on the new gw state)
-        query = self.query_layer(summed_tensor)
+            # Retrieve query (now it is dependent on the new gw state)
+            query = self.query_layer(summed_tensor)
 
-        # Calculate the attention scores again
-        dynamic_attention_dict = _calculate_attention_dict(domains, keys, query)
+            # Calculate the attention scores again
+            attention_dict = _calculate_attention_dict(domains, keys, query)
 
-        return dynamic_attention_dict
+        return attention_dict
