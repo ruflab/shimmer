@@ -225,7 +225,7 @@ class AttentionBase(LightningModule):
 
         corruption_vectors = {}
         if self.test_variable_corruption is not None:
-            for domain_name, amount_corruption in self.variable_corruption.items():
+            for domain_name, amount_corruption in self.test_variable_corruption.items():
                 scaled_corruption_vector = (
                     normalized_corruption_vector * 5
                 ) * amount_corruption
@@ -284,8 +284,8 @@ class AttentionBase(LightningModule):
         batch_size = groups_batch_size(batch)
         n_domains = len(self.domain_names)
 
-        domain_names = list(self.variable_corruption.keys())
-        corrupt_ratio = list(self.variable_corruption.values())
+        domain_names = list(self.test_variable_corruption.keys())
+        corrupt_ratio = list(self.test_variable_corruption.values())
 
         assert sum(corrupt_ratio) == 1.0
 
