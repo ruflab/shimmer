@@ -204,7 +204,7 @@ class AttentionBase(LightningModule):
         device = group_device(domains)
         batch_size = groups_batch_size(batch)
         n_domains = len(self.domain_names)
-        print(f"batch: {batch}")
+
         corruption_matrices = {}
         for domain in range(n_domains):
             if self.fixed_corruption_vector is not None:
@@ -239,14 +239,11 @@ class AttentionBase(LightningModule):
                 scaled_corruption_matrix
             )
 
-        print(f"corruption_matrices: {corruption_matrices}")
-
         for domain_names, domains in matched_data_dict.items():
             if domain_names == self.domain_names:
                 for domain_name, domain in domains.items():
                     if domain_name in corruption_matrices:
                         domain += corruption_matrices[domain_name]
-        print(f"matched_data_dict: {matched_data_dict}")
         return matched_data_dict
 
     def calculate_mean_attention(
