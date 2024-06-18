@@ -225,7 +225,7 @@ class AttentionBase(LightningModule):
             if self.two_sides_corruption is not None:
                 scaled_corruption_matrix = (
                     normalized_corruption_matrix * 5
-                ) * self.two_sided_corruption[self.list_domain_names[domain]]
+                ) * self.two_sides_corruption[self.list_domain_names[domain]]
             else:
                 amount_corruption = (
                     random.choice(self.corruption_scaling)
