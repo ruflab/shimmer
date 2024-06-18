@@ -47,7 +47,7 @@ class AttentionBase(LightningModule):
         corruption_scaling: list[float] | None = None,
         corrupt_single_side: str | None = None,
         corrupt_sides: bool = False,
-        test_variable_corruption: dict[str, float] | None = None,
+        two_sided_corruption: dict[str, float] | None = None,
         optim_lr: float = 1e-3,
         optim_weight_decay: float = 0.0,
         scheduler_args: SchedulerArgs | None = None,
@@ -63,15 +63,15 @@ class AttentionBase(LightningModule):
 
         self.gw = gw
         self.attention = attention
-        self.list_domain_names = domain_names
         self.domain_names = frozenset(domain_names)
+        self.list_domain_names = list(domain_names)
         self.criterion = criterion
         self.domain_dim = domain_dim
         self.fixed_corruption_vector = fixed_corruption_vector
         self.corruption_scaling = corruption_scaling
         self.corrupt_single_side = corrupt_single_side
         self.corrupt_sides = corrupt_sides
-        self.test_variable_corruption = test_variable_corruption
+        self.two_sided_corruption = two_sided_corruption
         self.optim_lr = optim_lr
         self.optim_weight_decay = optim_weight_decay
         self.scheduler_args = SchedulerArgs(max_lr=optim_lr, total_steps=1)
@@ -112,7 +112,7 @@ class AttentionBase(LightningModule):
             for domains, latents in single_domain_input.items()
         }
 
-    def apply_row_corruption(
+    def apply_one_sided_corruption(
         self,
         batch: LatentsDomainGroupsT,
     ) -> LatentsDomainGroupsDT:
@@ -181,13 +181,13 @@ class AttentionBase(LightningModule):
                         ]
         return matched_data_dict
 
-    def apply_variable_row_corruption(
+    def apply_two_sided_corruption(
         self,
         batch: LatentsDomainGroupsT,
     ) -> LatentsDomainGroupsDT:
         """
-            Apply corruption to each tensor of the matched data
-            by use of masking. Only for two domains.
+            Apply corruption to each tensor of the matched data (two-sided corruption)
+            Only for two domains.
 
         Args:
             batch: A batch of latent domains.
@@ -204,133 +204,49 @@ class AttentionBase(LightningModule):
         device = group_device(domains)
         batch_size = groups_batch_size(batch)
         n_domains = len(self.domain_names)
-        selected_domains = torch.randint(0, n_domains, (batch_size,), device=device)
-        masked_domains = torch.nn.functional.one_hot(selected_domains, n_domains).to(
-            device, torch.bool
-        )
+        print(f"batch: {batch}")
+        corruption_matrices = {}
+        for domain in range(n_domains):
+            if self.fixed_corruption_vector is not None:
+                corruption_matrix = self.fixed_corruption_vector.expand(
+                    batch_size, self.domain_dim
+                ).to(device)
+            else:
+                corruption_matrix = torch.randn(
+                    (batch_size, self.domain_dim), device=device
+                )
 
-        if self.fixed_corruption_vector is not None:
-            corruption_vector = self.fixed_corruption_vector.expand(
-                batch_size, self.domain_dim
-            ).to(device)
-        else:
-            corruption_vector = torch.randn(
-                (batch_size, self.domain_dim), device=device
-            )
+            # Normalize the corruption matrices
+            normalized_corruption_matrix = (
+                corruption_matrix - corruption_matrix.mean(dim=1, keepdim=True)
+            ) / corruption_matrix.std(dim=1, keepdim=True)
 
-        # Normalize the corruption vector
-        normalized_corruption_vector = (
-            corruption_vector - corruption_vector.mean(dim=1, keepdim=True)
-        ) / corruption_vector.std(dim=1, keepdim=True)
-
-        corruption_vectors = {}
-        if self.test_variable_corruption is not None:
-            for domain_name, amount_corruption in self.test_variable_corruption.items():
-                scaled_corruption_vector = (
-                    normalized_corruption_vector * 5
-                ) * amount_corruption
-                corruption_vectors[domain_name] = scaled_corruption_vector
-        else:
-            for domain in self.list_domain_names:
+            # Scale the matrices
+            if self.two_sides_corruption is not None:
+                scaled_corruption_matrix = (
+                    normalized_corruption_matrix * 5
+                ) * self.two_sided_corruption[self.list_domain_names[domain]]
+            else:
                 amount_corruption = (
                     random.choice(self.corruption_scaling)
                     if self.corruption_scaling
                     else 1.0
                 )
-                scaled_corruption_vector = (
-                    normalized_corruption_vector * 5
+                scaled_corruption_matrix = (
+                    normalized_corruption_matrix * 5
                 ) * amount_corruption
-                corruption_vectors[domain] = scaled_corruption_vector
-
-        # print(f"corruption_vectors: {corruption_vectors}")
-        # print(f"batch: {batch}")
-        for _, (domain_names, domains) in enumerate(matched_data_dict.items()):
-            if domain_names == self.domain_names:
-                for domain_name, domain in domains.items():
-                    domain += corruption_vectors[domain_name]
-
-                    #     domain[masked_domains[:, 0]] += corruption_vectors[domain_name][
-                    #         masked_domains[:, 0]
-                    #     ]
-                    # # Hier zat een ~ voor masked_domains
-                    # if domain_name == self.list_domain_names[1]:
-                    #     domain[~masked_domains[:, 0]] += corruption_vectors[domain_name][
-                    #         ~masked_domains[:, 0]
-                    #     ]
-        # print(f"matched_data_dict: {matched_data_dict}")
-        return matched_data_dict
-
-    def apply_probabilistic_row_corruption(
-        self,
-        batch: LatentsDomainGroupsT,
-    ) -> LatentsDomainGroupsDT:
-        """
-            Apply corruption to each tensor of the matched data
-            by use of masking. Only for two domains.
-
-        Args:
-            batch: A batch of latent domains.
-        Returns:
-            A batch where either one (of the domains) of each tensor is corrupted.
-        """
-        matched_data_dict: LatentsDomainGroupsDT = {}
-
-        # Make a copy of the batch
-        for domain_names, domains in batch.items():
-            for domain_name, domain in domains.items():
-                matched_data_dict.setdefault(domain_names, {})[domain_name] = domain
-                continue
-        device = group_device(domains)
-        batch_size = groups_batch_size(batch)
-        n_domains = len(self.domain_names)
-
-        domain_names = list(self.test_variable_corruption.keys())
-        corrupt_ratio = list(self.test_variable_corruption.values())
-
-        assert sum(corrupt_ratio) == 1.0
-
-        probabilities = torch.tensor(corrupt_ratio)
-
-        corrupt_choice = torch.multinomial(probabilities, batch_size, replacement=True)
-
-        # Initialize the masked_domains tensor
-        masked_domains = torch.zeros(batch_size, n_domains, dtype=torch.bool)
-
-        # Set the chosen domains to be corrupted
-        for i in range(batch_size):
-            masked_domains[i, corrupt_choice[i]] = True
-
-        if self.fixed_corruption_vector is not None:
-            corruption_vector = self.fixed_corruption_vector.expand(
-                batch_size, self.domain_dim
-            )
-        else:
-            corruption_vector = torch.randn(
-                (batch_size, self.domain_dim), device=device
+            corruption_matrices[self.list_domain_names[domain]] = (
+                scaled_corruption_matrix
             )
 
-        # Normalize the corruption vector
-        corruption_vector = (
-            corruption_vector - corruption_vector.mean(dim=1, keepdim=True)
-        ) / corruption_vector.std(dim=1, keepdim=True)
+        print(f"corruption_matrices: {corruption_matrices}")
 
-        # Choose randomly from corruption scaling
-        amount_corruption = (
-            random.choice(self.corruption_scaling) if self.corruption_scaling else 1.0
-        )
-        # Scale the corruption vector based on the amount of corruption
-        scaled_corruption_vector = (corruption_vector * 5) * amount_corruption
-        for _, (domain_names, domains) in enumerate(matched_data_dict.items()):
+        for domain_names, domains in matched_data_dict.items():
             if domain_names == self.domain_names:
                 for domain_name, domain in domains.items():
-                    if domain_name == self.list_domain_names[0]:
-                        domain[masked_domains[:, 0]] += scaled_corruption_vector[
-                            masked_domains[:, 0]
-                        ]
-                    if domain_name == self.list_domain_names[1]:
-                        domain[~masked_domains[:, 0]] += scaled_corruption_vector[
-                            ~masked_domains[:, 0]
-                        ]
+                    if domain_name in corruption_matrices:
+                        domain += corruption_matrices[domain_name]
+        print(f"matched_data_dict: {matched_data_dict}")
         return matched_data_dict
 
     def calculate_mean_attention(
@@ -355,9 +271,9 @@ class AttentionBase(LightningModule):
     def generic_step(self, batch: RawDomainGroupsT, mode: str) -> Tensor:
         latent_domains = self.gw.encode_domains(batch)
         if self.corrupt_sides is True:
-            corrupted_batch = self.apply_variable_row_corruption(latent_domains)
+            corrupted_batch = self.apply_two_sided_corruption(latent_domains)
         else:
-            corrupted_batch = self.apply_row_corruption(latent_domains)
+            corrupted_batch = self.apply_one_sided_corruption(latent_domains)
         prefusion_encodings = self.gw.encode(corrupted_batch)
         attention_scores = self.forward(corrupted_batch, prefusion_encodings)
         merged_gw_representation = self.gw.fuse(prefusion_encodings, attention_scores)
