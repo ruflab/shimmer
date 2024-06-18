@@ -71,7 +71,7 @@ class AttentionBase(LightningModule):
         self.corruption_scaling = corruption_scaling
         self.corrupt_single_side = corrupt_single_side
         self.corrupt_sides = corrupt_sides
-        self.two_sided_corruption = two_sided_corruption
+        self.test_sides_corruption = two_sided_corruption
         self.optim_lr = optim_lr
         self.optim_weight_decay = optim_weight_decay
         self.scheduler_args = SchedulerArgs(max_lr=optim_lr, total_steps=1)
@@ -222,10 +222,10 @@ class AttentionBase(LightningModule):
             ) / corruption_matrix.std(dim=1, keepdim=True)
 
             # Scale the matrices
-            if self.two_sides_corruption is not None:
+            if self.test_sides_corruption is not None:
                 scaled_corruption_matrix = (
                     normalized_corruption_matrix * 5
-                ) * self.two_sides_corruption[self.list_domain_names[domain]]
+                ) * self.test_sides_corruption[self.list_domain_names[domain]]
             else:
                 amount_corruption = (
                     random.choice(self.corruption_scaling)
