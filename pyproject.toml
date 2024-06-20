@@ -9,7 +9,7 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = "~3.11"
 numpy = "^1.25"
-pandas = "^2.0.2"
+pandas = "^2.2.2"
 matplotlib = "^3.7.1"
 migrate-ckpt = {git = "https://github.com/bdvllrs/migrate-ckpt.git", rev = "v0.2.0"}
 click = "^8.1.7"
