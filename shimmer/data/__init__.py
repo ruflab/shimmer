@@ -1,9 +1,15 @@
-from shimmer.data.dataset import DomainType, RepeatedDataset, ShimmerDataset
+from shimmer.data.dataset import (
+    DomainDesc,
+    RepeatedDataset,
+    ShimmerDataset,
+    SizedDataset,
+)
 from shimmer.data.domain import DataDomain
 
 __all__ = [
-    "DomainType",
+    "DomainDesc",
     "RepeatedDataset",
     "ShimmerDataset",
     "DataDomain",
+    "SizedDataset",
 ]

@@ -1,23 +1,21 @@
-from collections.abc import Callable, Mapping
-from enum import Enum
+from collections.abc import Callable, Mapping, Sized
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol
 
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, Subset
 
 from shimmer.data.domain import DataDomain
 
 
-class _SizedDataset(Protocol):
-    def __getitem__(self, k: int) -> Any: ...
-
-    def __len__(self) -> int: ...
+class SizedDataset(Sized, Protocol):
+    def __getitem__(self, index): ...
 
 
-class DomainType(Enum):
-    def __init__(self, base: str, kind: str) -> None:
-        self.base = base
-        self.kind = kind
+@dataclass(frozen=True)
+class DomainDesc:
+    base: str
+    kind: str
 
 
 class RepeatedDataset(Dataset):
@@ -27,7 +25,7 @@ class RepeatedDataset(Dataset):
     the min_size ≤ size < min_size + len(dataset).
     """
 
-    def __init__(self, dataset: _SizedDataset, min_size: int, drop_last: bool = False):
+    def __init__(self, dataset: SizedDataset, min_size: int, drop_last: bool = False):
         """
         Args:
             dataset (SizedDataset): dataset to repeat. The dataset should have a size
@@ -57,7 +55,7 @@ class RepeatedDataset(Dataset):
         return self.dataset[index % self.dataset_size]
 
 
-class ShimmerDataset(_SizedDataset):
+class ShimmerDataset(Dataset):
     """
     Dataset class to obtain a ShimmerDataset.
     """
@@ -66,7 +64,7 @@ class ShimmerDataset(_SizedDataset):
         self,
         dataset_path: str | Path,
         split: str,
-        domain_classes: Mapping[DomainType, type[DataDomain]],
+        domain_classes: Mapping[DomainDesc, type[DataDomain]],
         max_size: int = -1,
         transforms: Mapping[str, Callable[[Any], Any]] | None = None,
         domain_args: Mapping[str, Any] | None = None,
@@ -130,3 +128,20 @@ class ShimmerDataset(_SizedDataset):
         return {
             domain_name: domain[index] for domain_name, domain in self.domains.items()
         }
+
+
+class Test(Dataset):
+    def __len__(self):
+        return 1
+
+
+RepeatedDataset(
+    Subset(
+        Test(),
+        [
+            0,
+            1,
+        ],
+    ),
+    4,
+)
