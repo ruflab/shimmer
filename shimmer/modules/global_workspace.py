@@ -278,8 +278,7 @@ class GlobalWorkspaceBase(
         """
         return {
             domains: {
-                name: self.domain_mods[name].encode(domain)
-                for name, domain in data.items()
+                name: self.encode_domain(domain, name) for name, domain in data.items()
             }
             for domains, data in batch.items()
         }
@@ -317,7 +316,7 @@ class GlobalWorkspaceBase(
         """
         return {
             domains: {
-                name: self.domain_mods[name].decode(domain)
+                name: self.decode_domain(domain, name)
                 for name, domain in latents.items()
             }
             for domains, latents in latents_domain.items()
