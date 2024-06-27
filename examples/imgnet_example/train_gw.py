@@ -6,8 +6,8 @@ from domains import ImageDomain, TextDomain
 from lightning.pytorch import Trainer, Callback
 from lightning.pytorch.callbacks import ModelCheckpoint,LearningRateMonitor
 
-from shimmer import GlobalWorkspace, GWDecoder, GWEncoder, BroadcastLossCoefs
-from shimmer.modules.global_workspace import GlobalWorkspaceFusion, SchedulerArgs
+from shimmer import GWDecoder, GWEncoder, BroadcastLossCoefs
+from shimmer.modules.global_workspace import GlobalWorkspace, SchedulerArgs
 
 from lightning.pytorch.loggers.wandb import WandbLogger
 
@@ -87,14 +87,13 @@ class dropout_GWEncoder(dropout_GWDecoder):
         super().__init__(in_dim, hidden_dim, out_dim, n_layers, dropout_rate)
 
 def train_gw():
-    train_split=0.8
     # Prepare data modules from the dataset script
-    data = make_datamodule(train_split, batch_size=2056)
+    data = make_datamodule(batch_size=2056)
 
 
     # Initialize the domain modules with the specific
     # latent dimensions and model parameters
-    image_domain = ImageDomain(latent_dim=384)
+    image_domain = ImageDomain(latent_dim=512)
     text_domain = TextDomain(latent_dim=384)
 
     domain_mods = {
@@ -113,14 +112,14 @@ def train_gw():
             hidden_dim=1024,
             out_dim=workspace_dim,
             n_layers=4,
-            dropout_rate=0.0  # Example dropout rate
+            dropout_rate=0.01  # Example dropout rate
         )
         gw_decoders[name] = dropout_GWDecoder(
             in_dim=workspace_dim,
             hidden_dim=1024,
             out_dim=mod.latent_dim,
             n_layers=4,
-            dropout_rate=0.0  # Example dropout rate
+            dropout_rate=0.01  # Example dropout rate
         )
 
     # Loss coefficients setup
@@ -128,27 +127,27 @@ def train_gw():
         "translations": 2.0,
         "demi_cycles": 1.0,
         "cycles": 1.0,
-        "contrastives": .05,
+        "contrastives": .01,
         "fused": 1.0
     }
 
     n_epochs = 2000  # Number of training epochs
 
-    global_workspace = GlobalWorkspaceFusion(
+    global_workspace = GlobalWorkspace(
         domain_mods,
         gw_encoders,
         gw_decoders,
         workspace_dim,
         loss_coefs,
         scheduler_args=SchedulerArgs(
-            max_lr=0.0002,
+            max_lr=0.0005,
             total_steps=n_epochs
             * len(iter(data.train_dataloader()))
         ),
     )
 
     wandb_logger = None
-    run_name = "new_bigger_gw"
+    run_name = "bigger_vae_regularized"
     wandb_logger = WandbLogger(
         save_dir=f"wandb_output_{run_name}",
         project="simple_shapes_fusion",

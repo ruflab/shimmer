@@ -16,20 +16,20 @@ import pandas as pd
 
 # Paths to data
 IMAGE_LATENTS_PATH_TRAIN = (
-    "/home/rbertin/pyt_scripts/full_imgnet/full_size/vae_full_withbigger__disc/"
-    "val_image_embeddings.npy"
+    "/home/rbertin/pyt_scripts/full_imgnet/full_size/vae_bigdisc_goodbeta_50ep"
+    "/combined_standardized_embeddings.npy"
 )
 IMAGE_LATENTS_PATH_VAL = (
-    "/home/rbertin/pyt_scripts/full_imgnet/full_size/vae_full_withbigger__disc/"
-    "val_image_embeddings_val.npy"
+    "/home/rbertin/pyt_scripts/full_imgnet/full_size/vae_bigdisc_goodbeta_50ep"
+    "/val_combined_standardized_embeddings.npy"
 )
 CAPTION_EMBEDDINGS_PATH_TRAIN = (
     "/home/rbertin/cleaned/git_synced/shimmer/examples/imgnet_example/"
-    "bge_fullsized_captions_norm_fixed.npy"
+    "bge_fullsized_captions_norm.npy"
 )
 CAPTION_EMBEDDINGS_PATH_VAL = (
     "/home/rbertin/cleaned/git_synced/shimmer/examples/imgnet_example/"
-    "bge_fullsized_captions_norm_val.npy"
+    "fullsized_captions_norm_val.npy"
 )
 
 
@@ -42,30 +42,19 @@ def load_data(file_path: str) -> torch.Tensor:
 
 
 class DomainDataset(Dataset):
-    def __init__(self, domain_data: Dict[str, torch.Tensor]) -> None:
+    def __init__(self, domain_data: dict[str, torch.Tensor]) -> None:
         """
         Initializes a dataset that takes a mapping from domain names to tensors of data.
-        Handles both individual domains and combinations as frozenset.
         """
         self.domain_data = domain_data
 
     def __len__(self) -> int:
-        return next(iter(self.domain_data.values())).size(0)
+        return self.domain_data[next(iter(self.domain_data))].size(0)
 
-    def __getitem__(self, index: int) -> Dict[Union[str, frozenset], Dict[str, torch.Tensor]]:
-        """
-        Returns a dictionary containing a single item for each domain.
-        Includes a combined dictionary for domains specified as a frozenset.
-        """
-        result = {
-            'image_latents': self.domain_data['image_latents'][index],
-            'caption_embeddings': self.domain_data['caption_embeddings'][index],
-            frozenset(['image_latents', 'caption_embeddings']): {
-                'image_latents': self.domain_data['image_latents'][index],
-                'caption_embeddings': self.domain_data['caption_embeddings'][index]
-            }
+    def __getitem__(self, index: int) -> dict[str, torch.Tensor]:
+        return {
+            domain_name: data[index] for domain_name, data in self.domain_data.items()
         }
-        return result
 
 def collate_fn(batch: List[Dict[Union[str, frozenset], Dict[str, torch.Tensor]]]) -> Tuple[Dict[Union[str, frozenset], Dict[str, torch.Tensor]], int, int]:
     """
@@ -82,7 +71,7 @@ def collate_fn(batch: List[Dict[Union[str, frozenset], Dict[str, torch.Tensor]]]
         else:
             # Convert single domain to frozenset for consistent structure
             domain_key = frozenset([key])
-            collated_batch[domain_key] = {key: torch.stack([b[key] for b in batch])}
+            collated_batch[domain_key] = {key: torch.stack([b[key] for b in batch])} # type: ignore
     return collated_batch, 0, 0
 
 def collate_fn_validation(batch: List[Dict[str, torch.Tensor]]) -> Tuple[Dict[str, torch.Tensor], int, int]:
@@ -109,50 +98,63 @@ class CaptionsDataset():
 class GWDataModule(LightningDataModule):
     def __init__(
         self,
-        val_dataset,
-        train_dataset,
+        val_datasets: dict[frozenset[str], DomainDataset],
+        train_datasets: dict[frozenset[str], DomainDataset],
         batch_size: int,
     ) -> None:
         super().__init__()
-        self.batch_size = batch_size
-        self.val_dataset = val_dataset
-        self.train_dataset = train_dataset
 
-        # ImageNet dataset transformations
-        self.transform = transforms.Compose([
+        self.batch_size = batch_size
+
+        self.val_datasets = val_datasets
+        self.train_datasets = train_datasets
+
+        # Set up the ImageNet dataset transformations
+        transform = transforms.Compose([
             transforms.Resize(256),
             transforms.CenterCrop(224),
             transforms.ToTensor(),
         ])
 
-        # Paths to ImageNet directories
+        # Separate datasets for train and validation
         train_dir = os.environ.get('DATASET_DIR', '.') + '/imagenet/train'
-        val_dir = os.environ.get('DATASET_DIR', '.') + '/imagenet/val'
-        # Load ImageNet datasets
-        self.imagenet_train_dataset = ImageFolder(root=train_dir, transform=self.transform)
-        self.imagenet_val_dataset = ImageFolder(root=val_dir, transform=self.transform)
+        val_dir = os.environ.get('DATASET_DIR', '.') + '/imagenet/val'  # Assuming a separate validation directory
 
-        # Load captions datasets
-        train_caption_csv = "new_captions_only.csv"
-        val_caption_csv = "captions_fullimgnet_val_noshuffle.csv"
-        self.train_captions_dataset = CaptionsDataset(train_caption_csv)
-        self.val_captions_dataset = CaptionsDataset(val_caption_csv)
+        self.imagenet_train_dataset = ImageFolder(root=train_dir, transform=transform)
+        self.imagenet_val_dataset = ImageFolder(root=val_dir, transform=transform)
+
+    def setup_dataloaders(self, datasets):
+        dataloaders = {}
+        for domain_set, dataset in datasets.items():
+            # Each dataset gets its own DataLoader
+            dataloaders[domain_set] = DataLoader(
+                dataset,
+                batch_size=self.batch_size,
+                shuffle=True,
+                num_workers=2,
+                pin_memory=True
+            )
+        return dataloaders
 
     def train_dataloader(self):
-        return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True, collate_fn=collate_fn)
+        train_loaders = self.setup_dataloaders(self.train_datasets)
+        return CombinedLoader(train_loaders, mode="min_size")
 
     def val_dataloader(self):
-        return DataLoader(self.val_dataset, batch_size=self.batch_size, shuffle=False, collate_fn=collate_fn_validation)
+        val_loaders = self.setup_dataloaders(self.val_datasets)
+        return CombinedLoader(val_loaders, mode="sequential")
 
 
+
+    
+
+    
     def get_samples(self, split: Literal["train", "val"], amount: int) -> dict[frozenset, dict[str, torch.Tensor]]:
         """Fetches a specified number of samples from the specified split ('train' or 'val')."""
         if split == "train":
             data_loader = self.train_dataloader()
-            caption_dataset = self.train_captions_dataset
         else:
             data_loader = self.val_dataloader()
-            caption_dataset = self.val_captions_dataset
 
         for sample_data in data_loader:
             break
@@ -170,14 +172,9 @@ class GWDataModule(LightningDataModule):
                 for domain_name, tensors in data.items():
                     if domain_name == "image_latents":
                         # Special handling for image latents to fetch from ImageNet
-                        imagenet_loader = DataLoader(self.imagenet_train_dataset, batch_size=amount, shuffle=True)
+                        imagenet_loader = DataLoader(self.imagenet_train_dataset if split == "train" else self.imagenet_val_dataset, batch_size=amount, shuffle=True)
                         images_tensor = next(iter(imagenet_loader))[0].to('cuda' if torch.cuda.is_available() else 'cpu')
                         collected_samples[domains][domain_name] = images_tensor
-                    elif domain_name == "caption_embeddings":
-                        # Handle caption embeddings to fetch raw text
-                        caption_loader = DataLoader(self.train_captions_dataset, batch_size=amount, shuffle=True)
-                        captions = [self.train_captions_dataset[idx] for idx in torch.randint(0, len(self.train_captions_dataset), (amount,))]
-                        collected_samples[domains][domain_name] = captions
                     else:
                         limited_amount = min(amount, tensors.size(0))
                         collected_samples[domains][domain_name] = tensors[:limited_amount]
@@ -195,20 +192,19 @@ class GWDataModule(LightningDataModule):
                     # Also add image latents under its own key
                     individual_set = frozenset([domain_name])
                     collected_samples[individual_set] = {domain_name: images_tensor}
-                elif domain_name == "caption_embeddings":
-                    # Handle caption embeddings to fetch raw text
-                    caption_loader = DataLoader(self.val_captions_dataset, batch_size=amount, shuffle=True)
-                    captions = [self.val_captions_dataset[idx] for idx in torch.randint(0, len(self.val_captions_dataset), (amount,))]
-                    collected_samples[combined_domain_set][domain_name] = captions
-                    # Also add caption embeddings under their own key
-                    individual_set = frozenset([domain_name])
-                    collected_samples[individual_set] = {domain_name: captions}
                 else:
                     limited_amount = min(amount, tensors.size(0))
                     collected_samples[combined_domain_set][domain_name] = tensors[:limited_amount]
                     # Also add other domains under their own keys
                     individual_set = frozenset([domain_name])
                     collected_samples[individual_set] = {domain_name: tensors[:limited_amount]}
+
+        """print("Sampled Data Overview:")
+        for domain_set, domain_data in collected_samples.items():
+            print(f"Domains: {domain_set}")
+            for key, tensor in domain_data.items():
+                print(f"  {key}: {tensor.shape}")"""
+                
 
         return collected_samples
 
@@ -223,10 +219,8 @@ class GWDataModule(LightningDataModule):
 
 
 
-def make_datasets(train_split: float = 0.8):
-    """
-    Create training and validation datasets with image and text data.
-    """
+def make_datasets():
+
     # Load training data
     image_latents_train = load_data(IMAGE_LATENTS_PATH_TRAIN)
     caption_embeddings_train = load_data(CAPTION_EMBEDDINGS_PATH_TRAIN)
@@ -235,17 +229,44 @@ def make_datasets(train_split: float = 0.8):
     image_latents_val = load_data(IMAGE_LATENTS_PATH_VAL)
     caption_embeddings_val = load_data(CAPTION_EMBEDDINGS_PATH_VAL)
 
-    # Initialize DomainDataset
-    train_data = {'image_latents': image_latents_train, 'caption_embeddings': caption_embeddings_train}
-    val_data = {'image_latents': image_latents_val, 'caption_embeddings': caption_embeddings_val}
     
-    train_dataset = DomainDataset(train_data)
-    val_dataset = DomainDataset(val_data)
+    print("image_latents_train : ", image_latents_train.shape)
+    print("caption_embeddings_train : ", caption_embeddings_train.shape)
 
-    return train_dataset, val_dataset
+    # Shuffle training data
+    train_len = len(caption_embeddings_train)
+    train_indices = np.random.permutation(train_len)
+    image_latents_train = image_latents_train[train_indices]
+    caption_embeddings_train = caption_embeddings_train[train_indices]
 
-def make_datamodule(train_split=0.8, batch_size: int = 64) -> GWDataModule:
-    train_dataset, val_dataset = make_datasets()
+    # Shuffle validation data
+    val_len = len(caption_embeddings_val)
+    val_indices = np.random.permutation(val_len)
+    image_latents_val = image_latents_val[val_indices]
+    caption_embeddings_val = caption_embeddings_val[val_indices]
+
+    # Create domain-specific and combined datasets
+    train_datasets = {
+        frozenset(['image_latents']): DomainDataset({'image_latents': image_latents_train}),
+        frozenset(['caption_embeddings']): DomainDataset({'caption_embeddings': caption_embeddings_train}),
+        frozenset(['image_latents', 'caption_embeddings']): DomainDataset({
+            'image_latents': image_latents_train,
+            'caption_embeddings': caption_embeddings_train
+        })
+    }
+
+    val_datasets = {
+        frozenset(['image_latents', 'caption_embeddings']): DomainDataset({
+            'image_latents': image_latents_val,
+            'caption_embeddings': caption_embeddings_val
+        })
+    }
+
+    return train_datasets, val_datasets
+
+
+def make_datamodule(batch_size: int = 64) -> GWDataModule:
+    train_datasets, val_datasets = make_datasets()
     # Create a single GWDataModule handling both training and validation datasets
-    data_module = GWDataModule(val_dataset=val_dataset, train_dataset=train_dataset, batch_size=batch_size)
+    data_module = GWDataModule(train_datasets=train_datasets, val_datasets=val_datasets, batch_size=batch_size)
     return data_module

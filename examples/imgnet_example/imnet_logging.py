@@ -78,16 +78,6 @@ class LogGWImagesCallback(pl.Callback):
             out[domain_names] = latents
         return out
 
-    def encode_text(self, texts: Sequence[str], batch_size: int = 32) -> torch.Tensor:
-        device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        self.bge_model.to(device)
-        embeddings = []
-        for i in range(0, len(texts), batch_size):
-            batch_texts = texts[i:i + batch_size]
-            batch_embeddings = self.bge_model.encode(batch_texts, convert_to_tensor=True, batch_size=batch_size, device=device)
-            embeddings.append(batch_embeddings)
-        return torch.cat(embeddings, dim=0).to(device)
-
 
     def on_callback(
         self,
@@ -111,22 +101,20 @@ class LogGWImagesCallback(pl.Callback):
                             trainer,  # Pass trainer here
                         )
 
-        # Encode text samples to latents
-        for domain_names, domains in samples.items():
-            if "caption_embeddings" in domains:
-                texts = domains["caption_embeddings"]
-                encoded_texts = self.encode_text(texts)
-                samples[domain_names]["caption_embeddings"] = encoded_texts
 
         latent_groups = pl_module.encode_domains(samples)
         for domain_group, domains in latent_groups.items():
             for domain, tensor in domains.items():
                 if domain == "image_latents":
                     pl_module.domain_mods["image_latents"].vae_model.eval()
-                    latent_groups[domain_group][domain] = pl_module.domain_mods["image_latents"].vae_model.encode(tensor)[0]
+                    mean, std = pl_module.domain_mods["image_latents"].mean, pl_module.domain_mods["image_latents"].std
+                    latent_groups[domain_group][domain] = (pl_module.domain_mods["image_latents"].vae_model.encode(tensor)[0].flatten(start_dim=1) - mean) / std
 
-                    mu, log_var = pl_module.domain_mods["image_latents"].vae_model.encode(tensor)
-                    self.log_samples(loggers[0] if loggers else None, pl_module, pl_module.domain_mods["image_latents"].vae_model.decode(mu), domain, "forward_by_hand", trainer)
+                    print("stats before predicting : ",latent_groups[domain_group][domain].mean(), latent_groups[domain_group][domain].std())
+
+                    #mu, log_var = pl_module.domain_mods["image_latents"].vae_model.encode(tensor)
+                    #print("stats before forwardbyhand : ",mu.mean(), mu.std())
+                    self.log_samples(loggers[0] if loggers else None, pl_module, pl_module.domain_mods["image_latents"].vae_model(tensor)[0], domain, "forward_by_hand", trainer)
         selection_mod = SingleDomainSelection()
 
         with torch.no_grad():
