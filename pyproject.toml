@@ -39,7 +39,7 @@ pytest = "^7.3.2"
 optional = true
 
 [tool.poetry.group.docs.dependencies]
-pdoc = "^14.4.0"
+pdoc = "^14.5.1"
 
 [tool.poetry.scripts]
 shimmer = "shimmer.cli:cli"
