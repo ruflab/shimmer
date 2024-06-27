@@ -29,7 +29,9 @@ from shimmer.modules.selection import (
     SelectionBase,
     SingleDomainSelection,
 )
-from shimmer.modules.utils import batch_cycles, batch_demi_cycles, batch_translations
+from shimmer.modules.utils import (
+    batch_broadcasts,
+)
 from shimmer.types import (
     LatentsDomainGroupsDT,
     LatentsDomainGroupsT,
@@ -54,7 +56,7 @@ class SchedulerArgs(TypedDict, total=False):
 class GWPredictionsBase(TypedDict):
     """TypedDict of the output given when calling `GlobalWorkspaceBase.predict`"""
 
-    states: dict[str, torch.Tensor]
+    states: dict[frozenset[str], torch.Tensor]
     """
     GW state representation from domain groups with only one domain.
     The key represent the domain's name.
@@ -224,7 +226,7 @@ class GlobalWorkspaceBase(
 
     def batch_gw_states(
         self, latent_domains: LatentsDomainGroupsT
-    ) -> dict[str, torch.Tensor]:
+    ) -> dict[frozenset[str], torch.Tensor]:
         """
         Comptues GW states of a batch of groups of domains.
 
@@ -234,15 +236,10 @@ class GlobalWorkspaceBase(
         Returns:
             `dict[str, torch.Tensor]`: states for each domain.
         """
-        predictions: dict[str, torch.Tensor] = {}
+        predictions: dict[frozenset[str], torch.Tensor] = {}
         for domains, latents in latent_domains.items():
-            if len(domains) > 1:
-                continue
-            domain_name = list(domains)[0]
-            z = self.gw_mod.encode_and_fuse(
-                latents, selection_module=self.selection_mod
-            )
-            predictions[domain_name] = z
+            z = self.gw_mod.encode_and_fuse(latents, self.selection_mod)
+            predictions[domains] = z
         return predictions
 
     def encode_domain(self, domain: Any, name: str) -> torch.Tensor:
@@ -443,25 +440,15 @@ def freeze_domain_modules(
 class GWPredictions(GWPredictionsBase):
     """TypedDict of the output given when calling `GlobalWorkspaceBase.predict`"""
 
-    demi_cycles: dict[str, torch.Tensor]
+    broadcasts: dict[frozenset[str], dict[str, torch.Tensor]]
     """
-    Demi-cycle predictions of the model for each domain. Only computed on domain
-    groups with only one domain.
+    broadcasts predictions of the model for each domain. It contains demi-cycles,
+    translations, and fused.
     """
 
-    cycles: dict[tuple[str, str], torch.Tensor]
+    cycles: dict[frozenset[str], dict[str, torch.Tensor]]
     """
     Cycle predictions of the model from one domain through another one.
-    Only computed on domain groups with more than one domain.
-    The keys are tuple with start domain and intermediary domain.
-    """
-
-    translations: dict[tuple[str, str], torch.Tensor]
-    """
-    Translation predictions of the model from one domain through another one.
-
-    Only computed on domain groups with more than one domain.
-    The keys are tuples with start domain and target domain.
     """
 
 
@@ -546,17 +533,11 @@ class GlobalWorkspace2Domains(
         Returns:
             `GWPredictions`: the predictions on the batch.
         """
+        broadcasts, cycles = batch_broadcasts(
+            self.gw_mod, self.selection_mod, latent_domains
+        )
         return GWPredictions(
-            demi_cycles=batch_demi_cycles(
-                self.gw_mod, self.selection_mod, latent_domains
-            ),
-            cycles=batch_cycles(
-                self.gw_mod, self.selection_mod, latent_domains, self.domain_mods.keys()
-            ),
-            translations=batch_translations(
-                self.gw_mod, self.selection_mod, latent_domains
-            ),
-            **super().forward(latent_domains),
+            broadcasts=broadcasts, cycles=cycles, **super().forward(latent_domains)
         )
 
 
@@ -642,18 +623,11 @@ class GlobalWorkspace(GlobalWorkspaceBase[GWModule, RandomSelection, GWLosses]):
         Returns:
             `GWPredictions`: the predictions on the batch.
         """
+        broadcasts, cycles = batch_broadcasts(
+            self.gw_mod, self.selection_mod, latent_domains
+        )
         return GWPredictions(
-            demi_cycles=batch_demi_cycles(
-                self.gw_mod, self.selection_mod, latent_domains
-            ),
-            cycles=batch_cycles(
-                self.gw_mod, self.selection_mod, latent_domains, self.domain_mods.keys()
-            ),
-            translations=batch_translations(
-                self.gw_mod, self.selection_mod, latent_domains
-            ),
-            # TODO: add other combinations
-            **super().forward(latent_domains),
+            broadcasts=broadcasts, cycles=cycles, **super().forward(latent_domains)
         )
 
 
@@ -764,17 +738,11 @@ class GlobalWorkspaceBayesian(
         Returns:
             `GWPredictions`: the predictions on the batch.
         """
+        broadcasts, cycles = batch_broadcasts(
+            self.gw_mod, self.selection_mod, latent_domains
+        )
         return GWPredictions(
-            demi_cycles=batch_demi_cycles(
-                self.gw_mod, self.selection_mod, latent_domains
-            ),
-            cycles=batch_cycles(
-                self.gw_mod, self.selection_mod, latent_domains, self.domain_mods.keys()
-            ),
-            translations=batch_translations(
-                self.gw_mod, self.selection_mod, latent_domains
-            ),
-            **super().forward(latent_domains),
+            broadcasts=broadcasts, cycles=cycles, **super().forward(latent_domains)
         )
 
 
