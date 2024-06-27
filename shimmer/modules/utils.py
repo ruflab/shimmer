@@ -161,3 +161,58 @@ def batch_translations(
                 )
                 predictions[(domain_name_source, domain_name_target)] = prediction
     return predictions
+
+
+def broadcast(
+    gw_mod: GWModuleBase,
+    selection_mod: SelectionBase,
+    latents: LatentsDomainGroupT,
+) -> dict[str, torch.Tensor]:
+    """
+    broadcast a group
+
+    Args:
+        gw_mod (`GWModuleBase`): GWModule to perform the translation over
+        selection_mod (`SelectionBase`): selection module
+        latents (`LatentsDomainGroupT`): the group of latent representations
+
+    Returns:
+        `torch.Tensor`: the broadcast representation
+    """
+    predictions: dict[str, torch.Tensor] = {}
+    state = gw_mod.encode_and_fuse(latents, selection_mod)
+    all_domains = list(gw_mod.domain_mods.keys())
+    for domain in all_domains:
+        predictions[domain] = gw_mod.decode(state, domains=[domain])[domain]
+    return predictions
+
+
+def batch_broadcasts(
+    gw_mod: GWModuleBase,
+    selection_mod: SelectionBase,
+    latent_domains: LatentsDomainGroupsT,
+) -> tuple[
+    dict[frozenset[str], dict[str, torch.Tensor]],
+    dict[frozenset[str], dict[str, torch.Tensor]],
+]:
+    """
+    Computes all possible broadcast of a batch for each group of domains.
+
+    Args:
+        gw_mod (`GWModuleBase`): the GWModuleBase
+        selection_mod (`SelectionBase`): selection module
+        latent_domains (`LatentsT`): the batch of groups of domains
+
+    Returns:
+        `dict[str, torch.Tensor]`: broadcast predictions for each domain.
+    """
+    predictions: dict[frozenset[str], dict[str, torch.Tensor]] = {}
+    cycles: dict[frozenset[str], dict[str, torch.Tensor]] = {}
+    for domains, latents in latent_domains.items():
+        decoded = broadcast(gw_mod, selection_mod, latents)
+        predictions[domains] = decoded
+        inverse = {
+            name: latent for name, latent in decoded.items() if name not in domains
+        }
+        cycles[domains] = broadcast(gw_mod, selection_mod, inverse)
+    return predictions, cycles

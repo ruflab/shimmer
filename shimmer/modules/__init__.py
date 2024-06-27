@@ -35,9 +35,11 @@ from shimmer.modules.selection import (
     SingleDomainSelection,
 )
 from shimmer.modules.utils import (
+    batch_broadcasts,
     batch_cycles,
     batch_demi_cycles,
     batch_translations,
+    broadcast,
     cycle,
     translation,
 )
@@ -84,6 +86,8 @@ __all__ = [
     "batch_cycles",
     "batch_demi_cycles",
     "batch_translations",
+    "batch_broadcasts",
+    "broadcast",
     "cycle",
     "translation",
     "RandomSelection",
