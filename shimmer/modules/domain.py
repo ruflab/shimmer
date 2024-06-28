@@ -30,6 +30,26 @@ class LossOutput:
         """
         return {**self.metrics, "loss": self.loss}
 
+    def add(self, other: "LossOutput", /, prefix: str | None = None) -> None:
+        """
+        Adds the other.loss to self.loss.
+        Metrics of other that are not part of self.metrics, will also be added.
+
+        You can also prepend a prefix to the metric names with the `prefix` argument.
+
+        Args:
+            other (`LossOutput`): `LossOutput` to add
+            prefix (`str | None`): prefix to use. Defaults to no prefix.
+        """
+        prefix = prefix or ""
+        for name, metric in other.metrics.items():
+            metric_name = f"{prefix}{name}"
+            if metric_name in self.metrics:
+                self.metrics[metric_name] += metric
+            else:
+                self.metrics[metric_name] = metric
+        self.loss += other.loss
+
 
 class DomainModule(pl.LightningModule):
     """
