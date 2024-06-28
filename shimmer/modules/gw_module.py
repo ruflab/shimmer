@@ -1,13 +1,122 @@
 from abc import ABC, abstractmethod
 from collections.abc import Iterable, Mapping
-from typing import cast
+from typing import TypedDict, cast
 
 import torch
 from torch import nn
 
 from shimmer.modules.domain import DomainModule
 from shimmer.modules.selection import SelectionBase
-from shimmer.types import LatentsDomainGroupDT, LatentsDomainGroupT
+from shimmer.types import (
+    LatentsDomainGroupDT,
+    LatentsDomainGroupT,
+)
+
+
+def translation(
+    gw_module: "GWModuleBase",
+    selection_mod: SelectionBase,
+    x: LatentsDomainGroupT,
+    to: str,
+) -> torch.Tensor:
+    """
+    Translate from multiple domains to one domain.
+
+    Args:
+        gw_module (`"GWModuleBase"`): GWModule to perform the translation over
+        selection_mod (`SelectionBase`): selection module
+        x (`LatentsDomainGroupT`): the group of latent representations
+        to (`str`): the domain name to encode to
+
+    Returns:
+        `torch.Tensor`: the translated unimodal representation
+            of the provided domain.
+    """
+    return gw_module.decode(gw_module.encode_and_fuse(x, selection_mod), domains={to})[
+        to
+    ]
+
+
+def cycle(
+    gw_module: "GWModuleBase",
+    selection_mod: SelectionBase,
+    x: LatentsDomainGroupT,
+    through: str,
+) -> LatentsDomainGroupDT:
+    """
+    Do a full cycle from a group of representation through one domain.
+
+    [Original domains] -> [GW] -> [through] -> [GW] -> [Original domains]
+
+    Args:
+        gw_module (`"GWModuleBase"`): GWModule to perform the translation over
+        selection_mod (`SelectionBase`): selection module
+        x (`LatentsDomainGroupT`): group of unimodal latent representation
+        through (`str`): domain name to cycle through
+    Returns:
+        `LatentsDomainGroupDT`: group of unimodal latent representation after
+            cycling.
+    """
+    return {
+        domain: translation(
+            gw_module,
+            selection_mod,
+            {through: translation(gw_module, selection_mod, x, through)},
+            domain,
+        )
+        for domain in x
+    }
+
+
+def broadcast(
+    gw_mod: "GWModuleBase",
+    selection_mod: SelectionBase,
+    latents: LatentsDomainGroupT,
+) -> dict[str, torch.Tensor]:
+    """
+    broadcast a group
+
+    Args:
+        gw_mod (`"GWModuleBase"`): GWModule to perform the translation over
+        selection_mod (`SelectionBase`): selection module
+        latents (`LatentsDomainGroupT`): the group of latent representations
+
+    Returns:
+        `torch.Tensor`: the broadcast representation
+    """
+    predictions: dict[str, torch.Tensor] = {}
+    state = gw_mod.encode_and_fuse(latents, selection_mod)
+    all_domains = list(gw_mod.domain_mods.keys())
+    for domain in all_domains:
+        predictions[domain] = gw_mod.decode(state, domains=[domain])[domain]
+    return predictions
+
+
+def broadcast_cycles(
+    gw_mod: "GWModuleBase",
+    selection_mod: SelectionBase,
+    latents: LatentsDomainGroupT,
+) -> tuple[dict[str, torch.Tensor], dict[str, torch.Tensor]]:
+    """
+    broadcast a group
+
+    Args:
+        gw_mod (`"GWModuleBase"`): GWModule to perform the translation over
+        selection_mod (`SelectionBase`): selection module
+        latents (`LatentsDomainGroupT`): the group of latent representations
+
+    Returns:
+        `torch.Tensor`: the broadcast representation
+    """
+    all_domains = list(latents.keys())
+    predictions = broadcast(gw_mod, selection_mod, latents)
+    inverse = {
+        name: latent for name, latent in predictions.items() if name not in all_domains
+    }
+    cycles: dict[str, torch.Tensor] = {}
+    if len(inverse):
+        cycles = broadcast(gw_mod, selection_mod, inverse)
+    return predictions, cycles
 
 
 def get_n_layers(n_layers: int, hidden_dim: int) -> list[nn.Module]:
@@ -107,6 +216,27 @@ class GWEncoderLinear(nn.Linear):
         return torch.tanh(super().forward(input))
 
 
+class GWModulePrediction(TypedDict):
+    """TypedDict of the output given when calling `GlobalWorkspaceBase.predict`"""
+
+    states: torch.Tensor
+    """
+    GW state representation from domain groups with only one domain.
+    The key represent the domain's name.
+    """
+
+    broadcasts: dict[str, torch.Tensor]
+    """
+    broadcasts predictions of the model for each domain. It contains demi-cycles,
+    translations, and fused.
+    """
+
+    cycles: dict[str, torch.Tensor]
+    """
+    Cycle predictions of the model from one domain through another one.
+    """
+
+
 class GWModuleBase(nn.Module, ABC):
     """
     Base class for GWModule.
@@ -204,6 +334,29 @@ class GWModuleBase(nn.Module, ABC):
             `LatentsDomainGroupDT`: the decoded unimodal representations.
         """
         ...
+
+    def forward(
+        self,
+        latent_domains: LatentsDomainGroupT,
+        selection_module: SelectionBase,
+    ) -> GWModulePrediction:
+        """
+        Computes demi-cycles, cycles, and translations.
+
+        Args:
+            latent_domains (`LatentsDomainGroupT`): Group of domains
+            selection_module (`SelectionBase`): selection module
+
+        Returns:
+            `GWModulePredictions`: the predictions on the group.
+        """
+        broadcasts, cycles = broadcast_cycles(self, selection_module, latent_domains)
+
+        return GWModulePrediction(
+            states=self.encode_and_fuse(latent_domains, selection_module),
+            broadcasts=broadcasts,
+            cycles=cycles,
+        )
 
 
 class GWModule(GWModuleBase):

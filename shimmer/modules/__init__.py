@@ -10,8 +10,11 @@ from shimmer.modules.global_workspace import (
     GlobalWorkspace2Domains,
     GlobalWorkspaceBase,
     GlobalWorkspaceBayesian,
-    GWPredictions,
     SchedulerArgs,
+    batch_broadcasts,
+    batch_cycles,
+    batch_demi_cycles,
+    batch_translations,
     pretrained_global_workspace,
 )
 from shimmer.modules.gw_module import (
@@ -21,6 +24,11 @@ from shimmer.modules.gw_module import (
     GWModule,
     GWModuleBase,
     GWModuleBayesian,
+    GWModulePrediction,
+    broadcast,
+    broadcast_cycles,
+    cycle,
+    translation,
 )
 from shimmer.modules.losses import (
     BroadcastLossCoefs,
@@ -34,13 +42,6 @@ from shimmer.modules.selection import (
     SelectionBase,
     SingleDomainSelection,
 )
-from shimmer.modules.utils import (
-    batch_cycles,
-    batch_demi_cycles,
-    batch_translations,
-    cycle,
-    translation,
-)
 from shimmer.modules.vae import (
     VAE,
     VAEDecoder,
@@ -52,7 +53,6 @@ from shimmer.modules.vae import (
 
 __all__ = [
     "SchedulerArgs",
-    "GWPredictions",
     "GlobalWorkspaceBase",
     "GlobalWorkspace2Domains",
     "GlobalWorkspaceBayesian",
@@ -65,6 +65,7 @@ __all__ = [
     "GWModuleBase",
     "GWModule",
     "GWModuleBayesian",
+    "GWModulePrediction",
     "ContrastiveLossType",
     "ContrastiveLossBayesianType",
     "contrastive_loss",
@@ -84,6 +85,9 @@ __all__ = [
     "batch_cycles",
     "batch_demi_cycles",
     "batch_translations",
+    "batch_broadcasts",
+    "broadcast",
+    "broadcast_cycles",
     "cycle",
     "translation",
     "RandomSelection",
