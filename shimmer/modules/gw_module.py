@@ -113,7 +113,9 @@ def broadcast_cycles(
     inverse = {
         name: latent for name, latent in predictions.items() if name not in all_domains
     }
-    cycles = broadcast(gw_mod, selection_mod, inverse)
+    cycles: dict[str, torch.Tensor] = {}
+    if len(inverse):
+        cycles = broadcast(gw_mod, selection_mod, inverse)
     return predictions, cycles
 
 
