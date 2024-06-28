@@ -187,6 +187,31 @@ def broadcast(
     return predictions
 
 
+def broadcast_cycles(
+    gw_mod: GWModuleBase,
+    selection_mod: SelectionBase,
+    latents: LatentsDomainGroupT,
+) -> tuple[dict[str, torch.Tensor], dict[str, torch.Tensor]]:
+    """
+    broadcast a group
+
+    Args:
+        gw_mod (`GWModuleBase`): GWModule to perform the translation over
+        selection_mod (`SelectionBase`): selection module
+        latents (`LatentsDomainGroupT`): the group of latent representations
+
+    Returns:
+        `torch.Tensor`: the broadcast representation
+    """
+    all_domains = list(latents.keys())
+    predictions = broadcast(gw_mod, selection_mod, latents)
+    inverse = {
+        name: latent for name, latent in predictions.items() if name not in all_domains
+    }
+    cycles = broadcast(gw_mod, selection_mod, inverse)
+    return predictions, cycles
+
+
 def batch_broadcasts(
     gw_mod: GWModuleBase,
     selection_mod: SelectionBase,
@@ -204,15 +229,13 @@ def batch_broadcasts(
         latent_domains (`LatentsT`): the batch of groups of domains
 
     Returns:
-        `dict[str, torch.Tensor]`: broadcast predictions for each domain.
-    """
+        `tuple[dict[frozenset[str], dict[str, torch.Tensor]],
+        dict[frozenset[str], dict[str, torch.Tensor]], ]`: broadcast predictions
+        for each domain."""
     predictions: dict[frozenset[str], dict[str, torch.Tensor]] = {}
     cycles: dict[frozenset[str], dict[str, torch.Tensor]] = {}
     for domains, latents in latent_domains.items():
-        decoded = broadcast(gw_mod, selection_mod, latents)
-        predictions[domains] = decoded
-        inverse = {
-            name: latent for name, latent in decoded.items() if name not in domains
-        }
-        cycles[domains] = broadcast(gw_mod, selection_mod, inverse)
+        pred_broadcast, pred_cycles = broadcast_cycles(gw_mod, selection_mod, latents)
+        predictions[domains] = pred_broadcast
+        cycles[domains] = pred_cycles
     return predictions, cycles

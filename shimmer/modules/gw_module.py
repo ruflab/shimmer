@@ -1,12 +1,13 @@
 from abc import ABC, abstractmethod
 from collections.abc import Iterable, Mapping
-from typing import cast
+from typing import TypedDict, cast
 
 import torch
 from torch import nn
 
 from shimmer.modules.domain import DomainModule
 from shimmer.modules.selection import SelectionBase
+from shimmer.modules.utils import broadcast_cycles
 from shimmer.types import LatentsDomainGroupDT, LatentsDomainGroupT
 
 
@@ -107,6 +108,27 @@ class GWEncoderLinear(nn.Linear):
         return torch.tanh(super().forward(input))
 
 
+class GWModulePrediction(TypedDict):
+    """TypedDict of the output given when calling `GlobalWorkspaceBase.predict`"""
+
+    states: torch.Tensor
+    """
+    GW state representation from domain groups with only one domain.
+    The key represent the domain's name.
+    """
+
+    broadcasts: dict[str, torch.Tensor]
+    """
+    broadcasts predictions of the model for each domain. It contains demi-cycles,
+    translations, and fused.
+    """
+
+    cycles: dict[str, torch.Tensor]
+    """
+    Cycle predictions of the model from one domain through another one.
+    """
+
+
 class GWModuleBase(nn.Module, ABC):
     """
     Base class for GWModule.
@@ -204,6 +226,29 @@ class GWModuleBase(nn.Module, ABC):
             `LatentsDomainGroupDT`: the decoded unimodal representations.
         """
         ...
+
+    def forward(
+        self,
+        latent_domains: LatentsDomainGroupT,
+        selection_module: SelectionBase,
+    ) -> GWModulePrediction:
+        """
+        Computes demi-cycles, cycles, and translations.
+
+        Args:
+            latent_domains (`LatentsDomainGroupT`): Group of domains
+            selection_module (`SelectionBase`): selection module
+
+        Returns:
+            `GWModulePredictions`: the predictions on the group.
+        """
+        broadcasts, cycles = broadcast_cycles(self, selection_module, latent_domains)
+
+        return GWModulePrediction(
+            states=self.encode_and_fuse(latent_domains, selection_module),
+            broadcasts=broadcasts,
+            cycles=cycles,
+        )
 
 
 class GWModule(GWModuleBase):
