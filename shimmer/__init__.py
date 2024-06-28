@@ -16,6 +16,10 @@ from shimmer.modules.global_workspace import (
     GlobalWorkspaceBase,
     GlobalWorkspaceBayesian,
     SchedulerArgs,
+    batch_broadcasts,
+    batch_cycles,
+    batch_demi_cycles,
+    batch_translations,
     pretrained_global_workspace,
 )
 from shimmer.modules.gw_module import (
@@ -26,6 +30,10 @@ from shimmer.modules.gw_module import (
     GWModuleBase,
     GWModuleBayesian,
     GWModulePrediction,
+    broadcast,
+    broadcast_cycles,
+    cycle,
+    translation,
 )
 from shimmer.modules.losses import (
     BroadcastLossCoefs,
@@ -38,16 +46,6 @@ from shimmer.modules.selection import (
     RandomSelection,
     SelectionBase,
     SingleDomainSelection,
-)
-from shimmer.modules.utils import (
-    batch_broadcasts,
-    batch_cycles,
-    batch_demi_cycles,
-    batch_translations,
-    broadcast,
-    broadcast_cycles,
-    cycle,
-    translation,
 )
 from shimmer.types import (
     LatentsDomainGroupDT,

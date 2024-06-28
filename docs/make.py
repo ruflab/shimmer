@@ -14,7 +14,6 @@ modules = [
     "shimmer.modules.contrastive_loss",
     "shimmer.dataset",
     "shimmer.modules.vae",
-    "shimmer.modules.utils",
     "shimmer.utils",
     "shimmer.cli.ckpt_migration",
 ]

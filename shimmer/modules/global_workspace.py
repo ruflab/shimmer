@@ -15,6 +15,9 @@ from shimmer.modules.gw_module import (
     GWModuleBase,
     GWModuleBayesian,
     GWModulePrediction,
+    broadcast_cycles,
+    cycle,
+    translation,
 )
 from shimmer.modules.losses import (
     BroadcastLossCoefs,
@@ -75,6 +78,132 @@ class GWPredictionsBase(TypedDict):
 _T_gw_mod = TypeVar("_T_gw_mod", bound=GWModuleBase)
 _T_selection_mod = TypeVar("_T_selection_mod", bound=SelectionBase)
 _T_loss_mod = TypeVar("_T_loss_mod", bound=GWLossesBase)
+
+
+def batch_demi_cycles(
+    gw_mod: GWModuleBase,
+    selection_mod: SelectionBase,
+    latent_domains: LatentsDomainGroupsT,
+) -> dict[str, torch.Tensor]:
+    """
+    Computes demi-cycles of a batch of groups of domains.
+
+    Args:
+        gw_mod (`GWModuleBase`): the GWModuleBase
+        selection_mod (`SelectionBase`): selection module
+        latent_domains (`LatentsT`): the batch of groups of domains
+
+    Returns:
+        `dict[str, torch.Tensor]`: demi-cycles predictions for each domain.
+    """
+    predictions: dict[str, torch.Tensor] = {}
+    for domains, latents in latent_domains.items():
+        if len(domains) > 1:
+            continue
+        domain_name = list(domains)[0]
+        z = translation(gw_mod, selection_mod, latents, to=domain_name)
+        predictions[domain_name] = z
+    return predictions
+
+
+def batch_cycles(
+    gw_mod: GWModuleBase,
+    selection_mod: SelectionBase,
+    latent_domains: LatentsDomainGroupsT,
+    through_domains: Iterable[str],
+) -> dict[tuple[str, str], torch.Tensor]:
+    """
+    Computes cycles of a batch of groups of domains.
+
+    Args:
+        gw_mod (`GWModuleBase`): GWModule to use for the cycle
+        selection_mod (`SelectionBase`): selection module
+        latent_domains (`LatentsT`): the batch of groups of domains
+        out_domains (`Iterable[str]`): iterable of domain names to do the cycle through.
+            Each domain will be done separetely.
+
+    Returns:
+        `dict[tuple[str, str], torch.Tensor]`: cycles predictions for each
+            couple of (start domain, intermediary domain).
+    """
+    predictions: dict[tuple[str, str], torch.Tensor] = {}
+    for domains_source, latents_source in latent_domains.items():
+        if len(domains_source) > 1:
+            continue
+        domain_name_source = next(iter(domains_source))
+        for domain_name_through in through_domains:
+            if domain_name_source == domain_name_through:
+                continue
+            z = cycle(
+                gw_mod, selection_mod, latents_source, through=domain_name_through
+            )
+            domains = (domain_name_source, domain_name_through)
+            predictions[domains] = z[domain_name_source]
+    return predictions
+
+
+def batch_translations(
+    gw_mod: GWModuleBase,
+    selection_mod: SelectionBase,
+    latent_domains: LatentsDomainGroupsT,
+) -> dict[tuple[str, str], torch.Tensor]:
+    """
+    Computes translations of a batch of groups of domains.
+
+    Args:
+        gw_mod (`GWModuleBase`): GWModule to do the translation
+        selection_mod (`SelectionBase`): selection module
+        latent_domains (`LatentsT`): the batch of groups of domains
+
+    Returns:
+        `dict[tuple[str, str], torch.Tensor]`: translation predictions for each
+            couple of (start domain, target domain).
+    """
+    predictions: dict[tuple[str, str], torch.Tensor] = {}
+    for domains, latents in latent_domains.items():
+        if len(domains) < 2:
+            continue
+        for domain_name_source in domains:
+            for domain_name_target in domains:
+                if domain_name_source == domain_name_target:
+                    continue
+                prediction = translation(
+                    gw_mod,
+                    selection_mod,
+                    {domain_name_source: latents[domain_name_source]},
+                    to=domain_name_target,
+                )
+                predictions[(domain_name_source, domain_name_target)] = prediction
+    return predictions
+
+
+def batch_broadcasts(
+    gw_mod: GWModuleBase,
+    selection_mod: SelectionBase,
+    latent_domains: LatentsDomainGroupsT,
+) -> tuple[
+    dict[frozenset[str], dict[str, torch.Tensor]],
+    dict[frozenset[str], dict[str, torch.Tensor]],
+]:
+    """
+    Computes all possible broadcast of a batch for each group of domains.
+
+    Args:
+        gw_mod (`GWModuleBase`): the GWModuleBase
+        selection_mod (`SelectionBase`): selection module
+        latent_domains (`LatentsT`): the batch of groups of domains
+
+    Returns:
+        `tuple[dict[frozenset[str], dict[str, torch.Tensor]],
+        dict[frozenset[str], dict[str, torch.Tensor]], ]`: broadcast predictions
+        for each domain."""
+    predictions: dict[frozenset[str], dict[str, torch.Tensor]] = {}
+    cycles: dict[frozenset[str], dict[str, torch.Tensor]] = {}
+    for domains, latents in latent_domains.items():
+        pred_broadcast, pred_cycles = broadcast_cycles(gw_mod, selection_mod, latents)
+        predictions[domains] = pred_broadcast
+        cycles[domains] = pred_cycles
+    return predictions, cycles
 
 
 class GlobalWorkspaceBase(

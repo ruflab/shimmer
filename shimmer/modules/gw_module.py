@@ -7,8 +7,114 @@ from torch import nn
 
 from shimmer.modules.domain import DomainModule
 from shimmer.modules.selection import SelectionBase
-from shimmer.modules.utils import broadcast_cycles
-from shimmer.types import LatentsDomainGroupDT, LatentsDomainGroupT
+from shimmer.types import (
+    LatentsDomainGroupDT,
+    LatentsDomainGroupT,
+)
+
+
+def translation(
+    gw_module: "GWModuleBase",
+    selection_mod: SelectionBase,
+    x: LatentsDomainGroupT,
+    to: str,
+) -> torch.Tensor:
+    """
+    Translate from multiple domains to one domain.
+
+    Args:
+        gw_module (`"GWModuleBase"`): GWModule to perform the translation over
+        selection_mod (`SelectionBase`): selection module
+        x (`LatentsDomainGroupT`): the group of latent representations
+        to (`str`): the domain name to encode to
+
+    Returns:
+        `torch.Tensor`: the translated unimodal representation
+            of the provided domain.
+    """
+    return gw_module.decode(gw_module.encode_and_fuse(x, selection_mod), domains={to})[
+        to
+    ]
+
+
+def cycle(
+    gw_module: "GWModuleBase",
+    selection_mod: SelectionBase,
+    x: LatentsDomainGroupT,
+    through: str,
+) -> LatentsDomainGroupDT:
+    """
+    Do a full cycle from a group of representation through one domain.
+
+    [Original domains] -> [GW] -> [through] -> [GW] -> [Original domains]
+
+    Args:
+        gw_module (`"GWModuleBase"`): GWModule to perform the translation over
+        selection_mod (`SelectionBase`): selection module
+        x (`LatentsDomainGroupT`): group of unimodal latent representation
+        through (`str`): domain name to cycle through
+    Returns:
+        `LatentsDomainGroupDT`: group of unimodal latent representation after
+            cycling.
+    """
+    return {
+        domain: translation(
+            gw_module,
+            selection_mod,
+            {through: translation(gw_module, selection_mod, x, through)},
+            domain,
+        )
+        for domain in x
+    }
+
+
+def broadcast(
+    gw_mod: "GWModuleBase",
+    selection_mod: SelectionBase,
+    latents: LatentsDomainGroupT,
+) -> dict[str, torch.Tensor]:
+    """
+    broadcast a group
+
+    Args:
+        gw_mod (`"GWModuleBase"`): GWModule to perform the translation over
+        selection_mod (`SelectionBase`): selection module
+        latents (`LatentsDomainGroupT`): the group of latent representations
+
+    Returns:
+        `torch.Tensor`: the broadcast representation
+    """
+    predictions: dict[str, torch.Tensor] = {}
+    state = gw_mod.encode_and_fuse(latents, selection_mod)
+    all_domains = list(gw_mod.domain_mods.keys())
+    for domain in all_domains:
+        predictions[domain] = gw_mod.decode(state, domains=[domain])[domain]
+    return predictions
+
+
+def broadcast_cycles(
+    gw_mod: "GWModuleBase",
+    selection_mod: SelectionBase,
+    latents: LatentsDomainGroupT,
+) -> tuple[dict[str, torch.Tensor], dict[str, torch.Tensor]]:
+    """
+    broadcast a group
+
+    Args:
+        gw_mod (`"GWModuleBase"`): GWModule to perform the translation over
+        selection_mod (`SelectionBase`): selection module
+        latents (`LatentsDomainGroupT`): the group of latent representations
+
+    Returns:
+        `torch.Tensor`: the broadcast representation
+    """
+    all_domains = list(latents.keys())
+    predictions = broadcast(gw_mod, selection_mod, latents)
+    inverse = {
+        name: latent for name, latent in predictions.items() if name not in all_domains
+    }
+    cycles = broadcast(gw_mod, selection_mod, inverse)
+    return predictions, cycles
 
 
 def get_n_layers(n_layers: int, hidden_dim: int) -> list[nn.Module]:
