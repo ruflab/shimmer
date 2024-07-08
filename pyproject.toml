@@ -13,7 +13,7 @@ pandas = "^2.2.2"
 matplotlib = "^3.7.1"
 migrate-ckpt = {git = "https://github.com/bdvllrs/migrate-ckpt.git", rev = "v0.2.0"}
 click = "^8.1.7"
-lightning = "^2.3.1"
+lightning = "^2.3.2"
 torch = "^2.0.1"
 
 [tool.poetry.group.dev.dependencies]
