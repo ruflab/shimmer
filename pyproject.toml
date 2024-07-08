@@ -10,7 +10,7 @@ readme = "README.md"
 python = "~3.11"
 numpy = "^1.26"
 pandas = "^2.2.2"
-matplotlib = "^3.7.1"
+matplotlib = "^3.9.1"
 migrate-ckpt = {git = "https://github.com/bdvllrs/migrate-ckpt.git", rev = "v0.2.0"}
 click = "^8.1.7"
 lightning = "^2.3.1"
