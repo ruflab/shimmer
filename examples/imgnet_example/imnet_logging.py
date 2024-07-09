@@ -107,13 +107,8 @@ class LogGWImagesCallback(pl.Callback):
             for domain, tensor in domains.items():
                 if domain == "image_latents":
                     pl_module.domain_mods["image_latents"].vae_model.eval()
-                    mean, std = pl_module.domain_mods["image_latents"].mean, pl_module.domain_mods["image_latents"].std
-                    latent_groups[domain_group][domain] = (pl_module.domain_mods["image_latents"].vae_model.encode(tensor)[0].flatten(start_dim=1) - mean) / std
+                    latent_groups[domain_group][domain] = pl_module.domain_mods["image_latents"].vae_model.encode(tensor)[0].flatten(start_dim=1)
 
-                    print("stats before predicting : ",latent_groups[domain_group][domain].mean(), latent_groups[domain_group][domain].std())
-
-                    #mu, log_var = pl_module.domain_mods["image_latents"].vae_model.encode(tensor)
-                    #print("stats before forwardbyhand : ",mu.mean(), mu.std())
                     self.log_samples(loggers[0] if loggers else None, pl_module, pl_module.domain_mods["image_latents"].vae_model(tensor)[0], domain, "forward_by_hand", trainer)
         selection_mod = SingleDomainSelection()
 

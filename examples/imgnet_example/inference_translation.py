@@ -47,8 +47,15 @@ class dropout_GWDecoder(nn.Sequential):
 class dropout_GWEncoder(dropout_GWDecoder):
     def __init__(self, in_dim: int, hidden_dim: int, out_dim: int, n_layers: int, dropout_rate: float = 0.5):
         super().__init__(in_dim, hidden_dim, out_dim, n_layers, dropout_rate)
+def print_shapes(nested_dict, indent=0):
+    """Recursively print the shapes of tensors in a nested dictionary."""
+    for key, value in nested_dict.items():
+        print(' ' * indent + str(key) + ':')
+        if isinstance(value, dict):
+            print_shapes(value, indent + 2)
+        else:
+            print(' ' * (indent + 2) + str(value.shape))
 
-# Define inference function
 def inference_gw():
     batch_size = 2056
 
@@ -56,7 +63,7 @@ def inference_gw():
     data = make_datamodule(batch_size)
 
     # Initialize the domain modules with the specific latent dimensions and model parameters
-    image_domain = ImageDomain(latent_dim=512)
+    image_domain = ImageDomain(latent_dim=384)
     text_domain = TextDomain(latent_dim=384)
 
     domain_mods = {
@@ -118,7 +125,7 @@ def inference_gw():
     bge_model = SentenceTransformer("BAAI/bge-small-en-v1.5")
 
     # Load the model checkpoint
-    CHECKPOINT_PATH = "/home/rbertin/cleaned/git_synced/shimmer/examples/imgnet_example/wandb_output_bigger_vae/simple_shapes_fusion/7t80u3rm/checkpoints/epoch=499-step=312000.ckpt"
+    CHECKPOINT_PATH = "/home/rbertin/cleaned/git_synced/shimmer/examples/imgnet_example/wandb_output_bigger_vae_regularized/simple_shapes_fusion/w2syv1ph/checkpoints/epoch=122-step=76752.ckpt"
     checkpoint = torch.load(CHECKPOINT_PATH)
 
     # Assuming the model has a method to load from checkpoint state_dict
@@ -175,23 +182,8 @@ def inference_gw():
     # Move mean and std tensors to device
     mean_tensor = torch.tensor(mean_tensor).to('cuda')
     std_tensor = torch.tensor(std_tensor).to('cuda')
-    # Set the directory for the dataset
-    val_dir = os.environ.get('DATASET_DIR', '.') + '/imagenet/train'
-    imagenet_val_dataset = ImageFolder(root=val_dir, transform=transform)
 
-    # Randomly select five indices from the length of the dataset
-    random_indices = random.sample(range(len(imagenet_val_dataset)), 5)
-
-    # Initialize the DataLoader
-    data_loader = DataLoader(imagenet_val_dataset, batch_size=1, shuffle=False)
-
-    # Process the textual train samples through the model
-    fig, axes = plt.subplots(2, 5, figsize=(30, 18))
-
-    # Move mean and std tensors to device
-    mean_tensor = torch.tensor(mean_tensor).to('cuda')
-    std_tensor = torch.tensor(std_tensor).to('cuda')
-
+    # Load image latents
     IMAGE_LATENTS_PATH_VAL = (
         "/home/rbertin/pyt_scripts/full_imgnet/full_size/vae_bigdisc_goodbeta_50ep"
         "/combined_standardized_embeddings.npy"
@@ -201,40 +193,21 @@ def inference_gw():
     image_latents_val = np.load(IMAGE_LATENTS_PATH_VAL)
     image_latents_val = torch.tensor(image_latents_val).to('cuda')
 
-    for i, image_index in tqdm(enumerate(random_indices)):
-        # Get the image and target at the selected index
-        image, _ = imagenet_val_dataset[image_index]
+    # Create random latents domain groups for testing
+    random_latent_domains = {
+        frozenset(["image_latents"]): {
+            "image_latents": torch.rand((1, 384)).to(device)  # Example random tensor
+        },
+        frozenset(["caption_embeddings"]): {
+            "caption_embeddings": torch.rand((1, 384)).to(device)  # Example random tensor
+        }
+    }
 
-        # Get the image latents at the same index as the original image in the dataset
-        file_latents = image_latents_val[image_index].unsqueeze(0).to('cuda')
-        print("file_latents stats before modif : ", file_latents.mean(), file_latents.std())
-        file_latents = (file_latents * global_workspace.domain_mods["image_latents"].std.to(file_latents.device)) - global_workspace.domain_mods["image_latents"].mean.to(file_latents.device)
+    # Call the forward function on random samples
+    gw_predictions = global_workspace.forward(random_latent_domains)
 
-        print("image.shape : ", image.shape)
-        encoded = image_domain.vae_model.encode(image.unsqueeze(0).to('cuda'))[0]
-
-        print("difference : ", (file_latents - encoded.flatten(start_dim=1)).mean())
-        print("encoded stats : ", encoded.mean(), encoded.std())
-        print("file_latents stats : ", file_latents.mean(), file_latents.std())
-
-        # Decode image latents to image space using the VAE model
-        image_output_1 = global_workspace.domain_mods["image_latents"].vae_model.decode(file_latents.reshape(-1, 32, 4, 4))
-        image_output_2 = global_workspace.domain_mods["image_latents"].vae_model.decode(encoded.reshape(-1, 32, 4, 4))
-
-        # Plot the demi-cycled image output tensor
-        axes[0, i].imshow(image_output_1.squeeze().permute(1, 2, 0).cpu().detach().numpy())
-        axes[0, i].set_title("Demi-cycled Image", fontsize=10, pad=10)
-        axes[0, i].axis('off')
-
-        # Plot the original image
-        image = image.to('cuda')
-        axes[1, i].imshow(image_output_2.squeeze().permute(1, 2, 0).cpu().detach().numpy())
-        axes[1, i].set_title("Original Image", fontsize=10, pad=10)
-        axes[1, i].axis('off')
-
-    plt.subplots_adjust(top=0.85, wspace=0.4)  # Adjust top margin and width spacing
-    plt.tight_layout(rect=[0, 0, 1, 0.95])  # Adjust rect parameter to make space for titles
-    plt.savefig("demi_cycle_plot_val.png")
+    # Print the shapes of the output tensors
+    print_shapes(gw_predictions)
 
 if __name__ == "__main__":
     inference_gw()

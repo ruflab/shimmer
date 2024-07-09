@@ -18,15 +18,16 @@ class ResidualBlock(nn.Module):
     def forward(self, x):
         return F.relu(x + self.conv(x), inplace=True)
 
+
 class VanillaVAE(nn.Module):
     def __init__(self, in_channels: int, latent_dim: int, hidden_dims=None, beta=1.0, upsampling='bilinear', loss_type='lpips'):
         super(VanillaVAE, self).__init__()
         self.lpips_model = lpips.LPIPS(net='vgg', lpips=False) if loss_type == 'lpips' else None
         self.latent_dim = latent_dim
+        hidden_dims = hidden_dims or [64, 128, 128, 256, 256, 512]
         self.beta = beta
         self.upsampling = upsampling
         self.loss_type = loss_type
-        hidden_dims = hidden_dims or [128, 256, 512, 256, 128, 64]
 
         # Encoder setup
         modules = []
@@ -37,31 +38,31 @@ class VanillaVAE(nn.Module):
                     nn.BatchNorm2d(h_dim),
                     nn.LeakyReLU())
             )
-            modules.append(ResidualBlock(h_dim))
+            modules.append(ResidualBlock(h_dim))  # Add a residual block after each conv layer
             in_channels = h_dim
-            
         modules.append(torch.nn.Tanh())
         self.encoder = nn.Sequential(*modules)
 
-        # Assuming a 4x4 spatial size at the bottleneck, this can be adjusted depending on your input size
-        self.fc_mu = nn.Conv2d(hidden_dims[-1], 32, kernel_size=3, padding=1)  # bottleneck will be 32,4,4 featuremaps
-        self.fc_var = nn.Conv2d(hidden_dims[-1], 32, kernel_size=3, padding=1)
+        self.fc_mu = nn.Linear(hidden_dims[-1]*4*4, latent_dim)
+        self.fc_var = nn.Linear(hidden_dims[-1]*4*4, latent_dim)
 
-        # No need for a decoder input reshape since we're keeping spatial dimensions
-        self.decoder_input = nn.Conv2d(32, hidden_dims[-1], 3,1, 1)#get back to hidden_dims[-1 channels]
+        self.decoder_input = nn.Linear(latent_dim, hidden_dims[-1] * 4 * 4)
 
-        # Decoder setup
         modules = []
-        hidden_dims.reverse()
+        hidden_dims.reverse()  # Ensure hidden_dims is in the correct order for building up
         for i in range(len(hidden_dims)-1):
-            final_layer = i == len(hidden_dims) - 2
-            modules.append(self._deconv_block(hidden_dims[i], hidden_dims[i + 1], final=final_layer))
-
-        modules.append(nn.Upsample(size=(224, 224), mode=upsampling))
+            final_layer = i == len(hidden_dims) - 2  # Check if it's the layer before the last
+            modules.append(self._deconv_block(hidden_dims[i], hidden_dims[i + 1],final=final_layer))
+        
+        # Add an explicit Upsample to 224x224 as the last upsampling step
+        modules.append(nn.Upsample(size=(224, 224), mode=upsampling))  # Adjust mode as needed
+        
+        # Final convolution to produce the output image
         modules.append(nn.Sequential(
             nn.Conv2d(hidden_dims[-2], 3, kernel_size=3, padding=1),
-            nn.Sigmoid()
+            nn.Tanh()
         ))
+
         self.decoder = nn.Sequential(*modules)
 
     def _deconv_block(self, in_channels, out_channels, final=False):
@@ -83,11 +84,11 @@ class VanillaVAE(nn.Module):
 
 
     def encode(self, input):
-        result = self.encoder(input)
+        result = torch.flatten(self.encoder(input), start_dim=1)
         return self.fc_mu(result), self.fc_var(result)
 
     def decode(self, z):
-        result = self.decoder_input(z)
+        result = self.decoder_input(z).view(-1, 512, 4,4)
         return self.decoder(result)
 
     def reparameterize(self, mu, logvar):

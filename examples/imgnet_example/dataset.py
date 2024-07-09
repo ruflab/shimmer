@@ -16,12 +16,12 @@ import pandas as pd
 
 # Paths to data
 IMAGE_LATENTS_PATH_TRAIN = (
-    "/home/rbertin/pyt_scripts/full_imgnet/full_size/vae_bigdisc_goodbeta_50ep"
-    "/combined_standardized_embeddings.npy"
-)
+    "/home/rbertin/pyt_scripts/full_imgnet/full_size/"
+    "vae_full_withbigger_disc/384_combined_standardized_embeddings.npy"
+    )
 IMAGE_LATENTS_PATH_VAL = (
-    "/home/rbertin/pyt_scripts/full_imgnet/full_size/vae_bigdisc_goodbeta_50ep"
-    "/val_combined_standardized_embeddings.npy"
+    "/home/rbertin/pyt_scripts/full_imgnet/full_size/"
+    "vae_full_withbigger_disc/384_val_combined_standardized_embeddings.npy"
 )
 CAPTION_EMBEDDINGS_PATH_TRAIN = (
     "/home/rbertin/cleaned/git_synced/shimmer/examples/imgnet_example/"

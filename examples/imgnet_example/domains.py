@@ -13,49 +13,29 @@ class ImageDomain(DomainModule):
     def __init__(self, latent_dim: int):
         super().__init__(latent_dim)
         # load the model parameters
-        checkpoint_path = "vae_model.pth"
+        checkpoint_path = "/home/rbertin/pyt_scripts/full_imgnet/full_size/vae_full_withbigger__disc/nearest_lpips_latent_dim=384/vae_model.pth"
         self.vae_model = VanillaVAE(
-            in_channels=3, latent_dim=512, upsampling="bilinear", loss_type="lpips"
+            in_channels=3, latent_dim=latent_dim, upsampling="nearest", loss_type="lpips"
         )
         self.vae_model.load_state_dict(torch.load(checkpoint_path))
         self.vae_model.eval()
         print(
             "nb params in the vae model : ",
             sum(p.numel() for p in self.vae_model.parameters())
-            )
-
-        # Load the non-normalized embeddings to get their stats
-        IMAGE_LATENTS_PATH_TRAIN = (
-            "/home/rbertin/pyt_scripts/full_imgnet/full_size/vae_bigdisc_goodbeta_50ep"
-            "/combined_embeddings.npy"
         )
-        embeddings = np.load(IMAGE_LATENTS_PATH_TRAIN)
-        flattened_embeddings = embeddings.flatten()
-
-        self.mean = torch.tensor(np.mean(flattened_embeddings), dtype=torch.float32).to('cuda')
-        self.std = torch.tensor(np.std(flattened_embeddings), dtype=torch.float32).to('cuda')
-
-        print("extracted mean and std : ",self.mean, self.std)
 
 
     def encode(self, x: torch.Tensor) -> torch.Tensor:
         # Add random noise to x between 0 and 0.03
         noise_level = torch.rand(1).item() * 0.03
-        noise = torch.randn_like(x) * noise_level
-        # Normalize the noise
-        noise = (noise - self.mean.to(noise.device)) / self.std.to(noise.device)
         return x #+ noise
 
     def decode(self, z: torch.Tensor) -> torch.Tensor:
         self.eval()
 
-        # Denormalize the embeddings
-        z = z * self.std + self.mean
-
         print("stats before decoding : ",z.mean(), z.std())
 
         # Decode using VAE model
-        z = z.reshape(-1, 32, 4, 4)
         val = self.vae_model.decode(z)
         return val
 
