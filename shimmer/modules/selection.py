@@ -216,7 +216,7 @@ class DynamicQueryAttention(SelectionBase):
             domain_dim (`int`) : dimension of the input dims (assumed to be the same
                 for now)
             domain_names  (`Iterable[str]`) : list of input domains
-            n_steps (`int`) : number of steps to update the query vector, where 0 steps is static attention.
+            n_steps (`int`) : number of steps to update the query vector
         """
         super().__init__()
         self.head_size = head_size
