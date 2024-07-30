@@ -30,6 +30,7 @@ mypy = "^1.4.0"
 ruff = "^0.5.5"
 pre-commit = "^3.7.1"
 types-protobuf = "^5.26.0.20240422"
+types-redis = "^4.6.0.20240726"
 
 [tool.poetry.group.test.dependencies]
 pytest = "^8.2.2"
