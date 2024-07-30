@@ -23,7 +23,7 @@ from shimmer.types import (
     RawDomainGroupsT,
     RawDomainGroupT,
 )
-from shimmer.utils import group_device, groups_batch_size
+from shimmer.utils import group_device, groups_batch_size, groups_device
 
 
 class AttentionBase(LightningModule):
@@ -214,14 +214,14 @@ class AttentionBase(LightningModule):
             for domain_name, domain in domains.items():
                 matched_data_dict.setdefault(domain_names, {})[domain_name] = domain
                 continue
-        device = group_device(domains)
+        device = groups_device(batch)
         batch_size = groups_batch_size(batch)
         n_domains = len(self.domain_names)
 
         corruption_matrices = {}
 
         # Check if a fixed or variable corruption vector should be used
-        for domain in range(n_domains):
+        for domain_idx in range(n_domains):
             if self.fixed_corruption_vector is not None:
                 corruption_matrix = self.fixed_corruption_vector.expand(
                     batch_size, self.domain_dim
@@ -240,7 +240,7 @@ class AttentionBase(LightningModule):
             if self.test_sides_corruption is not None:
                 scaled_corruption_matrix = (
                     normalized_corruption_matrix * 5
-                ) * self.test_sides_corruption[self.list_domain_names[domain]]
+                ) * self.test_sides_corruption[self.list_domain_names[domain_idx]]
             else:
                 amount_corruption = (
                     random.choice(self.corruption_scaling)
@@ -250,7 +250,7 @@ class AttentionBase(LightningModule):
                 scaled_corruption_matrix = (
                     normalized_corruption_matrix * 5
                 ) * amount_corruption
-            corruption_matrices[self.list_domain_names[domain]] = (
+            corruption_matrices[self.list_domain_names[domain_idx]] = (
                 scaled_corruption_matrix
             )
 
