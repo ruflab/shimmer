@@ -864,7 +864,7 @@ def pretrained_global_workspace(
         gw_mod, selection_mod, domain_mods, loss_coefs, contrastive_fn
     )
 
-    gw = GlobalWorkspace2Domains.load_from_checkpoint(  # type: ignore[operator]
+    gw = GlobalWorkspace2Domains.load_from_checkpoint(
         checkpoint_path,
         gw_mod=gw_mod,
         selection_mid=selection_mod,
