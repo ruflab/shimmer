@@ -1,6 +1,6 @@
 import torch
 
-from shimmer.modules.selection import KQFixedQSelection
+from shimmer.modules.selection import DynamicQueryAttention
 
 
 def test_single_domain():
@@ -9,7 +9,7 @@ def test_single_domain():
     batch_size = 2056
     domains = ["v_latents"]
 
-    attention = KQFixedQSelection(head_size, domain_dim, domains)
+    attention = DynamicQueryAttention(head_size, domain_dim, domains, n_steps=0)
     gw_state = torch.rand(batch_size, domain_dim)
     attention.update_gw_state(gw_state)
 
@@ -28,7 +28,7 @@ def test_multiple_domains_sumis1():
     head_size = 5
     batch_size = 2056
     domains = ["v_latents", "attr"]
-    attention = KQFixedQSelection(head_size, domain_dim, domains)
+    attention = DynamicQueryAttention(head_size, domain_dim, domains, n_steps=0)
     gw_state = torch.rand(batch_size, domain_dim)
     attention.update_gw_state(gw_state)
 

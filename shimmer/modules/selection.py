@@ -148,58 +148,6 @@ def _calculate_attention_dict(
     return attention_dict
 
 
-class KQFixedQSelection(SelectionBase):
-    """
-    Key-Query attention with a fixed gw vector.
-    """
-
-    def __init__(self, head_size: int, domain_dim: int, domain_names: Iterable[str]):
-        """
-        Args:
-            head_size (`int`) : dimension of the key and query vectors.
-            domain_dim (`int`) : dimension of the input dims (assumed to be the same
-                for now)
-            domain_names  (`Iterable[str]`) : list of input domains
-        """
-        super().__init__()
-        self.head_size = head_size
-        self.query_layer = nn.Linear(domain_dim, head_size)
-        self.key_layers = nn.ModuleDict(
-            {domain: nn.Linear(domain_dim, head_size) for domain in domain_names}
-        )
-        # Start with a random gw state
-        self.register_buffer("initial_gw_state", torch.rand(domain_dim))
-
-    def forward(
-        self, domains: LatentsDomainGroupT, encodings_pre_fusion: LatentsDomainGroupT
-    ) -> dict[str, torch.Tensor]:
-        """
-        Compute keys and queries, match them with dot product and softmax.
-        Does this twice, once with the static query and once with a dynamic query.
-
-        Args:
-            domains (`LatentsDomainGroupT`): Group of unimodal latent representations.
-            encodings (`LatentsDomainGroupT`): Group of pre-fusion encodings.
-
-        Returns:
-            `dict[str, torch.Tensor]`: the attention scores for each domain in the
-            group.
-        """
-
-        keys = {
-            domain: self.key_layers[domain](encoding)
-            for domain, encoding in domains.items()
-        }
-
-        batch_size = group_batch_size(domains)
-
-        # Retrieve random query
-        query = self.query_layer(self.initial_gw_state.expand(batch_size, -1))
-
-        # Calculate the attention scores
-        return _calculate_attention_dict(domains, keys, query)
-
-
 class RandomSelection(SelectionBase):
     """
     Modified random attention to only utilize uniform-softmax scores across modalities.
@@ -255,13 +203,20 @@ class DynamicQueryAttention(SelectionBase):
     The query is updated based on the scaled gw vector.
     """
 
-    def __init__(self, head_size: int, domain_dim: int, domain_names: Iterable[str]):
+    def __init__(
+        self,
+        head_size: int,
+        domain_dim: int,
+        domain_names: Iterable[str],
+        n_steps: int = 1,
+    ):
         """
         Args:
             head_size (`int`) : dimension of the key and query vectors.
             domain_dim (`int`) : dimension of the input dims (assumed to be the same
                 for now)
             domain_names  (`Iterable[str]`) : list of input domains
+            n_steps (`int`) : number of steps to update the query vector
         """
         super().__init__()
         self.head_size = head_size
@@ -269,6 +224,7 @@ class DynamicQueryAttention(SelectionBase):
         self.key_layers = nn.ModuleDict(
             {domain: nn.Linear(domain_dim, head_size) for domain in domain_names}
         )
+        self.n_steps = n_steps
         # Start with a random gw state
         self.register_buffer("initial_gw_state", torch.rand(domain_dim))
 
@@ -329,17 +285,20 @@ class DynamicQueryAttention(SelectionBase):
         query = self.query_layer(self.initial_gw_state.expand(batch_size, -1))
 
         # Calculate the attention scores
-        static_attention_dict = _calculate_attention_dict(domains, keys, query)
+        attention_dict = _calculate_attention_dict(domains, keys, query)
 
-        # Apply the attention scores to the encodings
-        summed_tensor = self.fuse_weighted_encodings(
-            encodings_pre_fusion, static_attention_dict
-        )
+        if self.n_steps > 0:
+            # Update the query based on the static attention scores
+            for _ in range(self.n_steps):
+                # Apply the attention scores to the encodings
+                summed_tensor = self.fuse_weighted_encodings(
+                    encodings_pre_fusion, attention_dict
+                )
 
-        # Retrieve query (now it is dependent on the new gw state)
-        query = self.query_layer(summed_tensor)
+                # Retrieve query (now it is dependent on the new gw state)
+                query = self.query_layer(summed_tensor)
 
-        # Calculate the attention scores again
-        dynamic_attention_dict = _calculate_attention_dict(domains, keys, query)
+                # Calculate the attention scores again
+                attention_dict = _calculate_attention_dict(domains, keys, query)
 
-        return dynamic_attention_dict
+        return attention_dict
