@@ -93,7 +93,9 @@ class DomainModule(pl.LightningModule):
         """
         raise NotImplementedError
 
-    def compute_loss(self, pred: torch.Tensor, target: torch.Tensor) -> LossOutput:
+    def compute_loss(
+        self, pred: torch.Tensor, target: torch.Tensor
+    ) -> LossOutput | None:
         """
         Generic loss computation  the modality.
 
@@ -101,11 +103,13 @@ class DomainModule(pl.LightningModule):
             pred (`torch.Tensor`): prediction of the model
             target (`torch.Tensor`): target tensor
         Results:
-            `LossOutput`: LossOuput with training loss and additional metrics.
+            `LossOutput | None`: LossOuput with training loss and additional metrics.
         """
         raise NotImplementedError
 
-    def compute_dcy_loss(self, pred: torch.Tensor, target: torch.Tensor) -> LossOutput:
+    def compute_dcy_loss(
+        self, pred: torch.Tensor, target: torch.Tensor
+    ) -> LossOutput | None:
         """
         Computes the loss for a demi-cycle. Override if the demi-cycle loss is
         different that the generic loss.
@@ -114,11 +118,13 @@ class DomainModule(pl.LightningModule):
             pred (`torch.Tensor`): prediction of the model
             target (`torch.Tensor`): target tensor
         Results:
-            `LossOutput`: LossOuput with training loss and additional metrics.
+            `LossOutput | None`: LossOuput with training loss and additional metrics.
         """
         return self.compute_loss(pred, target)
 
-    def compute_cy_loss(self, pred: torch.Tensor, target: torch.Tensor) -> LossOutput:
+    def compute_cy_loss(
+        self, pred: torch.Tensor, target: torch.Tensor
+    ) -> LossOutput | None:
         """
         Computes the loss for a cycle. Override if the cycle loss is
         different that the generic loss.
@@ -127,11 +133,13 @@ class DomainModule(pl.LightningModule):
             pred (`torch.Tensor`): prediction of the model
             target (`torch.Tensor`): target tensor
         Results:
-            `LossOutput`: LossOuput with training loss and additional metrics.
+            `LossOutput | None`: LossOuput with training loss and additional metrics.
         """
         return self.compute_loss(pred, target)
 
-    def compute_tr_loss(self, pred: torch.Tensor, target: torch.Tensor) -> LossOutput:
+    def compute_tr_loss(
+        self, pred: torch.Tensor, target: torch.Tensor
+    ) -> LossOutput | None:
         """
         Computes the loss for a translation. Override if the translation loss is
         different that the generic loss.
@@ -140,21 +148,21 @@ class DomainModule(pl.LightningModule):
             pred (`torch.Tensor`): prediction of the model
             target (`torch.Tensor`): target tensor
         Results:
-            `LossOutput`: LossOuput with training loss and additional metrics.
+            `LossOutput | None`: LossOuput with training loss and additional metrics.
         """
         return self.compute_loss(pred, target)
 
-    def compute_broadcast_loss(
+    def compute_fused_loss(
         self, pred: torch.Tensor, target: torch.Tensor
-    ) -> LossOutput:
+    ) -> LossOutput | None:
         """
-        Computes the loss for a broadcast (fusion). Override if the broadcast loss is
+        Computes the loss for fused (fusion). Override if the fused loss is
         different that the generic loss.
 
         Args:
             pred (`torch.Tensor`): prediction of the model
             target (`torch.Tensor`): target tensor
         Results:
-            `LossOutput`: LossOuput with training loss and additional metrics.
+            `LossOutput | None`: LossOuput with training loss and additional metrics.
         """
         return self.compute_loss(pred, target)
