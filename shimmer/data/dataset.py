@@ -1,21 +1,11 @@
-from collections.abc import Callable, Mapping, Sized
-from dataclasses import dataclass
+from collections.abc import Callable, Mapping
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any
 
 from torch.utils.data import Dataset, Subset
 
 from shimmer.data.domain import DataDomain
-
-
-class SizedDataset(Sized, Protocol):
-    def __getitem__(self, index): ...
-
-
-@dataclass(frozen=True)
-class DomainDesc:
-    base: str
-    kind: str
+from shimmer.data.types import DomainDesc, SizedDataset
 
 
 class RepeatedDataset(Dataset):
