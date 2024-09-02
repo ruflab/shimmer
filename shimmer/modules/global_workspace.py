@@ -1,4 +1,5 @@
 from collections.abc import Iterable, Mapping
+from enum import Enum, auto
 from pathlib import Path
 from typing import Any, Generic, TypedDict, TypeVar, cast
 
@@ -6,7 +7,7 @@ import torch
 from lightning.pytorch import LightningModule
 from lightning.pytorch.utilities.types import OptimizerLRSchedulerConfig
 from torch.nn import Module, ModuleDict
-from torch.optim.lr_scheduler import OneCycleLR
+from torch.optim.lr_scheduler import LRScheduler, OneCycleLR
 
 from shimmer.modules.contrastive_loss import ContrastiveLoss, ContrastiveLossType
 from shimmer.modules.domain import DomainModule
@@ -206,6 +207,14 @@ def batch_broadcasts(
     return predictions, cycles
 
 
+class _OneCycleSchedulerSentinel(Enum):
+    """
+    Used for backward-compatibility issues to use One-Cycle Scheduler by default
+    """
+
+    DEFAULT = auto()
+
+
 class GlobalWorkspaceBase(
     Generic[_T_gw_mod, _T_selection_mod, _T_loss_mod], LightningModule
 ):
@@ -223,6 +232,9 @@ class GlobalWorkspaceBase(
         optim_lr: float = 1e-3,
         optim_weight_decay: float = 0.0,
         scheduler_args: SchedulerArgs | None = None,
+        scheduler: LRScheduler
+        | None
+        | _OneCycleSchedulerSentinel = _OneCycleSchedulerSentinel.DEFAULT,
     ) -> None:
         """
         Initializes a GW
@@ -235,6 +247,8 @@ class GlobalWorkspaceBase(
             optim_weight_decay (`float`): weight decay
             scheduler_args (`SchedulerArgs`): `SchedulerArgs` instance to define
                 scheduler parameters.
+            scheduler: scheduler to use. If None is explicitely given, no scheduler
+                will be used. By default, uses OneCycleScheduler
         """
         super().__init__()
         self.save_hyperparameters(
@@ -248,6 +262,7 @@ class GlobalWorkspaceBase(
                 "cont_loss_bayesian",
                 "gw_encoders",
                 "gw_decoders",
+                "scheduler",
             ]
         )
 
@@ -262,6 +277,7 @@ class GlobalWorkspaceBase(
 
         self.optim_lr = optim_lr
         self.optim_weight_decay = optim_weight_decay
+        self.scheduler = scheduler
         self.scheduler_args = SchedulerArgs(max_lr=optim_lr, total_steps=1)
         if scheduler_args is not None:
             self.scheduler_args.update(scheduler_args)
@@ -551,7 +567,14 @@ class GlobalWorkspaceBase(
             weight_decay=self.optim_weight_decay,
         )
 
-        lr_scheduler = OneCycleLR(optimizer, **self.scheduler_args)
+        if self.scheduler is None:
+            return {"optimizer": optimizer}
+
+        lr_scheduler: LRScheduler
+        if isinstance(self.scheduler, _OneCycleSchedulerSentinel):
+            lr_scheduler = OneCycleLR(optimizer, **self.scheduler_args)
+        else:
+            lr_scheduler = self.scheduler
 
         return {
             "optimizer": optimizer,
@@ -607,6 +630,9 @@ class GlobalWorkspace2Domains(
         scheduler_args: SchedulerArgs | None = None,
         learn_logit_scale: bool = False,
         contrastive_loss: ContrastiveLossType | None = None,
+        scheduler: LRScheduler
+        | None
+        | _OneCycleSchedulerSentinel = _OneCycleSchedulerSentinel.DEFAULT,
     ) -> None:
         """
         Initializes a Global Workspace
@@ -631,6 +657,8 @@ class GlobalWorkspace2Domains(
             contrastive_loss (`ContrastiveLossType | None`): a contrastive loss
                 function used for alignment. `learn_logit_scale` will not affect custom
                 contrastive losses.
+            scheduler: The scheduler to use for traning. If None is explicitely given,
+                no scheduler will be used. Defaults to use OneCycleScheduler
         """
         domain_mods = freeze_domain_modules(domain_mods)
 
@@ -651,6 +679,7 @@ class GlobalWorkspace2Domains(
             optim_lr,
             optim_weight_decay,
             scheduler_args,
+            scheduler,
         )
 
 
@@ -674,6 +703,9 @@ class GlobalWorkspace(GlobalWorkspaceBase[GWModule, RandomSelection, GWLosses]):
         scheduler_args: SchedulerArgs | None = None,
         learn_logit_scale: bool = False,
         contrastive_loss: ContrastiveLossType | None = None,
+        scheduler: LRScheduler
+        | None
+        | _OneCycleSchedulerSentinel = _OneCycleSchedulerSentinel.DEFAULT,
     ) -> None:
         """
         Initializes a Global Workspace
@@ -700,6 +732,8 @@ class GlobalWorkspace(GlobalWorkspaceBase[GWModule, RandomSelection, GWLosses]):
             contrastive_loss (`ContrastiveLossType | None`): a contrastive loss
                 function used for alignment. `learn_logit_scale` will not affect custom
                 contrastive losses.
+            scheduler: The scheduler to use for traning. If None is explicitely given,
+                no scheduler will be used. Defaults to use OneCycleScheduler
         """
         domain_mods = freeze_domain_modules(domain_mods)
         gw_mod = GWModule(domain_mods, workspace_dim, gw_encoders, gw_decoders)
@@ -721,6 +755,7 @@ class GlobalWorkspace(GlobalWorkspaceBase[GWModule, RandomSelection, GWLosses]):
             optim_lr,
             optim_weight_decay,
             scheduler_args,
+            scheduler,
         )
 
 
@@ -751,6 +786,9 @@ class GlobalWorkspaceBayesian(
         use_normalized_constrastive: bool = True,
         contrastive_loss: ContrastiveLossType | None = None,
         precision_softmax_temp: float = 0.01,
+        scheduler: LRScheduler
+        | None
+        | _OneCycleSchedulerSentinel = _OneCycleSchedulerSentinel.DEFAULT,
     ) -> None:
         """
         Initializes a Global Workspace
@@ -781,6 +819,8 @@ class GlobalWorkspaceBayesian(
                 contrastive losses.
             precision_softmax_temp (`float`): temperature to use in softmax of
                 precision
+            scheduler: The scheduler to use for traning. If None is explicitely given,
+                no scheduler will be used. Defaults to use OneCycleScheduler
         """
         domain_mods = freeze_domain_modules(domain_mods)
 
@@ -816,6 +856,7 @@ class GlobalWorkspaceBayesian(
             optim_lr,
             optim_weight_decay,
             scheduler_args,
+            scheduler,
         )
 
 
@@ -827,6 +868,9 @@ def pretrained_global_workspace(
     workspace_dim: int,
     loss_coefs: LossCoefs,
     contrastive_fn: ContrastiveLossType,
+    scheduler: LRScheduler
+    | None
+    | _OneCycleSchedulerSentinel = _OneCycleSchedulerSentinel.DEFAULT,
     **kwargs,
 ) -> GlobalWorkspace2Domains:
     """
@@ -848,6 +892,8 @@ def pretrained_global_workspace(
         contrastive_loss (`ContrastiveLossType`): a contrastive loss
             function used for alignment. `learn_logit_scale` will not affect custom
             contrastive losses.
+        scheduler: The scheduler to use for traning. If None is explicitely given,
+            no scheduler will be used. Defaults to use OneCycleScheduler
         **kwargs: additional arguments to pass to
             `GlobalWorkspace.load_from_checkpoint`.
 
@@ -870,6 +916,7 @@ def pretrained_global_workspace(
         selection_mid=selection_mod,
         loss_coefs=loss_coefs,
         loss_mod=loss_mod,
+        scheduler=scheduler,
         **kwargs,
     )
     if not isinstance(gw, GlobalWorkspace2Domains):
