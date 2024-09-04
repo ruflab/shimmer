@@ -71,7 +71,9 @@ def migrate_model(ckpt_path: str | PathLike, **torch_load_kwargs):
         torch_load_kwargs: additional args given to torch.load.
     """
     ckpt_path = Path(ckpt_path)
-    ckpt = torch.load(ckpt_path, **torch_load_kwargs)
+    default_torch_kwargs: dict[str, Any] = {"weights_only": True}
+    default_torch_kwargs.update(torch_load_kwargs)
+    ckpt = torch.load(ckpt_path, **default_torch_kwargs)
     new_ckpt, done_migrations = migrate_from_folder(ckpt, MIGRATION_DIR)
     done_migration_log = ", ".join(map(lambda x: x.name, done_migrations))
     print(f"Migrating: {done_migration_log}")
