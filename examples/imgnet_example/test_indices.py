@@ -1,122 +1,48 @@
-import torch
-from imnet_logging import LogGWImagesCallback
-
-from dataset import make_datamodule
-from domains import ImageDomain, TextDomain
-from lightning.pytorch import Trainer, Callback
-from lightning.pytorch.callbacks import ModelCheckpoint,LearningRateMonitor
-
-from shimmer import GlobalWorkspace, GWDecoder, GWEncoder, BroadcastLossCoefs
-from shimmer.modules.global_workspace import GlobalWorkspaceFusion, SchedulerArgs
-
-from lightning.pytorch.loggers.wandb import WandbLogger
-
-#put in utils later
-import torch.nn as nn
-import torch
-import numpy as np
+import os
 import random
+import pandas as pd
+from torchvision import datasets, transforms
+from PIL import Image
+import matplotlib.pyplot as plt
 
-# Define the load_data function
-def load_data(path):
-    return np.load(path)
+# ImageNet DataLoader setup
+imagenet_data_path = '/shared/datasets/imagenet/train'  # Path to the ImageNet dataset
 
-# Paths to data
-IMAGE_LATENTS_PATH_TRAIN = (
-    "/home/rbertin/pyt_scripts/full_imgnet/full_size/vae_full_withbigger__disc/"
-    "val_image_embeddings.npy"
-)
-IMAGE_LATENTS_PATH_VAL = (
-    "/home/rbertin/pyt_scripts/full_imgnet/full_size/vae_full_withbigger__disc/"
-    "val_image_embeddings_val.npy"
-)
-CAPTION_EMBEDDINGS_PATH_TRAIN = (
-    "/home/rbertin/cleaned/git_synced/shimmer/examples/imgnet_example/"
-    "bge_fullsized_captions_norm_fixed.npy"
-)
-CAPTION_EMBEDDINGS_PATH_VAL = (
-    "/home/rbertin/cleaned/git_synced/shimmer/examples/imgnet_example/"
-    "bge_fullsized_captions_norm_val.npy"
-)
+# Define transformations
+transform = transforms.Compose([
+    transforms.Resize(256),
+    transforms.CenterCrop(224),
+    transforms.ToTensor(),
+])
 
-# Load training data
-image_latents_train = load_data(IMAGE_LATENTS_PATH_TRAIN)[:50000]
-caption_embeddings_train = load_data(CAPTION_EMBEDDINGS_PATH_TRAIN)[:50000]
+# Load the dataset
+imagenet_dataset = datasets.ImageFolder(root=imagenet_data_path, transform=transform)
 
+# Load the no-duplicates csv
+captions_df = pd.read_csv('../../../../../pyt_scripts/BLIP_TEST/gemma/no_duplicates_gemma_captions.csv')
 
-# Load validation data
-image_latents_val = load_data(IMAGE_LATENTS_PATH_VAL)
-caption_embeddings_val = load_data(CAPTION_EMBEDDINGS_PATH_VAL)
+# Check if the lengths match
+assert len(captions_df) == len(imagenet_dataset), "The lengths of the dataset and captions CSV do not match."
 
+# Pick randomly five indices between 0 and the length of the captions csv
+random_indices = random.sample(range(len(captions_df)), 5)
 
+# Plot the images and captions
+fig, axes = plt.subplots(5, 1, figsize=(10, 20))
 
-print("got this far !")
+for i, idx in enumerate(random_indices):
+    image_path, _ = imagenet_dataset.samples[idx]
+    image = Image.open(image_path)
+    caption = captions_df.loc[idx, 'Caption']
 
-# Assuming `make_datamodule` and `data_module` are defined somewhere in your code
-data = make_datamodule(0.8, batch_size=2056)
+    axes[i].imshow(image)
+    axes[i].axis('off')
+    # Split the caption into lines with up to 5 words each
+    caption_lines = '\n'.join([' '.join(caption.split()[j:j+5]) for j in range(0, len(caption.split()), 5)])
+    axes[i].set_title(caption_lines, fontsize=8)
 
-print("got this far !")
-train_loader = data.train_dataloader()
-val_loader = data.val_dataloader()
+# Save the plot to a file
+plt.tight_layout()
+plt.savefig('random_images_with_captions.png')
 
-# Function to get a random pair of matched latents
-def get_random_matched_pair(batch):
-    indices = list(range(len(batch['image_latents'])))
-    random_index = random.choice(indices)
-    return batch['image_latents'][random_index], batch['caption_embeddings'][random_index]
-
-# Function to find the index of a latent in a dataset
-def find_index(latent, dataset):
-    for idx, item in enumerate(dataset):
-        if np.allclose(latent, item, atol=1e-15):  # Using a tolerance for floating point comparison
-            return idx
-    return -1
-
-print("got this far !")
-
-# Perform the comparison 1000 times on the validation set
-print("Validation set comparisons:")
-for i in range(1000):
-    batch = next(iter(val_loader))
-
-    image_latent, text_latent = get_random_matched_pair(batch)
-    
-    if image_latent is None or text_latent is None:
-        print("No matched pair found in the batch.")
-        continue
-
-    image_latent_np = image_latent.cpu().numpy()
-    text_latent_np = text_latent.cpu().numpy()
-    
-    image_index = find_index(image_latent_np, image_latents_val)
-    text_index = find_index(text_latent_np, caption_embeddings_val)
-    
-    if image_index == -1 or text_index == -1:
-        print("Index not found in the respective dataset.")
-        continue
-    if image_index != text_index or i%10==0:
-        print(f"Image index: {image_index}, Text index: {text_index}, Match: {image_index == text_index}")
-
-# Perform the comparison 1000 times on the training set
-print("Training set comparisons:")
-for i in range(1000):
-    batch = next(iter(train_loader))
-    image_latent, text_latent = get_random_matched_pair(batch)
-
-
-    
-    if image_latent is None or text_latent is None:
-        print("No matched pair found in the batch.")
-        continue
-
-    image_latent_np = image_latent.cpu().numpy()
-    text_latent_np = text_latent.cpu().numpy()
-    
-    image_index = find_index(image_latent_np, image_latents_train)
-    text_index = find_index(text_latent_np, caption_embeddings_train)
-    
-    if image_index == -1 or text_index == -1:
-        print("Index not found in the respective dataset.")
-        continue
-    if image_index != text_index or i%10==0:
-        print(f"Image index: {image_index}, Text index: {text_index}, Match: {image_index == text_index}")
+print("Images and captions plotted and saved to 'random_images_with_captions.png'.")

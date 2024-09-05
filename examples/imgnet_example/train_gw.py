@@ -2,7 +2,7 @@ import torch
 from imnet_logging import LogGWImagesCallback
 
 from dataset import make_datamodule
-from domains import ImageDomain, TextDomain
+from domains import ImageDomain, TextDomain, SDImageDomain
 from lightning.pytorch import Trainer, Callback
 from lightning.pytorch.callbacks import ModelCheckpoint,LearningRateMonitor
 
@@ -112,14 +112,14 @@ def train_gw():
             hidden_dim=1024,
             out_dim=workspace_dim,
             n_layers=4,
-            dropout_rate=0.01  # Example dropout rate
+            dropout_rate=0.0  # Example dropout rate
         )
         gw_decoders[name] = dropout_GWDecoder(
             in_dim=workspace_dim,
             hidden_dim=1024,
             out_dim=mod.latent_dim,
             n_layers=4,
-            dropout_rate=0.01  # Example dropout rate
+            dropout_rate=0.0  # Example dropout rate
         )
 
     # Loss coefficients setup
@@ -131,7 +131,7 @@ def train_gw():
         "fused": 1.0
     }
 
-    n_epochs = 200  # Number of training epochs
+    n_epochs = 2000  # Number of training epochs
 
     global_workspace = GlobalWorkspace(
         domain_mods,
@@ -144,11 +144,11 @@ def train_gw():
             total_steps=n_epochs
             * len(iter(data.train_dataloader()))
         ),
-        optim_weight_decay=0.05
+        optim_weight_decay=0.
     )
 
     wandb_logger = None
-    run_name = "bigger_vae_regularized"
+    run_name = "ourvae_gemma_384_512"
     wandb_logger = WandbLogger(
         save_dir=f"wandb_output_{run_name}",
         project="simple_shapes_fusion",
@@ -180,7 +180,7 @@ def train_gw():
 
     # Trainer setup
     trainer = Trainer(
-        logger=wandb_logger,
+        #logger=wandb_logger,
         devices=1,  # assuming training on 1 GPU
         max_epochs=n_epochs,
         log_every_n_steps=100,

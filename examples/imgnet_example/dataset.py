@@ -16,20 +16,16 @@ import pandas as pd
 
 # Paths to data
 IMAGE_LATENTS_PATH_TRAIN = (
-    "/home/rbertin/pyt_scripts/full_imgnet/full_size/"
-    "vae_full_withbigger_disc/384_combined_standardized_embeddings.npy"
-    )
+    "/home/rbertin/pyt_scripts/full_imgnet/full_size/vae_full_withbigger_disc/384_combined_standardized_embeddings.npy"
+)
 IMAGE_LATENTS_PATH_VAL = (
-    "/home/rbertin/pyt_scripts/full_imgnet/full_size/"
-    "vae_full_withbigger_disc/384_val_combined_standardized_embeddings.npy"
+    "/home/rbertin/pyt_scripts/full_imgnet/full_size/vae_full_withbigger_disc/384_val_combined_standardized_embeddings.npy"
 )
 CAPTION_EMBEDDINGS_PATH_TRAIN = (
-    "/home/rbertin/cleaned/git_synced/shimmer/examples/imgnet_example/"
-    "bge_fullsized_captions_norm.npy"
+    "/home/rbertin/pyt_scripts/BLIP_TEST/gemma/gemma_norm_bge_captions_train.npy"
 )
 CAPTION_EMBEDDINGS_PATH_VAL = (
-    "/home/rbertin/cleaned/git_synced/shimmer/examples/imgnet_example/"
-    "fullsized_captions_norm_val.npy"
+    "/home/rbertin/pyt_scripts/BLIP_TEST/gemma/gemma_norm_bge_captions_val.npy"
 )
 
 
@@ -111,7 +107,7 @@ class GWDataModule(LightningDataModule):
 
         # Set up the ImageNet dataset transformations
         transform = transforms.Compose([
-            transforms.Resize(256),
+            transforms.Resize(224),
             transforms.CenterCrop(224),
             transforms.ToTensor(),
         ])
@@ -143,11 +139,6 @@ class GWDataModule(LightningDataModule):
     def val_dataloader(self):
         val_loaders = self.setup_dataloaders(self.val_datasets)
         return CombinedLoader(val_loaders, mode="sequential")
-
-
-
-    
-
     
     def get_samples(self, split: Literal["train", "val"], amount: int) -> dict[frozenset, dict[str, torch.Tensor]]:
         """Fetches a specified number of samples from the specified split ('train' or 'val')."""

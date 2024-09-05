@@ -3,7 +3,7 @@ import os
 
 # Path to the directory where the embeddings file is stored and the filename
 root_dir = ''  # Change this to your directory path
-embeddings_file = '/home/rbertin/cleaned/git_synced/shimmer/examples/imgnet_example/bge_fullsized_captions_val.npy'
+embeddings_file = '/home/rbertin/pyt_scripts/BLIP_TEST/gemma/gemma_bge_captions_val.npy'
 file_path = os.path.join(root_dir, embeddings_file)
 
 # Load embeddings
@@ -25,6 +25,6 @@ print("Normalized Mean:", normalized_mean)
 print("Normalized Std:", normalized_std)
 
 # Save normalized embeddings
-normalized_file_path = os.path.join(root_dir, 'fullsized_captions_norm_val.npy')
+normalized_file_path = "/home/rbertin/pyt_scripts/BLIP_TEST/gemma/gemma_norm_bge_captions_val.npy"
 np.save(normalized_file_path, normalized_embeddings)
 print("Saved normalized embeddings to", normalized_file_path)

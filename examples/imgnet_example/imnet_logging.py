@@ -116,7 +116,7 @@ class LogGWImagesCallback(pl.Callback):
             pl_module.eval()
             prediction_demi_cycles = batch_demi_cycles(
                 pl_module.gw_mod, selection_mod, latent_groups
-            )
+            ) 
             prediction_cycles = batch_cycles(
                 pl_module.gw_mod,
                 selection_mod,

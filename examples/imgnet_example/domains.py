@@ -8,6 +8,8 @@ import numpy as np
 
 from shimmer import DomainModule, LossOutput
 
+from diffusers.models import AutoencoderKL
+
 
 class ImageDomain(DomainModule):
     def __init__(self, latent_dim: int):
@@ -26,17 +28,61 @@ class ImageDomain(DomainModule):
 
 
     def encode(self, x: torch.Tensor) -> torch.Tensor:
-        # Add random noise to x between 0 and 0.03
-        noise_level = torch.rand(1).item() * 0.03
-        return x #+ noise
+        return x
 
     def decode(self, z: torch.Tensor) -> torch.Tensor:
         self.eval()
 
-        print("stats before decoding : ",z.mean(), z.std())
-
         # Decode using VAE model
         val = self.vae_model.decode(z)
+        return val
+
+    def training_step(self, batch: torch.Tensor, batch_idx: int):
+        (domain,) = batch
+        decoded = self.decode(self.encode(domain))
+        loss = F.mse_loss(domain, decoded)
+        self.log("train_loss", loss)
+        return loss
+
+    def validation_step(self, batch: torch.Tensor, batch_idx: int):
+        (domain,) = batch
+        decoded = self.decode(self.encode(domain))
+        loss = F.mse_loss(domain, decoded)
+        self.log("val_loss", loss)
+        return loss
+
+    def configure_optimizers(self):
+        return AdamW(self.parameters(), lr=1e-3, weight_decay=1e-6)
+
+    def compute_loss(self, pred: torch.Tensor, target: torch.Tensor) -> LossOutput:
+        # Computes an illustrative loss, can be tailored for specific use cases
+        return LossOutput(loss=F.mse_loss(pred, target))
+
+
+
+class SDImageDomain(DomainModule):
+    def __init__(self, latent_dim: int):
+        super().__init__(latent_dim)
+        if latent_dim != 1024:
+            raise ValueError("vision latent_dim must be 1024")
+
+        # load the model parameters
+        self.vae_model = AutoencoderKL.from_pretrained("stabilityai/sdxl-vae")
+
+        self.vae_model.eval()
+        print(
+            "nb params in the vae model : ",
+            sum(p.numel() for p in self.vae_model.parameters())
+        )
+
+
+    def encode(self, x: torch.Tensor) -> torch.Tensor:
+        return x
+
+    def decode(self, z: torch.Tensor) -> torch.Tensor:
+        self.eval()
+        z = z.reshape(z.shape[0],4,16,16)
+        val = self.vae_model.decode(z).sample
         return val
 
     def training_step(self, batch: torch.Tensor, batch_idx: int):
