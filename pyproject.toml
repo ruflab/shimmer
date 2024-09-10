@@ -14,7 +14,7 @@ matplotlib = "^3.9.1"
 migrate-ckpt = {git = "https://github.com/bdvllrs/migrate-ckpt.git", rev = "v0.2.0"}
 click = "^8.1.7"
 lightning = "^2.3.3"
-torch = "^2.0.1"
+torch = "^2.4.1"
 
 [tool.poetry.group.dev.dependencies]
 types-tqdm = "^4.65.0.1"
