@@ -33,7 +33,7 @@ types-protobuf = "^5.27.0.20240907"
 types-redis = "^4.6.0.20240903"
 
 [tool.poetry.group.test.dependencies]
-pytest = "^8.2.2"
+pytest = "^8.3.3"
 
 
 [tool.poetry.group.docs]
