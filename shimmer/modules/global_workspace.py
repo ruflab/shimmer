@@ -5,8 +5,11 @@ from typing import Any, Generic, TypedDict, TypeVar, cast
 
 import torch
 from lightning.pytorch import LightningModule
-from lightning.pytorch.utilities.types import OptimizerLRSchedulerConfig
+from lightning.pytorch.utilities.types import (
+    OptimizerLRScheduler,
+)
 from torch.nn import Module, ModuleDict
+from torch.optim.adamw import AdamW
 from torch.optim.lr_scheduler import LRScheduler, OneCycleLR
 
 from shimmer.modules.contrastive_loss import ContrastiveLoss, ContrastiveLossType
@@ -553,7 +556,7 @@ class GlobalWorkspaceBase(
         domain_latents = self.encode_domains(batch)
         return self.forward(domain_latents)
 
-    def configure_optimizers(self) -> OptimizerLRSchedulerConfig:
+    def configure_optimizers(self) -> OptimizerLRScheduler:
         """
         Configure models optimizers.
 
@@ -561,7 +564,7 @@ class GlobalWorkspaceBase(
         scheduler.
         """
 
-        optimizer = torch.optim.AdamW(
+        optimizer = AdamW(
             self.parameters(),
             lr=self.optim_lr,
             weight_decay=self.optim_weight_decay,
