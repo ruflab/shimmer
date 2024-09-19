@@ -14,7 +14,7 @@ here = Path(__file__).parent
 
 def test_ckpt_migration_2_domains():
     old_ckpt_path = here / "data" / "old_gw_2_domains.ckpt"
-    old_ckpt = torch.load(old_ckpt_path)
+    old_ckpt = torch.load(old_ckpt_path, weights_only=True)
     new_ckpt, done_migrations = migrate_from_folder(old_ckpt, MIGRATION_DIR)
 
     old_keys = set(old_ckpt["state_dict"].keys())
@@ -74,7 +74,7 @@ def test_ckpt_migration_2_domains():
 
 def test_ckpt_migration_gw():
     old_ckpt_path = here / "data" / "old_gw.ckpt"
-    old_ckpt = torch.load(old_ckpt_path)
+    old_ckpt = torch.load(old_ckpt_path, weights_only=True)
     new_ckpt, done_migrations = migrate_from_folder(old_ckpt, MIGRATION_DIR)
 
     old_keys = set(old_ckpt["state_dict"].keys())
