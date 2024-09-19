@@ -5,7 +5,7 @@ from shimmer.modules.contrastive_loss import (
     ContrastiveLossType,
     contrastive_loss,
 )
-from shimmer.modules.domain import DomainModule, LossOutput
+from shimmer.modules.domain import DomainModule, End2EndDomainModule, LossOutput
 from shimmer.modules.global_workspace import (
     GlobalWorkspace2Domains,
     GlobalWorkspaceBase,
@@ -59,6 +59,7 @@ __all__ = [
     "pretrained_global_workspace",
     "LossOutput",
     "DomainModule",
+    "End2EndDomainModule",
     "GWDecoder",
     "GWEncoder",
     "GWEncoderLinear",
