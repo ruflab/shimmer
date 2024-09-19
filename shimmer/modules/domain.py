@@ -104,6 +104,8 @@ class DomainModule(pl.LightningModule):
             target (`torch.Tensor`): target tensor
         Results:
             `LossOutput | None`: LossOuput with training loss and additional metrics.
+                If `None` is returned, this loss will be ignored and will not
+                participate in the total loss.
         """
         raise NotImplementedError
 
@@ -119,6 +121,9 @@ class DomainModule(pl.LightningModule):
             target (`torch.Tensor`): target tensor
         Results:
             `LossOutput | None`: LossOuput with training loss and additional metrics.
+                If `None` is returned, this loss will be ignored and will not
+                participate in the total loss; it can be used to deactivate
+                demi-cycle loss for this domain.
         """
         return self.compute_loss(pred, target)
 
@@ -134,6 +139,9 @@ class DomainModule(pl.LightningModule):
             target (`torch.Tensor`): target tensor
         Results:
             `LossOutput | None`: LossOuput with training loss and additional metrics.
+                If `None` is returned, this loss will be ignored and will not
+                participate in the total loss; it can be used to deactivate
+                cycle loss for this domain.
         """
         return self.compute_loss(pred, target)
 
@@ -149,6 +157,9 @@ class DomainModule(pl.LightningModule):
             target (`torch.Tensor`): target tensor
         Results:
             `LossOutput | None`: LossOuput with training loss and additional metrics.
+                If `None` is returned, this loss will be ignored and will not
+                participate in the total loss; it can be used to deactivate
+                translation loss for this domain.
         """
         return self.compute_loss(pred, target)
 
@@ -164,5 +175,8 @@ class DomainModule(pl.LightningModule):
             target (`torch.Tensor`): target tensor
         Results:
             `LossOutput | None`: LossOuput with training loss and additional metrics.
+                If `None` is returned, this loss will be ignored and will not
+                participate in the total loss; it can be used to deactivate
+                fused loss for this domain.
         """
         return self.compute_loss(pred, target)
