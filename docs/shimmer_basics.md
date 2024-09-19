@@ -95,6 +95,8 @@ methods:
 import torch
 import torch.nn.functional as F
 from torch.nn import Linear
+from torch.optim.adamw import AdamW
+from torch.optim.optimizer import Optimizer
 
 from shimmer import DomainModule
 
@@ -134,11 +136,11 @@ class GenericDomain(DomainModule):
         self.log("val_loss", loss)
         return loss
 
-    def configure_optimizers(self) -> torch.optim.Optimizer:
+    def configure_optimizers(self) -> Optimizer:
         """
         Define which optimizer to use
         """
-        return torch.optim.AdamW(self.parameters(), lr=1e-3, weight_decay=1e-6)
+        return AdamW(self.parameters(), lr=1e-3, weight_decay=1e-6)
 ```
 
 With all this defined, we can make a script to train our unimodal module:
@@ -385,6 +387,8 @@ We have previously define `GenericDomain` so we can train the module. We now nee
 to add some mandatory methods that will be used by the GlobalWorkspace
 
 ```python
+from typing import Any
+
 from shimmer import LossOutput
 
 
@@ -412,12 +416,13 @@ class GenericDomain(DomainModule):
         """
         return self.decoder(z)
 
-    def compute_loss(self, pred: torch.Tensor, target: torch.Tensor) -> LossOutput:
+    def compute_loss(self, pred: torch.Tensor, target: torch.Tensor, raw_target: Any) -> LossOutput:
         """
         Computes a generic loss in the domain's latent representation.
         This must return a LossOutput object. LossOutput is used to separate
         the loss used for training the model (given to loss parameter), and
         additional metrics that are logged, but not trained on.
+        The `raw_target` parameter contains the pre-encoded domain data.
         """
         return LossOutput(loss=F.mse_loss(pred, target))
 ```
