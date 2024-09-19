@@ -1,3 +1,5 @@
+from typing import Any
+
 import torch
 from torch import nn
 
@@ -18,7 +20,9 @@ class DummyDomainModule(DomainModule):
     def decode(self, z: torch.Tensor) -> torch.Tensor:
         return self.decoder(z)  # Simple forward pass through decoder
 
-    def compute_loss(self, pred: torch.Tensor, target: torch.Tensor) -> LossOutput:
+    def compute_loss(
+        self, pred: torch.Tensor, target: torch.Tensor, raw_target: Any
+    ) -> LossOutput:
         loss = torch.mean((pred - target) ** 2)  # Simple MSE loss
         return LossOutput(loss=loss)  # Constructing LossOutput with the loss
 
@@ -62,7 +66,7 @@ def test_broadcast_loss():
     }
 
     # Test broadcast_loss with the corrected structure
-    output = gw_fusion.loss_mod.broadcast_loss(latent_domains)
+    output = gw_fusion.loss_mod.broadcast_loss(latent_domains, latent_domains)
 
     er_msg = "Demi-cycle, cycle, fused and translation metrics should be in the output."
     assert all(
