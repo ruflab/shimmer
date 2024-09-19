@@ -109,8 +109,8 @@ def make_datasets(
 class GWDataModule(LightningDataModule):
     def __init__(
         self,
-        val_datasets: dict[frozenset[str], DomainDataset],
         train_datasets: dict[frozenset[str], DomainDataset],
+        val_datasets: dict[frozenset[str], DomainDataset],
         batch_size: int,
     ) -> None:
         super().__init__()
