@@ -78,6 +78,8 @@ def demi_cycle_loss(
             gw_mod.encode_and_fuse(latents, selection_mod), domains={domain_name}
         )[domain_name]
         loss_output = domain_mod.compute_dcy_loss(x_recons, latents[domain_name])
+        if loss_output is None:
+            continue
         losses[f"demi_cycle_{domain_name}"] = loss_output.loss
         metrics.update(
             {f"demi_cycle_{domain_name}_{k}": v for k, v in loss_output.metrics.items()}
@@ -138,6 +140,9 @@ def cycle_loss(
                 x_recons[domain_name_source],
                 latents_source[domain_name_source],
             )
+            if loss_output is None:
+                continue
+
             metrics.update(
                 {f"cycle_{loss_name}_{k}": v for k, v in loss_output.metrics.items()}
             )
@@ -200,6 +205,9 @@ def translation_loss(
                 prediction,
                 latents[domain_name_target],
             )
+            if loss_output is None:
+                continue
+
             losses[f"translation_{loss_name}"] = loss_output.loss
             metrics.update(
                 {
@@ -565,7 +573,18 @@ def broadcast_loss(
                 if domain not in group_domains:  # if we don't have ground truth
                     continue
                 ground_truth = latents[domain]
-                loss_output = domain_mods[domain].compute_loss(pred, ground_truth)
+
+                if num_active_domains == 1 and domain in selected_latents:
+                    loss_fn = domain_mods[domain].compute_dcy_loss
+                elif domain not in selected_latents:
+                    loss_fn = domain_mods[domain].compute_tr_loss
+                else:
+                    loss_fn = domain_mods[domain].compute_fused_loss
+
+                loss_output = loss_fn(pred, ground_truth)
+                if loss_output is None:
+                    continue
+
                 loss_label = f"from_{selected_group_label}_to_{domain}"
                 losses[loss_label + "_loss"] = loss_output.loss
                 metrics.update(
@@ -601,9 +620,11 @@ def broadcast_loss(
 
                 for domain in selected_latents:
                     re_ground_truth = latents[domain]
-                    re_loss_output = domain_mods[domain].compute_loss(
+                    re_loss_output = domain_mods[domain].compute_cy_loss(
                         re_decoded_latents[domain], re_ground_truth
                     )
+                    if re_loss_output is None:
+                        continue
                     loss_label = (
                         f"from_{selected_group_label}_"
                         f"through_{inverse_selected_group_label}_to_{domain}_"
