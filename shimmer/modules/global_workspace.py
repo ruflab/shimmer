@@ -11,7 +11,7 @@ from torch.optim.adamw import AdamW
 from torch.optim.lr_scheduler import LRScheduler, OneCycleLR
 
 from shimmer.modules.contrastive_loss import ContrastiveLoss, ContrastiveLossType
-from shimmer.modules.domain import DomainModule
+from shimmer.modules.domain import DomainModule, End2EndDomainModule
 from shimmer.modules.gw_module import (
     GWModule,
     GWModuleBase,
@@ -499,7 +499,7 @@ class GlobalWorkspaceBase(
         domain_latents = self.encode_domains(batch)
         batch_size = groups_batch_size(domain_latents)
 
-        loss_output = self.loss_mod.step(domain_latents, mode)
+        loss_output = self.loss_mod.step(batch, domain_latents, mode)
 
         for name, metric in loss_output.all.items():
             self.log(
@@ -596,6 +596,10 @@ def freeze_domain_modules(
         The output is casted as `dict[str, DomainModule]` type for better
         auto-completion, but is actually a torch `ModuleDict`.
 
+    .. note::
+        Instances of `End2EndDomainModule` are not frozen as they should be trained
+        alongside the GW.
+
     Args:
         domain_mods (`Mapping[str, DomainModule]`): mapping of domain modules to freeze
 
@@ -604,7 +608,8 @@ def freeze_domain_modules(
     """
 
     for mod in domain_mods.values():
-        mod.freeze()
+        if not isinstance(mod, End2EndDomainModule):
+            mod.freeze()
     # Cast for better auto-completion at the expense of ModuleDict
     return cast(dict[str, DomainModule], ModuleDict(domain_mods))
 
