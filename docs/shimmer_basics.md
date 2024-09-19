@@ -65,8 +65,8 @@ from torch.utils.data import DataLoader, TensorDataset
 class DomainDataModule(LightningDataModule):
     def __init__(
         self,
-        val_dataset: torch.Tensor,
         train_dataset: torch.Tensor,
+        val_dataset: torch.Tensor,
         batch_size: int,
     ) -> None:
         super().__init__()
@@ -328,8 +328,8 @@ from shimmer import RepeatedDataset
 class GWDataModule(LightningDataModule):
     def __init__(
         self,
-        val_datasets: dict[frozenset[str], DomainDataset],
         train_datasets: dict[frozenset[str], DomainDataset],
+        val_datasets: dict[frozenset[str], DomainDataset],
         batch_size: int,
     ) -> None:
         super().__init__()
