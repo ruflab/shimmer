@@ -533,7 +533,7 @@ class GlobalWorkspaceBase(
         if unimodal_losses is not None:
             for name, metric in unimodal_losses.all.items():
                 self.log(
-                    f"{mode}/{name}",
+                    f"{mode}/domain_loss/{name}",
                     metric,
                     batch_size=batch_size,
                     add_dataloader_idx=False,
