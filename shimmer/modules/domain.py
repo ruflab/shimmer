@@ -188,4 +188,15 @@ class DomainModule(pl.LightningModule):
 
 
 class End2EndDomainModule(DomainModule):
-    pass
+    def compute_domain_loss(self, domain: Any) -> LossOutput | None:
+        """
+        Compute the unimodal domain loss.
+
+        Args:
+            domain (`Any`): domain input
+        Results:
+            `LossOutput | None`: LossOuput with training loss and additional metrics.
+                If `None` is returned, this loss will be ignored and will not
+                participate in the total loss.
+        """
+        return None
