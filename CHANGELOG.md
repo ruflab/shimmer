@@ -45,10 +45,10 @@ refers to `DeterministicGlobalWorkspace`.
 * Add docs in `docs/`, API documentation in https://ruflab.github.io/shimmer/, and
     some code examples.
 * Replace Black, isort, and flake8 with Ruff (see
-      https://github.com/bdvllrs/shimmer/pull/8).
+      https://github.com/ruflab/shimmer/pull/8).
 * Remove `GWInterfaces` entirely and favor giving encoders and decoders directly to the
     `GWModule`. See the updated example `examples/main_example/train_gw.py` to see what 
-    changes to make (see https://github.com/bdvllrs/shimmer/pull/9).
+    changes to make (see https://github.com/ruflab/shimmer/pull/9).
 * Remove `GWModuleBase.translate`  and `GWModuleBase.cycle`. Translation and cycles
     can now be done with the utils function `translation` and `cycle`.
 * Remove `GlobalWorkspaceBase.batch_demi_cycles`, `GlobalWorkspaceBase.batch_cycles`, 
