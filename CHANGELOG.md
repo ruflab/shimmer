@@ -40,9 +40,9 @@ refers to `DeterministicGlobalWorkspace`.
 # 0.5.0
 * Replace loss coef buffers by a `LossCoef` TypedDict.
 * Add
-  [`RepeatedDataset`](https://bdvllrs.github.io/shimmer/shimmer/dataset.html#RepeatedDataset)
+  [`RepeatedDataset`](https://ruflab.github.io/shimmer/shimmer/dataset.html#RepeatedDataset)
   to shimmer.
-* Add docs in `docs/`, API documentation in https://bdvllrs.github.io/shimmer/, and
+* Add docs in `docs/`, API documentation in https://ruflab.github.io/shimmer/, and
     some code examples.
 * Replace Black, isort, and flake8 with Ruff (see
       https://github.com/bdvllrs/shimmer/pull/8).
@@ -65,9 +65,9 @@ refers to `DeterministicGlobalWorkspace`.
 * Rename all "with_uncertainty" methods to "bayesian". Note, BayesianGlobalWorkspaces
   are still a work in progress.
 * Added selection mechanisms (inheriting from `SelectionBase`, [see
-  docs](https://bdvllrs.github.io/shimmer/latest/shimmer/modules/selection.html#SelectionBase))
+  docs](https://ruflab.github.io/shimmer/latest/shimmer/modules/selection.html#SelectionBase))
   to fuse representations according to different mechanisms (e.g. Attention).
 * `GlobalWorkspace` (and associated `GWModule`, `GWLosses`, ...) now uses the
-  [`RandomSelection`](https://bdvllrs.github.io/shimmer/latest/shimmer/modules/selection.html#RandomSelection)
+  [`RandomSelection`](https://ruflab.github.io/shimmer/latest/shimmer/modules/selection.html#RandomSelection)
   mechanism. For the old behavior, use
-  [`GlobalWorkspace2Domains`](https://bdvllrs.github.io/shimmer/latest/shimmer/modules/global_workspace.html#GlobalWorkspace2Domains).
+  [`GlobalWorkspace2Domains`](https://ruflab.github.io/shimmer/latest/shimmer/modules/global_workspace.html#GlobalWorkspace2Domains).

@@ -17,7 +17,7 @@ You can also find some additional information in the [Q&A](docs/q_and_a.md).
 
 ## API Documentation
 The full API documentation is available here:
-[https://bdvllrs.github.io/shimmer/](https://bdvllrs.github.io/shimmer/).
+[https://ruflab.github.io/shimmer/](https://ruflab.github.io/shimmer/).
 
 # Contributing
 See [CONTRIBUTING.md](CONTRIBUTING.md).
