@@ -6,9 +6,8 @@ This repository is the barebones API to build a global workspace.
 ## Install
 See [Installation instructions](docs/installation.md).
 
-## Examples
-You can find code examples in the `examples` folder. Each subfolder is a different
-example.
+## Example
+You can find a code example in the `examples` folder.
 
 ## Tutorial
 You can also follow a tutorial on the basics of shimmer [here](docs/shimmer_basics.md).
