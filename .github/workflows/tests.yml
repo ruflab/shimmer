@@ -33,7 +33,7 @@ jobs:
       - name: Update torch's source to use CPU
         run: |
           poetry source add torch-cpu --priority=explicit --no-interaction https://download.pytorch.org/whl/cpu
-          torch_version=$(poetry show torch --no-ansi | sed -n 2p | sed 's/^\(\s*\)version\(\s*\):\(\s*\)\([0-9\.\+a-zA-Z]*\)\(.*\)$/\4/')
+          torch_version=$(poetry show torch --no-ansi | grep 'version' | awk '{print $3}')
           poetry add --lock --no-interaction --source torch-cpu "torch@$torch_version"
       - name: Load cached venv
         id: cached-poetry-dependencies
