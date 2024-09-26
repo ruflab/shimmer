@@ -237,7 +237,9 @@ class DynamicQueryAttention(SelectionBase):
             step_limit (`int`): Maximum number of steps to run the loop.
         """
         if step_limit > self.n_steps:
-            raise ValueError(f"Step limit cannot exceed the maximum n_steps ({self.n_steps}).")
+            raise ValueError(
+                f"Step limit cannot exceed the maximum n_steps ({self.n_steps})."
+            )
         self.step_limit = step_limit
 
     def fuse_weighted_encodings(
