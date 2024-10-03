@@ -9,7 +9,7 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
-    if: github.repository == 'shimmer' || github.event.push.ref != 'refs/heads/public-clone' || github.event.push.ref != 'refs/heads/main'
+    if: github.repository == 'shimmer' || github.event.ref != 'refs/heads/public-clone' || github.event.ref != 'refs/heads/main'
 
     steps:
       - uses: actions/checkout@v3
@@ -18,7 +18,7 @@ jobs:
         with:
           python-version: "3.11.4"
       - name: test
-        run: echo "${{ github.event.push.ref }}"
+        run: echo "${{ github.event.ref }}"
       - name: Load cached Poetry install
         uses: actions/cache@v3
         id: cached-poetry
