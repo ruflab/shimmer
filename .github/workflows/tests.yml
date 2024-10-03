@@ -9,6 +9,7 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
+    if: github.repository == 'shimmer' || github.event.push.ref != 'refs/heads/public-clone' || github.event.push.ref != 'refs/heads/main'
 
     steps:
       - uses: actions/checkout@v3

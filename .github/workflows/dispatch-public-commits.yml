@@ -1,0 +1,81 @@
+name: dispatch-public-commits
+
+on:
+  push:
+    branches:
+      - 'main'
+
+jobs:
+  publish:
+    if: ${{ github.repository == 'ruflab/shimmer' }}
+    runs-on: ubuntu-latest
+    steps:
+       - name: Get token
+         id: get-token
+         run: |
+           # Client ID as first argument
+           client_id=${{ secrets.APP_CLIENT_ID }}
+           app_id=${{ secrets.APP_ID }}
+
+           pem=$( cat <<'EOF'
+           ${{ secrets.APP_KEY }}
+           EOF
+           ) # file path of the private key as second argument
+
+           now=$(date +%s)
+           iat=$((${now} - 60)) # Issues 60 seconds in the past
+           exp=$((${now} + 600)) # Expires 10 minutes in the future
+
+           b64enc() { openssl base64 | tr -d '=' | tr '/+' '_-' | tr -d '\n'; }
+
+           header_json='{
+               "typ":"JWT",
+               "alg":"RS256"
+           }'
+           # Header encode
+           header=$( echo -n "${header_json}" | b64enc )
+
+           payload_json="{
+               \"iat\":${iat},
+               \"exp\":${exp},
+               \"iss\":\"${client_id}\"
+           }"
+           # Payload encode
+           payload=$( echo -n "${payload_json}" | b64enc )
+
+           # Signature
+           header_payload="${header}"."${payload}"
+           signature=$(
+           openssl dgst -sha256 -sign <(echo -n "${pem}") \
+           <(echo -n "${header_payload}") | b64enc
+           )
+
+           #echo $header_payload
+           #echo $signature
+
+           # Create JWT
+           JWT=$(printf '%s\n' "${header_payload}"."${signature}")
+           echo "::add-mask::$JWT"
+
+           resp=$(curl --request POST \
+            --url "https://api.github.com/app/installations/$app_id/access_tokens" \
+            --header "Accept: application/vnd.github+json" \
+            --header "Authorization: Bearer $JWT" \
+            --header "X-GitHub-Api-Version: 2022-11-28"
+           )
+           token=$(jq -r '.token' <<< $resp)
+           echo "::add-mask::$token"
+           if [[ -z "$token" ]]; then
+               echo "Could not fetch access token"
+               exit 1
+           fi
+           echo "TOKEN=$token" >> "$GITHUB_OUTPUT"
+       - name: Dispatch
+         run: |
+           curl -L \
+               -X POST \
+               -H "Accept: application/vnd.github+json" \
+               -H "Authorization: Bearer ${{ steps.get-token.outputs.TOKEN }}" \
+               -H "X-GitHub-Api-Version: 2022-11-28" \
+               "https://api.github.com/repos/${{ secrets.PRIVATE_REPO }}/dispatches" \
+               -d '{"event_type":"on-pub-updated","client_payload":{}}'
