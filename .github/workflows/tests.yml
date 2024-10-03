@@ -17,6 +17,8 @@ jobs:
         uses: actions/setup-python@v3
         with:
           python-version: "3.11.4"
+      - name: test
+        run: echo "${{ github.event.push.ref }}"
       - name: Load cached Poetry install
         uses: actions/cache@v3
         id: cached-poetry
