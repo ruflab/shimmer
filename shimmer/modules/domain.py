@@ -71,6 +71,24 @@ class DomainModule(pl.LightningModule):
         self.latent_dim = latent_dim
         """The latent dimension of the module."""
 
+        self.is_frozen: bool | None = None
+        """ Whether the module is frozen. If None, it is frozen by default. """
+
+    def freeze(self) -> None:
+        """
+        Freezes the module. This is the default mode.
+        """
+        self.is_frozen = True
+        return super().freeze()
+
+    def unfreeze(self) -> None:
+        """
+        Unfreezes the module. This is usefull to train the domain module end-to-end.
+        This also unlocks `compute_domain_loss` during training.
+        """
+        self.is_frozen = False
+        return super().unfreeze()
+
     def encode(self, x: Any) -> torch.Tensor:
         """
         Encode the domain data into a unimodal representation.
@@ -186,8 +204,6 @@ class DomainModule(pl.LightningModule):
         """
         return self.compute_loss(pred, target, raw_target)
 
-
-class End2EndDomainModule(DomainModule):
     def compute_domain_loss(self, domain: Any) -> LossOutput | None:
         """
         Compute the unimodal domain loss.
