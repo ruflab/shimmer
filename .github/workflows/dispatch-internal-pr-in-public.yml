@@ -103,7 +103,7 @@ jobs:
           ${{ github.event.pull_request.body }}
           EOF
           )
-          publicBranch="internal-$featureBranch-$prId"
+          publicBranch="$featureBranch-$prId"
           publicUrl="https://github.com/$pubRepo/compare/$publicBranch?expand=1&title=$title&body=$body"
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
