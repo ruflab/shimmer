@@ -257,7 +257,6 @@ class GlobalWorkspaceBase(
                 "loss_mod",
                 "domain_descriptions",
                 "contrastive_loss",
-                "cont_loss_bayesian",
                 "gw_encoders",
                 "gw_decoders",
                 "scheduler",
