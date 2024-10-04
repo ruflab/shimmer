@@ -209,13 +209,6 @@ class GWEncoder(GWDecoder):
         return super().forward(input)
 
 
-class GWEncoderLinear(nn.Linear):
-    """A linear Encoder network used in GWModules."""
-
-    def forward(self, input: torch.Tensor) -> torch.Tensor:
-        return torch.tanh(super().forward(input))
-
-
 class GWModulePrediction(TypedDict):
     """TypedDict of the output given when calling `GlobalWorkspaceBase.predict`"""
 
