@@ -71,6 +71,24 @@ class DomainModule(pl.LightningModule):
         self.latent_dim = latent_dim
         """The latent dimension of the module."""
 
+        self.is_frozen: bool | None = None
+        """ Whether the module is frozen. If None, it is frozen by default. """
+
+    def freeze(self) -> None:
+        """
+        Freezes the module. This is the default mode.
+        """
+        self.is_frozen = True
+        return super().freeze()
+
+    def unfreeze(self) -> None:
+        """
+        Unfreezes the module. This is usefull to train the domain module end-to-end.
+        This also unlocks `compute_domain_loss` during training.
+        """
+        self.is_frozen = False
+        return super().unfreeze()
+
     def encode(self, x: Any) -> torch.Tensor:
         """
         Encode the domain data into a unimodal representation.
@@ -94,7 +112,7 @@ class DomainModule(pl.LightningModule):
         raise NotImplementedError
 
     def compute_loss(
-        self, pred: torch.Tensor, target: torch.Tensor
+        self, pred: torch.Tensor, target: torch.Tensor, raw_target: Any
     ) -> LossOutput | None:
         """
         Generic loss computation  the modality.
@@ -102,6 +120,7 @@ class DomainModule(pl.LightningModule):
         Args:
             pred (`torch.Tensor`): prediction of the model
             target (`torch.Tensor`): target tensor
+            raw_target (`Any`): raw data from the input
         Results:
             `LossOutput | None`: LossOuput with training loss and additional metrics.
                 If `None` is returned, this loss will be ignored and will not
@@ -110,7 +129,7 @@ class DomainModule(pl.LightningModule):
         raise NotImplementedError
 
     def compute_dcy_loss(
-        self, pred: torch.Tensor, target: torch.Tensor
+        self, pred: torch.Tensor, target: torch.Tensor, raw_target: Any
     ) -> LossOutput | None:
         """
         Computes the loss for a demi-cycle. Override if the demi-cycle loss is
@@ -119,16 +138,17 @@ class DomainModule(pl.LightningModule):
         Args:
             pred (`torch.Tensor`): prediction of the model
             target (`torch.Tensor`): target tensor
+            raw_target (`Any`): raw data from the input
         Results:
             `LossOutput | None`: LossOuput with training loss and additional metrics.
                 If `None` is returned, this loss will be ignored and will not
                 participate in the total loss; it can be used to deactivate
                 demi-cycle loss for this domain.
         """
-        return self.compute_loss(pred, target)
+        return self.compute_loss(pred, target, raw_target)
 
     def compute_cy_loss(
-        self, pred: torch.Tensor, target: torch.Tensor
+        self, pred: torch.Tensor, target: torch.Tensor, raw_target: Any
     ) -> LossOutput | None:
         """
         Computes the loss for a cycle. Override if the cycle loss is
@@ -137,16 +157,17 @@ class DomainModule(pl.LightningModule):
         Args:
             pred (`torch.Tensor`): prediction of the model
             target (`torch.Tensor`): target tensor
+            raw_target (`Any`): raw data from the input
         Results:
             `LossOutput | None`: LossOuput with training loss and additional metrics.
                 If `None` is returned, this loss will be ignored and will not
                 participate in the total loss; it can be used to deactivate
                 cycle loss for this domain.
         """
-        return self.compute_loss(pred, target)
+        return self.compute_loss(pred, target, raw_target)
 
     def compute_tr_loss(
-        self, pred: torch.Tensor, target: torch.Tensor
+        self, pred: torch.Tensor, target: torch.Tensor, raw_target: Any
     ) -> LossOutput | None:
         """
         Computes the loss for a translation. Override if the translation loss is
@@ -155,16 +176,17 @@ class DomainModule(pl.LightningModule):
         Args:
             pred (`torch.Tensor`): prediction of the model
             target (`torch.Tensor`): target tensor
+            raw_target (`Any`): raw data from the input
         Results:
             `LossOutput | None`: LossOuput with training loss and additional metrics.
                 If `None` is returned, this loss will be ignored and will not
                 participate in the total loss; it can be used to deactivate
                 translation loss for this domain.
         """
-        return self.compute_loss(pred, target)
+        return self.compute_loss(pred, target, raw_target)
 
     def compute_fused_loss(
-        self, pred: torch.Tensor, target: torch.Tensor
+        self, pred: torch.Tensor, target: torch.Tensor, raw_target: Any
     ) -> LossOutput | None:
         """
         Computes the loss for fused (fusion). Override if the fused loss is
@@ -173,10 +195,24 @@ class DomainModule(pl.LightningModule):
         Args:
             pred (`torch.Tensor`): prediction of the model
             target (`torch.Tensor`): target tensor
+            raw_target (`Any`): raw data from the input
         Results:
             `LossOutput | None`: LossOuput with training loss and additional metrics.
                 If `None` is returned, this loss will be ignored and will not
                 participate in the total loss; it can be used to deactivate
                 fused loss for this domain.
         """
-        return self.compute_loss(pred, target)
+        return self.compute_loss(pred, target, raw_target)
+
+    def compute_domain_loss(self, domain: Any) -> LossOutput | None:
+        """
+        Compute the unimodal domain loss.
+
+        Args:
+            domain (`Any`): domain input
+        Results:
+            `LossOutput | None`: LossOuput with training loss and additional metrics.
+                If `None` is returned, this loss will be ignored and will not
+                participate in the total loss.
+        """
+        return None

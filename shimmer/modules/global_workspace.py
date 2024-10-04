@@ -11,7 +11,7 @@ from torch.optim.adamw import AdamW
 from torch.optim.lr_scheduler import LRScheduler, OneCycleLR
 
 from shimmer.modules.contrastive_loss import ContrastiveLoss, ContrastiveLossType
-from shimmer.modules.domain import DomainModule
+from shimmer.modules.domain import DomainModule, LossOutput
 from shimmer.modules.gw_module import (
     GWModule,
     GWModuleBase,
@@ -484,6 +484,24 @@ class GlobalWorkspaceBase(
             for domains, latents in latents_domain.items()
         }
 
+    def unimodal_losses(self, batch: RawDomainGroupsT) -> LossOutput | None:
+        metrics: dict[str, torch.Tensor] = {}
+        losses: list[torch.Tensor] = []
+        for group_domain_names, domain_group in batch.items():
+            if len(group_domain_names) > 1:
+                continue
+            for domain_name, domain in domain_group.items():
+                domain_mod = self.domain_mods[domain_name]
+                if not domain_mod.is_frozen:
+                    loss = domain_mod.compute_domain_loss(domain)
+                    if loss is not None:
+                        for name, metric in loss.metrics.items():
+                            metrics[f"{domain_name}/{name}"] = metric
+                        losses.append(loss.loss)
+        if not len(losses):
+            return None
+        return LossOutput(loss=torch.stack(losses, dim=0).sum(), metrics=metrics)
+
     def generic_step(self, batch: RawDomainGroupsT, mode: ModelModeT) -> STEP_OUTPUT:
         """
         The generic step used in `training_step`, `validation_step` and
@@ -499,7 +517,7 @@ class GlobalWorkspaceBase(
         domain_latents = self.encode_domains(batch)
         batch_size = groups_batch_size(domain_latents)
 
-        loss_output = self.loss_mod.step(domain_latents, mode)
+        loss_output = self.loss_mod.step(batch, domain_latents, mode)
 
         for name, metric in loss_output.all.items():
             self.log(
@@ -508,6 +526,20 @@ class GlobalWorkspaceBase(
                 batch_size=batch_size,
                 add_dataloader_idx=False,
             )
+
+        total_loss = loss_output.loss
+
+        unimodal_losses = self.unimodal_losses(batch)
+        if unimodal_losses is not None:
+            for name, metric in unimodal_losses.all.items():
+                self.log(
+                    f"{mode}/domain_loss/{name}",
+                    metric,
+                    batch_size=batch_size,
+                    add_dataloader_idx=False,
+                )
+
+            total_loss += unimodal_losses.loss
 
         return loss_output.loss
 
@@ -604,7 +636,8 @@ def freeze_domain_modules(
     """
 
     for mod in domain_mods.values():
-        mod.freeze()
+        if mod.is_frozen is None:
+            mod.freeze()
     # Cast for better auto-completion at the expense of ModuleDict
     return cast(dict[str, DomainModule], ModuleDict(domain_mods))
 

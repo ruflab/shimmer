@@ -71,3 +71,13 @@ refers to `DeterministicGlobalWorkspace`.
   [`RandomSelection`](https://ruflab.github.io/shimmer/latest/shimmer/modules/selection.html#RandomSelection)
   mechanism. For the old behavior, use
   [`GlobalWorkspace2Domains`](https://ruflab.github.io/shimmer/latest/shimmer/modules/global_workspace.html#GlobalWorkspace2Domains).
+
+# 0.6.0
+* Allow for some domain modules to be trained end-to-end with the global workspace.
+    This brings some breaking changes:
+    1. `DomainModule.compute_loss` and `DomainModule.compute_*_loss` now require an 3rd 
+        parameter `raw_target: Any` that stores the raw domain input (before being encoded).
+        This is usefull for unimodal losses that require the actual inputs to compute the loss.
+    2. `GWLossesBase.step` requires a new first argument `raw_data: RawDomainGroupsT` to
+        pass the `raw_targets` to the domain modules.
+

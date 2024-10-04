@@ -36,3 +36,15 @@ class DummyDomainModule(DomainModule):
 
     def decode(self, z: torch.Tensor) -> DummyData:
         return DummyData(vec=z)
+
+
+class DummyDomainModuleWithParams(DomainModule):
+    def __init__(self, latent_dim: int) -> None:
+        super().__init__(latent_dim)
+        self.net = torch.nn.Linear(1, 1)
+
+    def encode(self, x: DummyData) -> torch.Tensor:
+        return x.vec
+
+    def decode(self, z: torch.Tensor) -> DummyData:
+        return DummyData(vec=z)
