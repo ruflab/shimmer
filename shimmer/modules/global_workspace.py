@@ -15,7 +15,6 @@ from shimmer.modules.domain import DomainModule, LossOutput
 from shimmer.modules.gw_module import (
     GWModule,
     GWModuleBase,
-    GWModuleBayesian,
     GWModulePrediction,
     broadcast_cycles,
     cycle,
@@ -26,11 +25,9 @@ from shimmer.modules.losses import (
     GWLosses,
     GWLosses2Domains,
     GWLossesBase,
-    GWLossesBayesian,
     LossCoefs,
 )
 from shimmer.modules.selection import (
-    FixedSharedSelection,
     RandomSelection,
     SelectionBase,
     SingleDomainSelection,
@@ -780,107 +777,6 @@ class GlobalWorkspace(GlobalWorkspaceBase[GWModule, RandomSelection, GWLosses]):
         selection_mod = RandomSelection(selection_temperature)
         loss_mod = GWLosses(
             gw_mod, selection_mod, domain_mods, loss_coefs, contrastive_loss
-        )
-
-        super().__init__(
-            gw_mod,
-            selection_mod,
-            loss_mod,
-            optim_lr,
-            optim_weight_decay,
-            scheduler_args,
-            scheduler,
-        )
-
-
-class GlobalWorkspaceBayesian(
-    GlobalWorkspaceBase[GWModuleBayesian, FixedSharedSelection, GWLossesBayesian]
-):
-    """
-    A simple 2-domains max GlobalWorkspaceBase with a Bayesian base uncertainty
-    prediction.
-
-    This is used to simplify a Global Workspace instanciation and only overrides the
-    `__init__` method.
-    """
-
-    def __init__(
-        self,
-        domain_mods: Mapping[str, DomainModule],
-        gw_encoders: Mapping[str, Module],
-        gw_decoders: Mapping[str, Module],
-        workspace_dim: int,
-        loss_coefs: BroadcastLossCoefs,
-        sensitivity_selection: float = 1,
-        sensitivity_precision: float = 1,
-        optim_lr: float = 1e-3,
-        optim_weight_decay: float = 0.0,
-        scheduler_args: SchedulerArgs | None = None,
-        learn_logit_scale: bool = False,
-        use_normalized_constrastive: bool = True,
-        contrastive_loss: ContrastiveLossType | None = None,
-        precision_softmax_temp: float = 0.01,
-        scheduler: LRScheduler
-        | None
-        | OneCycleSchedulerSentinel = OneCycleSchedulerSentinel.DEFAULT,
-    ) -> None:
-        """
-        Initializes a Global Workspace
-
-        Args:
-            domain_mods (`Mapping[str, DomainModule]`): mapping of the domains
-                connected to the GW. Keys are domain names, values are the
-                `DomainModule`.
-            gw_encoders (`Mapping[str, torch.nn.Module]`): mapping for each domain
-                name to a `torch.nn.Module` class which role is to encode a
-                unimodal latent representations into a GW representation (pre fusion).
-            gw_decoders (`Mapping[str, torch.nn.Module]`): mapping for each domain
-                name to a `torch.nn.Module` class which role is to decode a
-                GW representation into a unimodal latent representations.
-            workspace_dim (`int`): dimension of the GW.
-            loss_coefs (`LossCoefs`): loss coefficients
-            sensitivity_selection (`float`): sensivity coef $c'_1$
-            sensitivity_precision (`float`): sensitivity coef $c'_2$
-            optim_lr (`float`): learning rate
-            optim_weight_decay (`float`): weight decay
-            scheduler_args (`SchedulerArgs | None`): optimization scheduler's arguments
-            learn_logit_scale (`bool`): whether to learn the contrastive learning
-                contrastive loss when using the default contrastive loss.
-            use_normalized_constrastive (`bool`): whether to use the normalized cont
-                loss by the precision coefs
-            contrastive_loss (`ContrastiveLossType | None`): a contrastive loss
-                function used for alignment. `learn_logit_scale` will not affect custom
-                contrastive losses.
-            precision_softmax_temp (`float`): temperature to use in softmax of
-                precision
-            scheduler: The scheduler to use for traning. If None is explicitely given,
-                no scheduler will be used. Defaults to use OneCycleScheduler
-        """
-        domain_mods = freeze_domain_modules(domain_mods)
-
-        gw_mod = GWModuleBayesian(
-            domain_mods,
-            workspace_dim,
-            gw_encoders,
-            gw_decoders,
-            sensitivity_selection,
-            sensitivity_precision,
-            precision_softmax_temp,
-        )
-
-        selection_mod = FixedSharedSelection()
-
-        contrastive_loss = ContrastiveLoss(
-            torch.tensor([1]).log(), "mean", learn_logit_scale
-        )
-
-        loss_mod = GWLossesBayesian(
-            gw_mod,
-            selection_mod,
-            domain_mods,
-            loss_coefs,
-            contrastive_loss,
-            use_normalized_constrastive,
         )
 
         super().__init__(

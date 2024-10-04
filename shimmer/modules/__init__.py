@@ -1,7 +1,6 @@
 from shimmer.data.dataset import RepeatedDataset
 from shimmer.modules.contrastive_loss import (
     ContrastiveLoss,
-    ContrastiveLossBayesianType,
     ContrastiveLossType,
     contrastive_loss,
 )
@@ -9,7 +8,6 @@ from shimmer.modules.domain import DomainModule, LossOutput
 from shimmer.modules.global_workspace import (
     GlobalWorkspace2Domains,
     GlobalWorkspaceBase,
-    GlobalWorkspaceBayesian,
     SchedulerArgs,
     batch_broadcasts,
     batch_cycles,
@@ -23,7 +21,6 @@ from shimmer.modules.gw_module import (
     GWEncoderLinear,
     GWModule,
     GWModuleBase,
-    GWModuleBayesian,
     GWModulePrediction,
     broadcast,
     broadcast_cycles,
@@ -34,7 +31,6 @@ from shimmer.modules.losses import (
     BroadcastLossCoefs,
     GWLosses2Domains,
     GWLossesBase,
-    GWLossesBayesian,
     LossCoefs,
 )
 from shimmer.modules.selection import (
@@ -55,7 +51,6 @@ __all__ = [
     "SchedulerArgs",
     "GlobalWorkspaceBase",
     "GlobalWorkspace2Domains",
-    "GlobalWorkspaceBayesian",
     "pretrained_global_workspace",
     "LossOutput",
     "DomainModule",
@@ -64,17 +59,14 @@ __all__ = [
     "GWEncoderLinear",
     "GWModuleBase",
     "GWModule",
-    "GWModuleBayesian",
     "GWModulePrediction",
     "ContrastiveLossType",
-    "ContrastiveLossBayesianType",
     "contrastive_loss",
     "ContrastiveLoss",
     "LossCoefs",
     "BroadcastLossCoefs",
     "GWLossesBase",
     "GWLosses2Domains",
-    "GWLossesBayesian",
     "RepeatedDataset",
     "reparameterize",
     "kl_divergence_loss",

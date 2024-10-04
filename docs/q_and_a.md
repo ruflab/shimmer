@@ -19,7 +19,6 @@ To get insipiration, you can look at the source code of
 ## How can I change the loss function?
 If you are using pre-made GW architecture
 ([`GlobalWorkspace`](https://ruflab.github.io/shimmer/latest/shimmer/modules/global_workspace.html#GlobalWorkspace),
-[`GlobalWorkspaceBayesian`](https://ruflab.github.io/shimmer/latest/shimmer/modules/global_workspace.html#GlobalWorkspaceBayesian),
 [`GlobalWorkspaceFusion`](https://ruflab.github.io/shimmer/latest/shimmer/modules/global_workspace.html#GlobalWorkspaceFusion)) and want to update the loss
 used for demi-cycles, cycles, translations or broadcast, you can do so directly from
 your definition of the
