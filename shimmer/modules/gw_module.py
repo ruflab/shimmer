@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from typing import TypedDict
 
 import torch
@@ -180,11 +180,7 @@ class GWDecoder(nn.Sequential):
 
 
 class GWEncoder(GWDecoder):
-    """
-    An Encoder network used in GWModules.
-
-    This is similar to the decoder, but adds a tanh non-linearity at the end.
-    """
+    """An Encoder network used in GWModules."""
 
     def __init__(
         self,
@@ -246,6 +242,7 @@ class GWModuleBase(nn.Module, ABC):
         self,
         domain_mods: Mapping[str, DomainModule],
         workspace_dim: int,
+        fusion_activation_fn: Callable[[torch.Tensor], torch.Tensor] = torch.tanh,
         *args,
         **kwargs,
     ) -> None:
@@ -255,6 +252,8 @@ class GWModuleBase(nn.Module, ABC):
         Args:
             domain_modules (`Mapping[str, DomainModule]`): the domain modules.
             workspace_dim (`int`): dimension of the GW.
+            fusion_activation_fn (`Callable[[torch.Tensor], torch.Tensor]`): activation
+                function used to fuse the domains.
         """
         super().__init__()
 
@@ -263,6 +262,9 @@ class GWModuleBase(nn.Module, ABC):
 
         self.workspace_dim = workspace_dim
         """Dimension of the GW"""
+
+        self.fusion_activation_fn = fusion_activation_fn
+        """Activation function used to fuse the domains"""
 
     @abstractmethod
     def fuse(
@@ -361,6 +363,7 @@ class GWModule(GWModuleBase):
         workspace_dim: int,
         gw_encoders: Mapping[str, nn.Module],
         gw_decoders: Mapping[str, nn.Module],
+        fusion_activation_fn: Callable[[torch.Tensor], torch.Tensor] = torch.tanh,
     ) -> None:
         """
         Initializes the GWModule.
@@ -374,8 +377,10 @@ class GWModule(GWModuleBase):
             gw_decoders (`Mapping[str, torch.nn.Module]`): mapping for each domain
                 name to a an torch.nn.Module class that decodes a
                  GW representation to a unimodal latent representation.
+            fusion_activation_fn (`Callable[[torch.Tensor], torch.Tensor]`): activation
+                function used to fuse the domains.
         """
-        super().__init__(domain_modules, workspace_dim)
+        super().__init__(domain_modules, workspace_dim, fusion_activation_fn)
 
         self.gw_encoders = nn.ModuleDict(gw_encoders)
         """The module's encoders"""
@@ -398,7 +403,7 @@ class GWModule(GWModuleBase):
         Returns:
             `torch.Tensor`: The merged representation.
         """
-        return torch.tanh(
+        return self.fusion_activation_fn(
             torch.sum(
                 torch.stack(
                     [

@@ -1,4 +1,4 @@
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from enum import Enum, auto
 from pathlib import Path
 from typing import Any, Generic, TypedDict, TypeVar, cast
@@ -663,6 +663,7 @@ class GlobalWorkspace2Domains(
         scheduler: LRScheduler
         | None
         | OneCycleSchedulerSentinel = OneCycleSchedulerSentinel.DEFAULT,
+        fusion_activation_fn: Callable[[torch.Tensor], torch.Tensor] = torch.tanh,
     ) -> None:
         """
         Initializes a Global Workspace
@@ -689,10 +690,12 @@ class GlobalWorkspace2Domains(
                 contrastive losses.
             scheduler: The scheduler to use for traning. If None is explicitely given,
                 no scheduler will be used. Defaults to use OneCycleScheduler
+            fusion_activation_fn (`Callable[[torch.Tensor], torch.Tensor]`): activation
+                function to fuse the domains.
         """
         domain_mods = freeze_domain_modules(domain_mods)
 
-        gw_mod = GWModule(domain_mods, workspace_dim, gw_encoders, gw_decoders)
+        gw_mod = GWModule(domain_mods, workspace_dim, gw_encoders, gw_decoders, fusion_activation_fn)
         if contrastive_loss is None:
             contrastive_loss = ContrastiveLoss(
                 torch.tensor([1 / 0.07]).log(), "mean", learn_logit_scale
@@ -736,6 +739,7 @@ class GlobalWorkspace(GlobalWorkspaceBase[GWModule, RandomSelection, GWLosses]):
         scheduler: LRScheduler
         | None
         | OneCycleSchedulerSentinel = OneCycleSchedulerSentinel.DEFAULT,
+        fusion_activation_fn: Callable[[torch.Tensor], torch.Tensor] = torch.tanh,
     ) -> None:
         """
         Initializes a Global Workspace
@@ -764,9 +768,11 @@ class GlobalWorkspace(GlobalWorkspaceBase[GWModule, RandomSelection, GWLosses]):
                 contrastive losses.
             scheduler: The scheduler to use for traning. If None is explicitely given,
                 no scheduler will be used. Defaults to use OneCycleScheduler
+            fusion_activation_fn (`Callable[[torch.Tensor], torch.Tensor]`): activation
+                function to fuse the domains.
         """
         domain_mods = freeze_domain_modules(domain_mods)
-        gw_mod = GWModule(domain_mods, workspace_dim, gw_encoders, gw_decoders)
+        gw_mod = GWModule(domain_mods, workspace_dim, gw_encoders, gw_decoders, fusion_activation_fn)
 
         if contrastive_loss is None:
             contrastive_loss = ContrastiveLoss(
@@ -800,6 +806,7 @@ def pretrained_global_workspace(
     scheduler: LRScheduler
     | None
     | OneCycleSchedulerSentinel = OneCycleSchedulerSentinel.DEFAULT,
+    fusion_activation_fn: Callable[[torch.Tensor], torch.Tensor] = torch.tanh,
     **kwargs,
 ) -> GlobalWorkspace2Domains:
     """
@@ -823,6 +830,8 @@ def pretrained_global_workspace(
             contrastive losses.
         scheduler: The scheduler to use for traning. If None is explicitely given,
             no scheduler will be used. Defaults to use OneCycleScheduler
+        fusion_activation_fn (`Callable[[torch.Tensor], torch.Tensor]`): activation
+            function to fuse the domains.
         **kwargs: additional arguments to pass to
             `GlobalWorkspace.load_from_checkpoint`.
 
@@ -833,7 +842,7 @@ def pretrained_global_workspace(
         `TypeError`: if loaded type is not `GlobalWorkspace`.
     """
     domain_mods = freeze_domain_modules(domain_mods)
-    gw_mod = GWModule(domain_mods, workspace_dim, gw_encoders, gw_decoders)
+    gw_mod = GWModule(domain_mods, workspace_dim, gw_encoders, gw_decoders, fusion_activation_fn)
     selection_mod = SingleDomainSelection()
     loss_mod = GWLosses2Domains(
         gw_mod, selection_mod, domain_mods, loss_coefs, contrastive_fn
