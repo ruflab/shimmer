@@ -15,16 +15,6 @@ Contrastive loss function type.
 A function taking the prediction and targets and returning a LossOutput.
 """
 
-ContrastiveLossBayesianType = Callable[
-    [torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor], LossOutput
-]
-"""
-Contrastive loss function type for GlobalWorkspaceBayesian.
-
-A function taking the prediction mean, prediction std, target mean and target std and
-    returns a LossOutput.
-"""
-
 
 def info_nce(
     x: torch.Tensor,

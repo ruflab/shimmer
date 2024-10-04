@@ -7,11 +7,7 @@ import torch
 
 from shimmer.modules.contrastive_loss import ContrastiveLossType
 from shimmer.modules.domain import DomainModule, LossOutput
-from shimmer.modules.gw_module import (
-    GWModule,
-    GWModuleBase,
-    GWModuleBayesian,
-)
+from shimmer.modules.gw_module import GWModule, GWModuleBase
 from shimmer.modules.selection import SelectionBase
 from shimmer.types import LatentsDomainGroupsT, ModelModeT, RawDomainGroupsT
 
@@ -280,71 +276,6 @@ def contrastive_loss(
                 metrics.update(
                     {f"{loss_name}_{k}": v for k, v in loss_output.metrics.items()}
                 )
-
-    losses["contrastives"] = torch.stack(list(losses.values()), dim=0).mean()
-    losses.update(metrics)
-    return losses
-
-
-def contrastive_loss_bayesian(
-    gw_mod: GWModuleBayesian,
-    latent_domains: LatentsDomainGroupsT,
-    contrastive_fn: ContrastiveLossType,
-) -> dict[str, torch.Tensor]:
-    """
-    Computes the contrastive loss with a Bayesian based uncertainty prediction.
-
-    This return multiple metrics:
-        * `contrastive_{domain_1}_and_{domain_2}` with the contrastive
-            between 2 domains;
-        * `contrastive_{domain_1}_and_{domain_2}_{metric}` with
-            additional metrics provided by the domain_mod's
-            `compute_cont_loss` output;
-        * `contrastives` with the average value of all
-            `contrastive_{domain_1}_and_{domain_2}` values.
-
-    Args:
-        gw_mod (`GWModuleBayesian`): The GWModule to use
-        latent_domains (`LatentsDomainGroupsT`): the latent unimodal groups
-        contrastive_fn (`ContrastiveLossBayesianType`): the contrastive function
-            to apply
-
-    Returns:
-        `dict[str, torch.Tensor]`: a dict of metrics.
-    """
-    losses: dict[str, torch.Tensor] = {}
-    metrics: dict[str, torch.Tensor] = {}
-    keys: list[set[str]] = []
-
-    for latents in latent_domains.values():
-        if len(latents) < 2:
-            continue
-        for domain1_name, domain1 in latents.items():
-            z1 = gw_mod.encode({domain1_name: domain1})[domain1_name]
-            z1_precision = gw_mod.get_precision(domain1_name, domain1)
-            for domain2_name, domain2 in latents.items():
-                selected_domains = {domain1_name, domain2_name}
-                if domain1_name == domain2_name or selected_domains in keys:
-                    continue
-
-                keys.append(selected_domains)
-
-                loss_name = f"contrastive_{domain1_name}_and_{domain2_name}"
-                z2 = gw_mod.encode({domain2_name: domain2})[domain2_name]
-                z2_precision = gw_mod.get_precision(domain2_name, domain2)
-                coef = torch.softmax(
-                    gw_mod.precision_softmax_temp
-                    * torch.stack([z1_precision, z2_precision]),
-                    dim=0,
-                )
-                norm = torch.sqrt(coef[0] * coef[1])
-                loss_output = contrastive_fn(z1 * norm, z2 * norm)
-                loss_output_no_norm = contrastive_fn(z1, z2)
-                losses[loss_name] = loss_output.loss
-                metrics.update(
-                    {f"{loss_name}_{k}": v for k, v in loss_output.metrics.items()}
-                )
-                metrics[f"unnorm_{loss_name}"] = loss_output_no_norm.loss
 
     losses["contrastives"] = torch.stack(list(losses.values()), dim=0).mean()
     losses.update(metrics)
@@ -753,124 +684,6 @@ class GWLosses(GWLossesBase):
             A dictionary of contrastive loss metrics.
         """
 
-        return contrastive_loss(self.gw_mod, latent_domains, self.contrastive_fn)
-
-    def broadcast_loss(
-        self, latent_domains: LatentsDomainGroupsT, raw_data: RawDomainGroupsT
-    ) -> dict[str, torch.Tensor]:
-        return broadcast_loss(
-            self.gw_mod, self.selection_mod, self.domain_mods, latent_domains, raw_data
-        )
-
-    def step(
-        self,
-        raw_data: RawDomainGroupsT,
-        domain_latents: LatentsDomainGroupsT,
-        mode: ModelModeT,
-    ) -> LossOutput:
-        """
-        Performs a step of loss computation.
-
-        Args:
-            raw_data (`RawDomainGroupsT`): raw input data
-            domain_latents: Latent representations for all domains.
-            mode: The mode in which the model is currently operating.
-
-        Returns:
-            A LossOutput object containing the loss and metrics for this step.
-        """
-
-        metrics: dict[str, torch.Tensor] = {}
-
-        metrics.update(self.contrastive_loss(domain_latents))
-        metrics.update(self.broadcast_loss(domain_latents, raw_data))
-
-        loss = torch.stack(
-            [
-                metrics[name] * coef
-                for name, coef in self.loss_coefs.items()
-                if isinstance(coef, float) and coef > 0
-            ],
-            dim=0,
-        ).mean()
-
-        metrics["broadcast_loss"] = torch.stack(
-            [
-                metrics[name]
-                for name, coef in self.loss_coefs.items()
-                if isinstance(coef, float) and coef > 0 and name != "contrastives"
-            ],
-            dim=0,
-        ).mean()
-
-        return LossOutput(loss, metrics)
-
-
-class GWLossesBayesian(GWLossesBase):
-    """
-    Implementation of `GWLossesBase` used for `GWModuleBayesian`.
-    """
-
-    def __init__(
-        self,
-        gw_mod: GWModuleBayesian,
-        selection_mod: SelectionBase,
-        domain_mods: dict[str, DomainModule],
-        loss_coefs: BroadcastLossCoefs,
-        contrastive_fn: ContrastiveLossType,
-        use_normalized_constrastive: bool = True,
-    ):
-        """
-        Loss module with uncertainty prediction to use with the GlobalWorkspaceBayesian
-
-        Args:
-            gw_mod (`GWModuleBayesian`): the GWModule
-            selection_mod (`SelectionBase`): selection module
-            domain_mods (`dict[str, DomainModule]`): a dict where the key is the
-                domain name and value is the DomainModule
-            loss_coefs (`BroadcastLossCoefs`): loss coefficients
-            contrastive_fn (`ContrastiveLossType`): the contrastive function
-                to use in contrastive loss
-            use_normalized_constrastive (`bool`): whether to use the normalized cont
-                loss by the precision coefs
-        """
-        super().__init__()
-
-        self.gw_mod = gw_mod
-        """The GWModule."""
-
-        self.selection_mod = selection_mod
-        """Selection module"""
-
-        self.domain_mods = domain_mods
-        """Domain modules linked to the GW."""
-
-        self.loss_coefs = loss_coefs
-        """The loss coefficients."""
-
-        self.contrastive_fn = contrastive_fn
-        """
-        Contrastive loss to use.
-        """
-
-        self.use_normalized_constrastive = use_normalized_constrastive
-
-    def contrastive_loss(
-        self, latent_domains: LatentsDomainGroupsT
-    ) -> dict[str, torch.Tensor]:
-        """
-        Contrastive loss.
-
-        Args:
-            latent_domains (`LatentsDomainGroupsT`): the latent unimodal groups
-
-        Returns:
-            `dict[str, torch.Tensor]`: a dict of metrics.
-        """
-        if self.use_normalized_constrastive:
-            return contrastive_loss_bayesian(
-                self.gw_mod, latent_domains, self.contrastive_fn
-            )
         return contrastive_loss(self.gw_mod, latent_domains, self.contrastive_fn)
 
     def broadcast_loss(
