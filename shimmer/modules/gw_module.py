@@ -242,7 +242,6 @@ class GWModuleBase(nn.Module, ABC):
         self,
         domain_mods: Mapping[str, DomainModule],
         workspace_dim: int,
-        fusion_activation_fn: Callable[[torch.Tensor], torch.Tensor] = torch.tanh,
         *args,
         **kwargs,
     ) -> None:
@@ -252,8 +251,6 @@ class GWModuleBase(nn.Module, ABC):
         Args:
             domain_modules (`Mapping[str, DomainModule]`): the domain modules.
             workspace_dim (`int`): dimension of the GW.
-            fusion_activation_fn (`Callable[[torch.Tensor], torch.Tensor]`): activation
-                function used to fuse the domains.
         """
         super().__init__()
 
@@ -262,9 +259,6 @@ class GWModuleBase(nn.Module, ABC):
 
         self.workspace_dim = workspace_dim
         """Dimension of the GW"""
-
-        self.fusion_activation_fn = fusion_activation_fn
-        """Activation function used to fuse the domains"""
 
     @abstractmethod
     def fuse(
