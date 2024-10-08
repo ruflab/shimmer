@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from typing import TypedDict
 
 import torch
@@ -180,11 +180,7 @@ class GWDecoder(nn.Sequential):
 
 
 class GWEncoder(GWDecoder):
-    """
-    An Encoder network used in GWModules.
-
-    This is similar to the decoder, but adds a tanh non-linearity at the end.
-    """
+    """An Encoder network used in GWModules."""
 
     def __init__(
         self,
@@ -207,13 +203,6 @@ class GWEncoder(GWDecoder):
 
     def forward(self, input: torch.Tensor) -> torch.Tensor:
         return super().forward(input)
-
-
-class GWEncoderLinear(nn.Linear):
-    """A linear Encoder network used in GWModules."""
-
-    def forward(self, input: torch.Tensor) -> torch.Tensor:
-        return torch.tanh(super().forward(input))
 
 
 class GWModulePrediction(TypedDict):
@@ -368,6 +357,7 @@ class GWModule(GWModuleBase):
         workspace_dim: int,
         gw_encoders: Mapping[str, nn.Module],
         gw_decoders: Mapping[str, nn.Module],
+        fusion_activation_fn: Callable[[torch.Tensor], torch.Tensor] = torch.tanh,
     ) -> None:
         """
         Initializes the GWModule.
@@ -381,6 +371,8 @@ class GWModule(GWModuleBase):
             gw_decoders (`Mapping[str, torch.nn.Module]`): mapping for each domain
                 name to a an torch.nn.Module class that decodes a
                  GW representation to a unimodal latent representation.
+            fusion_activation_fn (`Callable[[torch.Tensor], torch.Tensor]`): activation
+                function used to fuse the domains.
         """
         super().__init__(domain_modules, workspace_dim)
 
@@ -389,6 +381,9 @@ class GWModule(GWModuleBase):
 
         self.gw_decoders = nn.ModuleDict(gw_decoders)
         """The module's decoders"""
+
+        self.fusion_activation_fn = fusion_activation_fn
+        """Activation function used to fuse the domains."""
 
     def fuse(
         self,
@@ -405,7 +400,7 @@ class GWModule(GWModuleBase):
         Returns:
             `torch.Tensor`: The merged representation.
         """
-        return torch.tanh(
+        return self.fusion_activation_fn(
             torch.sum(
                 torch.stack(
                     [

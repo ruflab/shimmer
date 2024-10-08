@@ -24,7 +24,6 @@ from shimmer.modules.global_workspace import (
 from shimmer.modules.gw_module import (
     GWDecoder,
     GWEncoder,
-    GWEncoderLinear,
     GWModule,
     GWModuleBase,
     GWModulePrediction,
@@ -77,7 +76,6 @@ __all__ = [
     "DomainModule",
     "GWDecoder",
     "GWEncoder",
-    "GWEncoderLinear",
     "GWModuleBase",
     "GWModule",
     "GWModulePrediction",
