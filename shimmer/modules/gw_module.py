@@ -374,13 +374,16 @@ class GWModule(GWModuleBase):
             fusion_activation_fn (`Callable[[torch.Tensor], torch.Tensor]`): activation
                 function used to fuse the domains.
         """
-        super().__init__(domain_modules, workspace_dim, fusion_activation_fn)
+        super().__init__(domain_modules, workspace_dim)
 
         self.gw_encoders = nn.ModuleDict(gw_encoders)
         """The module's encoders"""
 
         self.gw_decoders = nn.ModuleDict(gw_decoders)
         """The module's decoders"""
+
+        self.fusion_activation_fn = fusion_activation_fn
+        """Activation function used to fuse the domains."""
 
     def fuse(
         self,
