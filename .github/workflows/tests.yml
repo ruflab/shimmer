@@ -9,7 +9,7 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
-    if: github.repository == 'shimmer' || (github.event.ref != 'refs/heads/public-clone' && github.event.ref != 'refs/heads/main')
+    if: github.repository == 'ruflab/shimmer' || (github.event.ref != 'refs/heads/public-clone' && github.event.ref != 'refs/heads/main')
 
     steps:
       - uses: actions/checkout@v3
