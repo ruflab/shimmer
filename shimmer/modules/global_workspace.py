@@ -296,7 +296,8 @@ class GlobalWorkspaceBase(
 
         Args:
             x (`LatentsDomainGroupsT`): the input domain representations.
-            selection_scores (`Mapping[str, torch.Tensor]`):
+            selection_module (`SelectionBase`): selection module to use to obtain
+                selection scores.
 
         Returns:
             `dict[frozenset[str], torch.Tensor]`: the GW representations.
