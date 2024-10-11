@@ -298,8 +298,8 @@ class GWModuleBase(nn.Module, ABC):
 
         Args:
             x (`LatentsDomainGroupT`): the input domain representations
-            selection_score (`Mapping[str, torch.Tensor]`): attention scores to
-                use to encode the reprensetation.
+            selection_module (`SelectionBase`): selection module to use to obtain
+                selection scores.
 
         Returns:
             `torch.Tensor`: The merged representation.

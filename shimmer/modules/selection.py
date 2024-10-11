@@ -38,6 +38,8 @@ class SelectionBase(torch.nn.Module, ABC):
 
         Args:
             domains (`LatentsDomainGroupT`): Group of unimodal latent representations.
+            encodings_pre_fusion (`LatentsDomainGroupT`): pre-fusion domain latent
+                representation.
 
         Returns:
             `dict[str, torch.Tensor]`: for each domain in the group, the fusion
@@ -75,7 +77,8 @@ class SingleDomainSelection(SelectionBase):
 
         Args:
             domains (`LatentsDomainGroupT`): input unimodal latent representations
-            gw_state (`torch.Tensor`): the previous GW state
+            encodings_pre_fusion (`LatentsDomainGroupT`): pre-fusion domain latent
+                representation.
 
         Returns:
             `dict[str, torch.Tensor]`: whether the domain is selected for each input
@@ -105,7 +108,8 @@ class FixedSharedSelection(SelectionBase):
 
         Args:
             domains (`LatentsDomainGroupT`): input unimodal latent representations
-            gw_state (`torch.Tensor`): the previous GW state
+            encodings_pre_fusion (`LatentsDomainGroupT`): pre-fusion domain latent
+                representation.
 
         Returns:
             `dict[str, torch.Tensor]`: whether the domain is selected for each input
@@ -281,7 +285,8 @@ class DynamicQueryAttention(SelectionBase):
 
         Args:
             domains (`LatentsDomainGroupT`): Group of unimodal latent representations.
-            encodings (`LatentsDomainGroupT`): Group of pre-fusion encodings.
+            encodings_pre_fusion (`LatentsDomainGroupT`): pre-fusion domain latent
+                representation.
 
         Returns:
             `dict[str, torch.Tensor]`: the attention scores for each domain in the
