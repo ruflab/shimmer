@@ -304,6 +304,46 @@ class LossCoefs(TypedDict, total=False):
     """Contrastive loss coefficient."""
 
 
+class BroadcastLossCoefs(TypedDict, total=False):
+    """
+    Dict of loss coefficients used in the GWLossesFusion.
+
+    If one is not provided, the coefficient is assumed to be 0 and will not be logged.
+    If the loss is excplicitely set to 0, it will be logged, but not take part in
+    the total loss.
+    """
+
+    contrastives: float
+    """Contrastive loss coefficient."""
+
+    fused: float
+    """fused loss coefficient (encode multiple domains and decode to one of them)."""
+
+    demi_cycles: float
+    """demi_cycles loss coefficient. Demi-cycles are always one-to-one"""
+
+    cycles: float
+    """cycles loss coefficient. Cycles can be many-to-one"""
+
+    translations: float
+    """translation loss coefficient. Translation, like cycles, can be many-to-one."""
+
+
+def combine_loss(
+    metrics: dict[str, torch.Tensor],
+    coefs: Mapping[str, float] | LossCoefs | BroadcastLossCoefs,
+) -> torch.Tensor:
+    loss = torch.stack(
+        [
+            metrics[name] * coef
+            for name, coef in coefs.items()
+            if name in metrics and isinstance(coef, float) and coef > 0
+        ],
+        dim=0,
+    ).mean()
+    return loss
+
+
 class GWLosses2Domains(GWLossesBase):
     """
     Implementation of `GWLossesBase` used for `GWModule`.
@@ -314,7 +354,7 @@ class GWLosses2Domains(GWLossesBase):
         gw_mod: GWModule,
         selection_mod: SelectionBase,
         domain_mods: dict[str, DomainModule],
-        loss_coefs: LossCoefs,
+        loss_coefs: LossCoefs | Mapping[str, float],
         contrastive_fn: ContrastiveLossType,
     ):
         """
@@ -440,16 +480,7 @@ class GWLosses2Domains(GWLossesBase):
         metrics.update(self.translation_loss(domain_latents, raw_data))
         metrics.update(self.contrastive_loss(domain_latents))
 
-        loss = torch.stack(
-            [
-                metrics[name] * coef
-                for name, coef in self.loss_coefs.items()
-                if isinstance(coef, float) and coef > 0
-            ],
-            dim=0,
-        ).mean()
-
-        return LossOutput(loss, metrics)
+        return LossOutput(combine_loss(metrics, self.loss_coefs), metrics)
 
 
 def generate_partitions(n: int) -> Generator[tuple[int, ...], None, None]:
@@ -616,31 +647,6 @@ def broadcast_loss(
     return metrics
 
 
-class BroadcastLossCoefs(TypedDict, total=False):
-    """
-    Dict of loss coefficients used in the GWLossesFusion.
-
-    If one is not provided, the coefficient is assumed to be 0 and will not be logged.
-    If the loss is excplicitely set to 0, it will be logged, but not take part in
-    the total loss.
-    """
-
-    contrastives: float
-    """Contrastive loss coefficient."""
-
-    fused: float
-    """fused loss coefficient (encode multiple domains and decode to one of them)."""
-
-    demi_cycles: float
-    """demi_cycles loss coefficient. Demi-cycles are always one-to-one"""
-
-    cycles: float
-    """cycles loss coefficient. Cycles can be many-to-one"""
-
-    translations: float
-    """translation loss coefficient. Translation, like cycles, can be many-to-one."""
-
-
 class GWLosses(GWLossesBase):
     """
     Implementation of `GWLossesBase` for fusion-based models.
@@ -651,7 +657,7 @@ class GWLosses(GWLossesBase):
         gw_mod: GWModule,
         selection_mod: SelectionBase,
         domain_mods: dict[str, DomainModule],
-        loss_coefs: BroadcastLossCoefs,
+        loss_coefs: BroadcastLossCoefs | Mapping[str, float],
         contrastive_fn: ContrastiveLossType,
     ):
         """
@@ -716,14 +722,7 @@ class GWLosses(GWLossesBase):
         metrics.update(self.contrastive_loss(domain_latents))
         metrics.update(self.broadcast_loss(domain_latents, raw_data))
 
-        loss = torch.stack(
-            [
-                metrics[name] * coef
-                for name, coef in self.loss_coefs.items()
-                if isinstance(coef, float) and coef > 0
-            ],
-            dim=0,
-        ).mean()
+        loss = combine_loss(metrics, self.loss_coefs)
 
         metrics["broadcast_loss"] = torch.stack(
             [

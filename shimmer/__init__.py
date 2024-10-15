@@ -37,6 +37,7 @@ from shimmer.modules.losses import (
     GWLosses2Domains,
     GWLossesBase,
     LossCoefs,
+    combine_loss,
 )
 from shimmer.modules.selection import (
     RandomSelection,
@@ -84,6 +85,7 @@ __all__ = [
     "ContrastiveLoss",
     "LossCoefs",
     "BroadcastLossCoefs",
+    "combine_loss",
     "GWLossesBase",
     "GWLosses2Domains",
     "RepeatedDataset",
