@@ -333,6 +333,21 @@ def combine_loss(
     metrics: dict[str, torch.Tensor],
     coefs: Mapping[str, float] | LossCoefs | BroadcastLossCoefs,
 ) -> torch.Tensor:
+    """
+    Combines the metrics according to the ones selected in coefs
+
+    Args:
+        metrics (`dict[str, torch.Tensor]`): all metrics to combine
+        coefs (`Mapping[str, float] | LossCoefs | BroadcastLossCoefs`): coefs for
+            selected metrics. Note, every metric does not need to be included here.
+            If not specified, the metric will not count in the final loss.
+            Also not that some metrics are redundant (e.g. `translations` contains
+            all of the `translation_{domain_1}_to_{domain_2}`). You can look at the
+            docs of the different losses for available values.
+
+    Returns:
+        `torch.Tensor`: the combined loss.
+    """
     loss = torch.stack(
         [
             metrics[name] * coef
