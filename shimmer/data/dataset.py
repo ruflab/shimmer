@@ -87,6 +87,7 @@ class ShimmerDataset(Dataset):
             self.domains[domain.kind] = domain_cls(
                 dataset_path,
                 split,
+                max_size,
                 transform,
                 self.domain_args.get(domain.kind, None),
             )
