@@ -17,19 +17,15 @@ from shimmer.modules.gw_module import (
     GWModule,
     GWModuleBase,
     GWModulePrediction,
-    broadcast_cycles,
     cycle,
     translation,
 )
 from shimmer.modules.losses import (
-    BroadcastLossCoefs,
-    GWLosses,
     GWLosses2Domains,
     GWLossesBase,
     LossCoefs,
 )
 from shimmer.modules.selection import (
-    RandomSelection,
     SelectionBase,
     SingleDomainSelection,
 )
@@ -175,35 +171,6 @@ def batch_translations(
                 )
                 predictions[(domain_name_source, domain_name_target)] = prediction
     return predictions
-
-
-def batch_broadcasts(
-    gw_mod: GWModuleBase,
-    selection_mod: SelectionBase,
-    latent_domains: LatentsDomainGroupsT,
-) -> tuple[
-    dict[frozenset[str], dict[str, torch.Tensor]],
-    dict[frozenset[str], dict[str, torch.Tensor]],
-]:
-    """
-    Computes all possible broadcast of a batch for each group of domains.
-
-    Args:
-        gw_mod (`GWModuleBase`): the GWModuleBase
-        selection_mod (`SelectionBase`): selection module
-        latent_domains (`LatentsT`): the batch of groups of domains
-
-    Returns:
-        `tuple[dict[frozenset[str], dict[str, torch.Tensor]],
-        dict[frozenset[str], dict[str, torch.Tensor]], ]`: broadcast predictions
-        for each domain."""
-    predictions: dict[frozenset[str], dict[str, torch.Tensor]] = {}
-    cycles: dict[frozenset[str], dict[str, torch.Tensor]] = {}
-    for domains, latents in latent_domains.items():
-        pred_broadcast, pred_cycles = broadcast_cycles(gw_mod, selection_mod, latents)
-        predictions[domains] = pred_broadcast
-        cycles[domains] = pred_cycles
-    return predictions, cycles
 
 
 class OneCycleSchedulerSentinel(Enum):
@@ -707,88 +674,6 @@ class GlobalWorkspace2Domains(
             )
         selection_mod = SingleDomainSelection()
         loss_mod = GWLosses2Domains(
-            gw_mod, selection_mod, domain_mods, loss_coefs, contrastive_loss
-        )
-
-        super().__init__(
-            gw_mod,
-            selection_mod,
-            loss_mod,
-            optim_lr,
-            optim_weight_decay,
-            scheduler_args,
-            scheduler,
-        )
-
-
-class GlobalWorkspace(GlobalWorkspaceBase[GWModule, RandomSelection, GWLosses]):
-    """The 2-domain fusion (with broadcast loss) flavor of GlobalWorkspaceBase.
-
-    This is used to simplify a Global Workspace instanciation and only overrides the
-    `__init__` method.
-    """
-
-    def __init__(
-        self,
-        domain_mods: Mapping[str, DomainModule],
-        gw_encoders: Mapping[str, Module],
-        gw_decoders: Mapping[str, Module],
-        workspace_dim: int,
-        loss_coefs: BroadcastLossCoefs | Mapping[str, float],
-        selection_temperature: float = 0.2,
-        optim_lr: float = 1e-3,
-        optim_weight_decay: float = 0.0,
-        scheduler_args: SchedulerArgs | None = None,
-        learn_logit_scale: bool = False,
-        contrastive_loss: ContrastiveLossType | None = None,
-        scheduler: Callable[[Optimizer], LRScheduler]
-        | None
-        | OneCycleSchedulerSentinel = OneCycleSchedulerSentinel.DEFAULT,
-        fusion_activation_fn: Callable[[torch.Tensor], torch.Tensor] = torch.tanh,
-    ) -> None:
-        """
-        Initializes a Global Workspace
-
-        Args:
-            domain_mods (`Mapping[str, DomainModule]`): mapping of the domains
-                connected to the GW. Keys are domain names, values are the
-                `DomainModule`.
-            gw_encoders (`Mapping[str, torch.nn.Module]`): mapping for each domain
-                name to a `torch.nn.Module` class which role is to encode a
-                unimodal latent representations into a GW representation (pre fusion).
-            gw_decoders (`Mapping[str, torch.nn.Module]`): mapping for each domain
-                name to a `torch.nn.Module` class which role is to decode a
-                GW representation into a unimodal latent representations.
-            workspace_dim (`int`): dimension of the GW.
-            loss_coefs (`BroadcastLossCoefs | Mapping[str, float]`): loss coefs for the
-                losses.
-            selection_temperature (`float`): temperature value for the RandomSelection
-                module.
-            optim_lr (`float`): learning rate
-            optim_weight_decay (`float`): weight decay
-            scheduler_args (`SchedulerArgs | None`): optimization scheduler's arguments
-            learn_logit_scale (`bool`): whether to learn the contrastive learning
-                contrastive loss when using the default contrastive loss.
-            contrastive_loss (`ContrastiveLossType | None`): a contrastive loss
-                function used for alignment. `learn_logit_scale` will not affect custom
-                contrastive losses.
-            scheduler: The scheduler to use for traning. If None is explicitely given,
-                no scheduler will be used. Defaults to use OneCycleScheduler
-            fusion_activation_fn (`Callable[[torch.Tensor], torch.Tensor]`): activation
-                function to fuse the domains.
-        """
-        domain_mods = freeze_domain_modules(domain_mods)
-        gw_mod = GWModule(
-            domain_mods, workspace_dim, gw_encoders, gw_decoders, fusion_activation_fn
-        )
-
-        if contrastive_loss is None:
-            contrastive_loss = ContrastiveLoss(
-                torch.tensor([1 / 0.07]).log(), "mean", learn_logit_scale
-            )
-
-        selection_mod = RandomSelection(selection_temperature)
-        loss_mod = GWLosses(
             gw_mod, selection_mod, domain_mods, loss_coefs, contrastive_loss
         )
 

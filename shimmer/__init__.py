@@ -15,7 +15,6 @@ from shimmer.modules.global_workspace import (
     GlobalWorkspace2Domains,
     GlobalWorkspaceBase,
     SchedulerArgs,
-    batch_broadcasts,
     batch_cycles,
     batch_demi_cycles,
     batch_translations,
@@ -33,14 +32,12 @@ from shimmer.modules.gw_module import (
     translation,
 )
 from shimmer.modules.losses import (
-    BroadcastLossCoefs,
     GWLosses2Domains,
     GWLossesBase,
     LossCoefs,
     combine_loss,
 )
 from shimmer.modules.selection import (
-    RandomSelection,
     SelectionBase,
     SingleDomainSelection,
 )
