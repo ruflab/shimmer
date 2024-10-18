@@ -19,7 +19,7 @@ jobs:
         with:
           python-version: '3.11.4'
       - name: Load cached Poetry install
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         id: cached-poetry
         with: 
           path: ~/.local
@@ -39,7 +39,7 @@ jobs:
           poetry add --lock --no-interaction --source torch-cpu "torch@$torch_version"
       - name: Load cached venv
         id: cached-poetry-dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: .venv
           key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
