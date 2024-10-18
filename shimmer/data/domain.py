@@ -23,7 +23,6 @@ class DataDomain(ABC, Generic[_T]):
         self,
         dataset_path: str | Path,
         split: str,
-        max_size: int | None = None,
         transform: Callable[[Any], _T] | None = None,
         additional_args: dict[str, Any] | None = None,
     ) -> None:

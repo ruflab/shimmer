@@ -1,3 +1,4 @@
+import warnings
 from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any
@@ -65,7 +66,7 @@ class ShimmerDataset(Dataset):
             split (str): Split to use. One of 'train', 'val', 'test'.
             domain_classes (Mapping[str, type[SimpleShapesDomain]]): Classes of
                 domain loaders to include in the dataset.
-            max_size (int): Max size of the dataset.
+            max_size (int | None): Max size of the dataset.
             transforms (Mapping[str, (Any) -> Any]): Optional transforms to apply
                 to the domains. The keys are the domain names,
                 the values are the transforms.
@@ -87,14 +88,19 @@ class ShimmerDataset(Dataset):
             self.domains[domain.kind] = domain_cls(
                 dataset_path,
                 split,
-                max_size,
                 transform,
                 self.domain_args.get(domain.kind, None),
             )
 
         lengths = {len(domain) for domain in self.domains.values()}
-        assert len(lengths) == 1, "Domains have different lengths"
-        self.dataset_size = next(iter(lengths))
+        min_length = min(lengths)
+        if len(lengths) != 1:
+            warnings.warn(
+                f"Domains have different lengths. Selecting min ({min_length}).",
+                UserWarning,
+                stacklevel=2,
+            )
+        self.dataset_size = min_length
         if self.max_size is not None:
             assert (
                 self.max_size <= self.dataset_size
