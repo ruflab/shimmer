@@ -1,8 +1,0 @@
-version: 2
-updates:
-  - package-ecosystem: "pip"
-    # Files stored in repository root
-    directory: "/"
-    registries: "*"
-    schedule:
-      interval: "weekly"
