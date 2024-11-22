@@ -4,7 +4,7 @@ import torch.utils.data
 from utils import DummyDomainModule
 
 from shimmer import GlobalWorkspace2Domains, GWDecoder, GWEncoder
-from shimmer.modules.global_workspace import GlobalWorkspace
+from shimmer.modules.global_workspace import GlobalWorkspaceFusion
 
 here = Path(__file__).parent
 
@@ -54,7 +54,7 @@ def save_gw_ckpt():
         workspace_dim=16,
         loss_coefs={},
     )
-    gw = GlobalWorkspace(
+    gw = GlobalWorkspaceFusion(
         domains,
         gw_encoders,
         gw_decoders,

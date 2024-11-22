@@ -6,7 +6,7 @@ from migrate_ckpt import migrate_from_folder
 from utils import DummyDomainModule
 
 from shimmer import GlobalWorkspace2Domains, GWDecoder, GWEncoder
-from shimmer.modules.global_workspace import GlobalWorkspace
+from shimmer.modules.global_workspace import GlobalWorkspaceFusion
 from shimmer.utils import MIGRATION_DIR
 
 here = Path(__file__).parent
@@ -121,7 +121,7 @@ def test_ckpt_migration_gw():
         ),
     }
 
-    gw = GlobalWorkspace(
+    gw = GlobalWorkspaceFusion(
         domains,
         gw_encoders,
         gw_decoders,
