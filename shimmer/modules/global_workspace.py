@@ -721,8 +721,8 @@ class GlobalWorkspace2Domains(
         )
 
 
-class GlobalWorkspace(GlobalWorkspaceBase[GWModule, RandomSelection, GWLosses]):
-    """The 2-domain fusion (with broadcast loss) flavor of GlobalWorkspaceBase.
+class GlobalWorkspaceFusion(GlobalWorkspaceBase[GWModule, RandomSelection, GWLosses]):
+    """The fusion (with broadcast loss) flavor of GlobalWorkspaceBase.
 
     This is used to simplify a Global Workspace instanciation and only overrides the
     `__init__` method.
@@ -841,10 +841,10 @@ def pretrained_global_workspace(
         fusion_activation_fn (`Callable[[torch.Tensor], torch.Tensor]`): activation
             function to fuse the domains.
         **kwargs: additional arguments to pass to
-            `GlobalWorkspace.load_from_checkpoint`.
+            `GlobalWorkspace2Domains.load_from_checkpoint`.
 
     Returns:
-        `GlobalWorkspace`: the pretrained `GlobalWorkspace`.
+        `GlobalWorkspace2Domains`: the pretrained `GlobalWorkspace2Domains`.
 
     Raises:
         `TypeError`: if loaded type is not `GlobalWorkspace`.
