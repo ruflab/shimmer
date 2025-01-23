@@ -7,7 +7,7 @@ The project requires Python 3.11. Make sure that you have a compatible version.
 Using [Pyenv](https://github.com/pyenv/pyenv) is an easy way to get the right
 python version.
 
-We use [poetry](https://python-poetry.org/) as our package manager,
+We use [poetry](https://python-poetry.org/) (version >= 2) as our package manager,
 so make sure it is installed and you have run `poetry install` in your directory.
 
 When you add features or change APIs, update `CHANGELOG.md` to track new changes.
@@ -25,7 +25,7 @@ This project is fully typed, so any contribution should provide typing annotatio
 
 To run the tools locally, make sure that you have installed dependencies with dev group:
 ```sh
-poetry install --sync
+poetry sync --with dev
 ```
 
 Then you can run:

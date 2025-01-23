@@ -23,12 +23,10 @@ shimmer@git+https://github.com/ruflab/shimmer.git@main
 Or in your `pyproject.toml` following your package manager instructions.
 This project uses [poetry](https://python-poetry.org/).
 
-Using poetry, you can add:
-```toml
-shimmer = {git = "git@github.com:ruflab/shimmer.git", rev = "main"}
+Using poetry, you can do:
 ```
-
-in the `tool.poetry.dependencies` section.
+poetry add git@github.com:ruflab/shimmer.git
+```
 
 # For contributing
 If you want to contribute for bug correction or new features, follow instructions in [CONTRIBUTING.md](../CONTRIBUTING.md).
