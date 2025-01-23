@@ -22,10 +22,12 @@ jobs:
         id: cached-poetry
         with: 
           path: ~/.local
-          key: poetry-0
+          key: poetry-1
       - name: Install Poetry
         if: steps.cached-poetry.outputs.cache-hit != 'true'
         uses: snok/install-poetry@v1
+        with:
+            version: 2.0.1
       - name: Poetry config
         run: |
           poetry config virtualenvs.create true
@@ -44,7 +46,7 @@ jobs:
           key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
       - name: Install dependencies
         if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
-        run: poetry install --no-interaction --with test,dev,docs
+        run: poetry sync --no-interaction --with dev
       - run: poetry run python ./docs/make.py
       - uses: actions/upload-pages-artifact@v3
         with:
