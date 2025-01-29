@@ -1027,7 +1027,7 @@ develop = false
 
 [package.source]
 type = "git"
-url = "https://github.com/bdvllrs/migrate-ckpt.git"
+url = "https://github.com/ruflab/migrate-ckpt.git"
 reference = "v0.2.0"
 resolved_reference = "6a78a0cfd6abafa77310307025581eb2d62bcde7"
 
@@ -2590,4 +2590,4 @@ propcache = ">=0.2.0"
 [metadata]
 lock-version = "2.1"
 python-versions = "~3.11"
-content-hash = "30e02fcf965797f1bcb743f4dfa0c07f94df65cf55391b072e9c8405b78d241a"
+content-hash = "9a89447154eaf206e7815f059f590c970863d33dfc5501179720a0c0eda9262c"

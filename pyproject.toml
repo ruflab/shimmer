@@ -15,7 +15,7 @@ dependencies = [
     "numpy (>=1.26.0,<2.0.0)",
     "pandas (>=2.2.2,<3.0.0)",
     "matplotlib (>=3.9.1,<4.0.0)",
-    "migrate-ckpt @ git+https://github.com/bdvllrs/migrate-ckpt.git@v0.2.0",
+    "migrate-ckpt @ git+https://github.com/ruflab/migrate-ckpt.git@v0.2.0",
     "click (>=8.1.7,<9.0.0)",
     "lightning (>=2.1.0,<3.0.0)",
     "torch (>=2.0.1,<3.0.0)",
