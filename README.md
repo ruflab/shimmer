@@ -12,6 +12,9 @@ You can find a code example in the `examples` folder.
 ## Tutorial
 You can also follow a tutorial on the basics of shimmer [here](docs/shimmer_basics.md).
 
+For a hands-on tutorial on real data, see
+[here](https://github.com/ruflab/shimmer-tutorials).
+
 You can also find some additional information in the [Q&A](docs/q_and_a.md).
 
 ## API Documentation
