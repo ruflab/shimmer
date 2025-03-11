@@ -763,7 +763,7 @@ class GWLosses(GWLossesBase):
             [
                 metrics[name]
                 for name, coef in self.loss_coefs.items()
-                if isinstance(coef, float) and coef > 0 and name != "contrastives"
+                if isinstance(coef, float) and name != "contrastives"
             ],
             dim=0,
         ).mean()
