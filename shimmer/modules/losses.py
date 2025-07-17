@@ -255,11 +255,9 @@ def contrastive_loss(
     """
     losses: dict[str, torch.Tensor] = {}
     metrics: dict[str, torch.Tensor] = {}
-    keys: list[set[str]] = []
 
     for latents in latent_domains.values():
-        if len(latents) != 2:
-            continue
+        keys: list[set[str]] = []
 
         cont_latents = gw_mod.encode(latents)
         for domain1, z1 in cont_latents.items():
@@ -270,7 +268,10 @@ def contrastive_loss(
 
                 keys.append(selected_domains)
 
-                loss_name = f"contrastive_{domain1}_and_{domain2}"
+                loss_name = (
+                    f"contrastive_{domain1}_and_{domain2}_keys_"
+                    f"{'_'.join(latents.keys())}"
+                )
                 loss_output = contrastive_fn(z1, z2)
                 losses[loss_name] = loss_output.loss
                 metrics.update(
@@ -763,7 +764,7 @@ class GWLosses(GWLossesBase):
             [
                 metrics[name]
                 for name, coef in self.loss_coefs.items()
-                if isinstance(coef, float) and coef > 0 and name != "contrastives"
+                if isinstance(coef, float) and name != "contrastives"
             ],
             dim=0,
         ).mean()
