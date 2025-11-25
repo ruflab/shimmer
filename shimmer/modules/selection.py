@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 
 import torch
 import torch.nn as nn
@@ -219,14 +219,23 @@ class ContentQ0SharedKeysSingleStep(SelectionBase):
 
         return {d: probs[:, i] for i, d in enumerate(names)}
 
-    def forward(self, gw_latents: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
+    def forward(
+        self,
+        domains: LatentsDomainGroupT,
+        encodings_pre_fusion: LatentsDomainGroupT | None = None,
+    ) -> dict[str, torch.Tensor]:
         """
         Args:
-            gw_latents: mapping from domain name to GW latent (B, gw_dim)
+            domains: mapping from domain name to GW latent (B, gw_dim)
+            encodings_pre_fusion: unused; kept for `SelectionBase` compatibility.
 
         Returns:
             dict[str, torch.Tensor]: per-domain attention weights.
         """
+        del encodings_pre_fusion  # unused
+
+        gw_latents: Mapping[str, torch.Tensor] = domains
+
         present = [d for d in self.domain_names if d in gw_latents]
         if not present:
             raise ValueError(
@@ -252,12 +261,6 @@ class ContentQ0SharedKeysSingleStep(SelectionBase):
             query=query,
             order=self.domain_names,
         )
-
-    def __call__(
-        self, encodings: LatentsDomainGroupT, gw_latents: dict[str, torch.Tensor]
-    ) -> dict[str, torch.Tensor]:
-        # The first argument is ignored for compatibility with SelectionBase signature.
-        return self.forward(gw_latents)
 
 
 class RandomSelection(SelectionBase):
