@@ -731,9 +731,7 @@ class GlobalWorkspace2Domains(
         return selection
 
 
-class GlobalWorkspaceFusion(
-    GlobalWorkspaceBase[GWModule, SelectionBase, GWLosses]
-):
+class GlobalWorkspaceFusion(GlobalWorkspaceBase[GWModule, SelectionBase, GWLosses]):
     """The fusion (with broadcast loss) flavor of GlobalWorkspaceBase.
 
     This is used to simplify a Global Workspace instanciation and only overrides the
