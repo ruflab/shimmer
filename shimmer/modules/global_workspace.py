@@ -290,6 +290,30 @@ class GlobalWorkspaceBase(
         """Dimension of the GW."""
         return self.gw_mod.workspace_dim
 
+    def init_learned_attention(
+        self,
+        head_size: int = 64,
+        per_domain_keys: bool = False,
+        stopgrad: bool = True,
+    ) -> ContentQ0SharedKeysSingleStep:
+        """
+        Initialize and attach a learned content-based attention module.
+
+        This replaces `self.selection_mod` with a
+        `ContentQ0SharedKeysSingleStep` configured for the current workspace
+        (uses `workspace_dim` and domain names from `domain_mods`), ensuring its
+        parameters are tracked by Lightning/torch.
+        """
+        selection = ContentQ0SharedKeysSingleStep(
+            gw_dim=self.workspace_dim,
+            domain_names=self.domain_mods.keys(),
+            head_size=head_size,
+            per_domain_keys=per_domain_keys,
+            stopgrad=stopgrad,
+        )
+        self.selection_mod = selection
+        return selection
+
     def encode_and_fuse(
         self, x: LatentsDomainGroupsT, selection_module: SelectionBase
     ) -> dict[frozenset[str], torch.Tensor]:
@@ -751,11 +775,10 @@ class GlobalWorkspaceFusion(
             workspace_dim (`int`): dimension of the GW.
             loss_coefs (`BroadcastLossCoefs | Mapping[str, float]`): loss coefs for the
                 losses.
-            selection_temperature (`float`): legacy temperature argument kept for
-                compatibility; ignored unless a custom `selection_mod` uses it.
+            selection_temperature (`float`): temperature value for the RandomSelection
+                module (default selection).
             selection_mod (`SelectionBase | None`): optional custom selection module.
-                If None (default), uses `ContentQ0SharedKeysSingleStep` with default
-                toggles.
+                If None (default), uses `RandomSelection`.
             optim_lr (`float`): learning rate
             optim_weight_decay (`float`): weight decay
             scheduler_args (`SchedulerArgs | None`): optimization scheduler's arguments
@@ -780,9 +803,7 @@ class GlobalWorkspaceFusion(
             )
 
         if selection_mod is None:
-            selection_mod = ContentQ0SharedKeysSingleStep(
-                gw_dim=workspace_dim, domain_names=domain_mods.keys()
-            )
+            selection_mod = RandomSelection(selection_temperature)
         loss_mod = GWLosses(
             gw_mod, selection_mod, domain_mods, loss_coefs, contrastive_loss
         )
