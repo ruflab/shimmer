@@ -36,7 +36,6 @@ def test_broadcast_loss():
     gw_decoders = {"domain1": nn.Linear(10, 10), "domain2": nn.Linear(10, 10)}
     workspace_dim = 10
     loss_coefs: BroadcastLossCoefs = {
-        "fused": 1.0,
         "cycles": 1.0,
         "demi_cycles": 1.0,
         "translations": 1.0,
@@ -68,11 +67,8 @@ def test_broadcast_loss():
     # Test broadcast_loss with the corrected structure
     output = gw_fusion.loss_mod.broadcast_loss(latent_domains, latent_domains)
 
-    er_msg = "Demi-cycle, cycle, fused and translation metrics should be in the output."
-    assert all(
-        metric in output
-        for metric in ["demi_cycles", "cycles", "translations", "fused"]
-    ), er_msg
+    er_msg = "Demi-cycle, cycle and translation metrics should be in the output."
+    assert all(metric in output for metric in ["demi_cycles", "cycles", "translations"])
 
     er_msg = "Losses should be scalar tensors or 1D tensor with size equal to one."
     assert all(
