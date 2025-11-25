@@ -29,6 +29,7 @@ from shimmer.modules.losses import (
     LossCoefs,
 )
 from shimmer.modules.selection import (
+    ContentQ0SharedKeysSingleStep,
     RandomSelection,
     SelectionBase,
     SingleDomainSelection,
@@ -706,7 +707,9 @@ class GlobalWorkspace2Domains(
         )
 
 
-class GlobalWorkspaceFusion(GlobalWorkspaceBase[GWModule, RandomSelection, GWLosses]):
+class GlobalWorkspaceFusion(
+    GlobalWorkspaceBase[GWModule, SelectionBase, GWLosses]
+):
     """The fusion (with broadcast loss) flavor of GlobalWorkspaceBase.
 
     This is used to simplify a Global Workspace instanciation and only overrides the
@@ -721,6 +724,7 @@ class GlobalWorkspaceFusion(GlobalWorkspaceBase[GWModule, RandomSelection, GWLos
         workspace_dim: int,
         loss_coefs: BroadcastLossCoefs | Mapping[str, float],
         selection_temperature: float = 0.2,
+        selection_mod: SelectionBase | None = None,
         optim_lr: float = 1e-3,
         optim_weight_decay: float = 0.0,
         scheduler_args: SchedulerArgs | None = None,
@@ -747,8 +751,11 @@ class GlobalWorkspaceFusion(GlobalWorkspaceBase[GWModule, RandomSelection, GWLos
             workspace_dim (`int`): dimension of the GW.
             loss_coefs (`BroadcastLossCoefs | Mapping[str, float]`): loss coefs for the
                 losses.
-            selection_temperature (`float`): temperature value for the RandomSelection
-                module.
+            selection_temperature (`float`): legacy temperature argument kept for
+                compatibility; ignored unless a custom `selection_mod` uses it.
+            selection_mod (`SelectionBase | None`): optional custom selection module.
+                If None (default), uses `ContentQ0SharedKeysSingleStep` with default
+                toggles.
             optim_lr (`float`): learning rate
             optim_weight_decay (`float`): weight decay
             scheduler_args (`SchedulerArgs | None`): optimization scheduler's arguments
@@ -772,7 +779,10 @@ class GlobalWorkspaceFusion(GlobalWorkspaceBase[GWModule, RandomSelection, GWLos
                 torch.tensor([1 / 0.07]).log(), "mean", learn_logit_scale
             )
 
-        selection_mod = RandomSelection(selection_temperature)
+        if selection_mod is None:
+            selection_mod = ContentQ0SharedKeysSingleStep(
+                gw_dim=workspace_dim, domain_names=domain_mods.keys()
+            )
         loss_mod = GWLosses(
             gw_mod, selection_mod, domain_mods, loss_coefs, contrastive_loss
         )
