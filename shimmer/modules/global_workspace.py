@@ -290,30 +290,6 @@ class GlobalWorkspaceBase(
         """Dimension of the GW."""
         return self.gw_mod.workspace_dim
 
-    def init_learned_attention(
-        self,
-        head_size: int = 64,
-        per_domain_keys: bool = False,
-        stopgrad: bool = True,
-    ) -> ContentQ0SharedKeysSingleStep:
-        """
-        Initialize and attach a learned content-based attention module.
-
-        This replaces `self.selection_mod` with a
-        `ContentQ0SharedKeysSingleStep` configured for the current workspace
-        (uses `workspace_dim` and domain names from `domain_mods`), ensuring its
-        parameters are tracked by Lightning/torch.
-        """
-        selection = ContentQ0SharedKeysSingleStep(
-            gw_dim=self.workspace_dim,
-            domain_names=self.domain_mods.keys(),
-            head_size=head_size,
-            per_domain_keys=per_domain_keys,
-            stopgrad=stopgrad,
-        )
-        self.selection_mod = selection
-        return selection
-
     def encode_and_fuse(
         self, x: LatentsDomainGroupsT, selection_module: SelectionBase
     ) -> dict[frozenset[str], torch.Tensor]:
@@ -729,6 +705,30 @@ class GlobalWorkspace2Domains(
             scheduler_args,
             scheduler,
         )
+
+    def init_learned_attention(
+        self,
+        head_size: int = 64,
+        per_domain_keys: bool = False,
+        stopgrad: bool = True,
+    ) -> ContentQ0SharedKeysSingleStep:
+        """
+        Initialize and attach a learned content-based attention module.
+
+        This replaces `self.selection_mod` with a
+        `ContentQ0SharedKeysSingleStep` configured for the current workspace
+        (uses `workspace_dim` and domain names from `domain_mods`), ensuring its
+        parameters are tracked by Lightning/torch.
+        """
+        selection = ContentQ0SharedKeysSingleStep(
+            gw_dim=self.workspace_dim,
+            domain_names=self.domain_mods.keys(),
+            head_size=head_size,
+            per_domain_keys=per_domain_keys,
+            stopgrad=stopgrad,
+        )
+        self.selection_mod = selection
+        return selection
 
 
 class GlobalWorkspaceFusion(
