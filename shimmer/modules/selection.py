@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
-from typing import Dict
 
 import torch
 import torch.nn as nn
@@ -193,7 +192,7 @@ class ContentQ0SharedKeysSingleStep(SelectionBase):
 
     @staticmethod
     def _calc_attention(
-        keys: Dict[str, torch.Tensor],
+        keys: dict[str, torch.Tensor],
         query: torch.Tensor,
         order: Iterable[str],
     ) -> dict[str, torch.Tensor]:
