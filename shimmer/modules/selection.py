@@ -150,7 +150,7 @@ def _calculate_attention_dict(
     attention_dict = {
         domain: attention_scores[:, i] for i, domain in enumerate(domains)
     }
-        return attention_dict
+    return attention_dict
 
 
 class ContentQ0SharedKeysSingleStep(SelectionBase):
