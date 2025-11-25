@@ -706,6 +706,7 @@ class GlobalWorkspace2Domains(
             scheduler,
         )
 
+
 class GlobalWorkspaceFusion(GlobalWorkspaceBase[GWModule, SelectionBase, GWLosses]):
     """The fusion (with broadcast loss) flavor of GlobalWorkspaceBase.
 
