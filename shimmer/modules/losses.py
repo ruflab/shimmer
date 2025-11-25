@@ -317,11 +317,8 @@ class BroadcastLossCoefs(TypedDict, total=False):
     contrastives: float
     """Contrastive loss coefficient."""
 
-    fused: float
-    """fused loss coefficient (encode multiple domains and decode to one of them)."""
-
     demi_cycles: float
-    """demi_cycles loss coefficient. Demi-cycles are always one-to-one"""
+    """demi_cycles loss coefficient. Demi-cycles aggregate fused cases too."""
 
     cycles: float
     """cycles loss coefficient. Cycles can be many-to-one"""
@@ -524,19 +521,19 @@ def broadcast_loss(
     raw_data: RawDomainGroupsT,
 ) -> dict[str, torch.Tensor]:
     """
-    Computes broadcast loss including demi-cycle, cycle, and translation losses.
+    Computes broadcast loss including demi-cycle (with fused), cycle, and translation
+    losses.
 
     This return multiple metrics:
         * `demi_cycles`
         * `cycles`
         * `translations`
-        * `fused`
         * `from_{start_group}_to_{domain}_loss` where `{start_group}` is of the form
             "{domain1,domain2,domainN}" sorted in alphabetical order
-            (e.g. "from_{t,v}_to_t_loss").
-        * `from_{start_group}_to_{domain}_{metric}` with
-            additional metrics provided by the domain_mod's
-            `compute_broadcast_loss` output
+            (e.g. "from_{t,v}_to_t_loss"). Note: fused cases are aggregated into
+            `demi_cycles`.
+        * `from_{start_group}_to_{domain}_{metric}` with additional metrics provided by
+            the domain_mod's `compute_broadcast_loss` output
         * `from_{start_group}_through_{target_group}_to_{domain}_case_{case_group}_loss`
             where `{start_group}`, `{target_group}` and `{case_group}` is of the form
             "{domain1,domain2,domainN}" sorted in alphabetical order
@@ -563,7 +560,6 @@ def broadcast_loss(
     demi_cycle_losses: list[str] = []
     cycle_losses: list[str] = []
     translation_losses: list[str] = []
-    fused_losses: list[str] = []
 
     for group_domains, latents in latent_domains.items():
         encoded_latents = gw_mod.encode(latents)
@@ -616,8 +612,8 @@ def broadcast_loss(
                     demi_cycle_losses.append(loss_label + "_loss")
                 elif domain not in selected_latents:
                     translation_losses.append(loss_label + "_loss")
-                else:  # fused loss
-                    fused_losses.append(loss_label + "_loss")
+                else:  # fused loss counts toward demi_cycles aggregate
+                    demi_cycle_losses.append(loss_label + "_loss")
 
             if num_active_domains < num_total_domains:
                 inverse_selected_latents = {
@@ -673,10 +669,6 @@ def broadcast_loss(
     if translation_losses:
         metrics["translations"] = torch.mean(
             torch.stack([losses[loss_name] for loss_name in translation_losses])
-        )
-    if fused_losses:
-        metrics["fused"] = torch.mean(
-            torch.stack([losses[loss_name] for loss_name in fused_losses])
         )
 
     metrics.update(losses)
