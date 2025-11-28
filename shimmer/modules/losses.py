@@ -594,7 +594,7 @@ def broadcast_loss(
                 elif domain not in selected_latents:
                     loss_fn = domain_mods[domain].compute_tr_loss
                 else:
-                    loss_fn = domain_mods[domain].compute_fused_loss
+                    loss_fn = domain_mods[domain].compute_dcy_loss
 
                 loss_output = loss_fn(
                     pred, ground_truth, raw_data[group_domains][domain]
