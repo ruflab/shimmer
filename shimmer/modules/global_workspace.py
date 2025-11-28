@@ -66,7 +66,7 @@ class GWPredictionsBase(TypedDict):
     broadcasts: dict[frozenset[str], dict[str, torch.Tensor]]
     """
     broadcasts predictions of the model for each domain. It contains demi-cycles,
-    translations, and fused.
+    translations.
     """
 
     cycles: dict[frozenset[str], dict[str, torch.Tensor]]

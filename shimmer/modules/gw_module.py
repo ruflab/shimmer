@@ -217,7 +217,7 @@ class GWModulePrediction(TypedDict):
     broadcasts: dict[str, torch.Tensor]
     """
     broadcasts predictions of the model for each domain. It contains demi-cycles,
-    translations, and fused.
+    translations.
     """
 
     cycles: dict[str, torch.Tensor]
