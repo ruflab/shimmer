@@ -14,7 +14,7 @@ def test_learned_attention_probs_sum_to_one() -> None:
     selector = LearnedAttention(gw_dim=4, domain_names=["a", "b"], head_size=2)
     latents = _make_latents(batch_size=8, dim=4)
 
-    weights = selector(latents, encodings_pre_fusion=None)
+    weights = selector(latents, encodings_pre_fusion=latents)
 
     for domain in ["a", "b"]:
         assert weights[domain].shape == (8,)
@@ -32,7 +32,9 @@ def test_learned_attention_stopgrad_toggle() -> None:
     frozen_selector = LearnedAttention(
         gw_dim=6, domain_names=["a", "b"], head_size=3, stopgrad=True
     )
-    frozen_weights = frozen_selector(frozen_latents, encodings_pre_fusion=None)
+    frozen_weights = frozen_selector(
+        frozen_latents, encodings_pre_fusion=frozen_latents
+    )
     torch.stack(list(frozen_weights.values())).sum().backward()
     assert frozen_latents["a"].grad is None
     assert frozen_latents["b"].grad is None
@@ -43,7 +45,9 @@ def test_learned_attention_stopgrad_toggle() -> None:
     trainable_selector = LearnedAttention(
         gw_dim=6, domain_names=["a", "b"], head_size=3, stopgrad=False
     )
-    trainable_weights = trainable_selector(train_latents, encodings_pre_fusion=None)
+    trainable_weights = trainable_selector(
+        train_latents, encodings_pre_fusion=train_latents
+    )
     torch.stack(list(trainable_weights.values())).sum().backward()
     assert train_latents["a"].grad is not None
     assert train_latents["b"].grad is not None
