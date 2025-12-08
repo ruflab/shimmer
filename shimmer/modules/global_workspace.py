@@ -29,7 +29,7 @@ from shimmer.modules.losses import (
     LossCoefs,
 )
 from shimmer.modules.selection import (
-    ContentQ0SharedKeysSingleStep,
+    LearnedAttention,
     RandomSelection,
     SelectionBase,
     SingleDomainSelection,
@@ -797,16 +797,15 @@ class GlobalWorkspaceFusion(GlobalWorkspaceBase[GWModule, SelectionBase, GWLosse
         head_size: int = 64,
         per_domain_keys: bool = False,
         stopgrad: bool = True,
-    ) -> ContentQ0SharedKeysSingleStep:
+    ) -> LearnedAttention:
         """
         Initialize and attach a learned content-based attention module.
 
-        This replaces `self.selection_mod` with a
-        `ContentQ0SharedKeysSingleStep` configured for the current workspace
-        (uses `workspace_dim` and domain names from `domain_mods`), ensuring its
-        parameters are tracked by Lightning/torch.
+        This replaces `self.selection_mod` with a `LearnedAttention` configured for
+        the current workspace (uses `workspace_dim` and domain names from
+        `domain_mods`), ensuring its parameters are tracked by Lightning/torch.
         """
-        selection = ContentQ0SharedKeysSingleStep(
+        selection = LearnedAttention(
             gw_dim=self.workspace_dim,
             domain_names=self.domain_mods.keys(),
             head_size=head_size,

@@ -40,7 +40,7 @@ from shimmer.modules.losses import (
     combine_loss,
 )
 from shimmer.modules.selection import (
-    ContentQ0SharedKeysSingleStep,
+    LearnedAttention,
     RandomSelection,
     SelectionBase,
     SingleDomainSelection,
@@ -104,7 +104,7 @@ __all__ = [
     "RandomSelection",
     "SelectionBase",
     "SingleDomainSelection",
-    "ContentQ0SharedKeysSingleStep",
+    "LearnedAttention",
     "DomainDesc",
     "RepeatedDataset",
     "ShimmerDataset",

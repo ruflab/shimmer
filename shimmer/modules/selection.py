@@ -152,7 +152,7 @@ def _calculate_attention_dict(
     return attention_dict
 
 
-class ContentQ0SharedKeysSingleStep(SelectionBase):
+class LearnedAttention(SelectionBase):
     """
     Content-based single-step attention over GW latents with configurable toggles.
 
@@ -209,7 +209,7 @@ class ContentQ0SharedKeysSingleStep(SelectionBase):
         """
         names = [d for d in order if d in keys]
         if not names:
-            raise ValueError("ContentQ0SharedKeysSingleStep: no keys provided.")
+            raise ValueError("LearnedAttention: no keys provided.")
 
         logits = torch.stack(
             [(keys[d] * query).sum(dim=1) for d in names], dim=1
@@ -239,7 +239,7 @@ class ContentQ0SharedKeysSingleStep(SelectionBase):
         present = [d for d in self.domain_names if d in gw_latents]
         if not present:
             raise ValueError(
-                "ContentQ0SharedKeysSingleStep: no known domains present in gw_latents."
+                "LearnedAttention: no known domains present in gw_latents."
             )
 
         if self.stopgrad:
