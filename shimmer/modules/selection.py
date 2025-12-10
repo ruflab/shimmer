@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from collections.abc import Iterable, Mapping
+from typing import cast
 
 import torch
 import torch.nn as nn
@@ -185,7 +186,7 @@ class LearnedAttention(SelectionBase):
 
         # Projections
         self.query_layer = nn.Linear(self.gw_dim, self.head_size)
-        self.per_key_layers: nn.ModuleDict[str, nn.Linear] | None
+        self.per_key_layers: nn.ModuleDict | None
         self.shared_key_layer: nn.Linear | None
         if self.per_domain_keys:
             self.per_key_layers = nn.ModuleDict(
@@ -258,7 +259,10 @@ class LearnedAttention(SelectionBase):
                 raise RuntimeError(
                     "per_domain_keys=True but per-domain key layers are missing."
                 )
-            keys = {d: self.per_key_layers[d](gw_latents[d]) for d in present}
+            keys = {
+                d: cast(nn.Linear, self.per_key_layers[d])(gw_latents[d])
+                for d in present
+            }
         else:
             if self.shared_key_layer is None:
                 raise RuntimeError(
