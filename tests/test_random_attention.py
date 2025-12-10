@@ -29,9 +29,9 @@ def test_multiple_domains():
 
     expected_sum = torch.ones(batch_size)
 
-    assert torch.allclose(scores_sum, expected_sum), (
-        "Sum of selection scores across domains should be 1"
-    )
+    assert torch.allclose(
+        scores_sum, expected_sum
+    ), "Sum of selection scores across domains should be 1"
 
 
 def test_three_domains():
@@ -56,9 +56,9 @@ def test_three_domains():
 
     # Ensure that the shape of the selection scores matches the input domains
     for domain in three_domain_input:
-        assert selection_scores[domain].shape == (batch_size,), (
-            f"Scores shape mismatch for {domain}"
-        )
+        assert selection_scores[domain].shape == (
+            batch_size,
+        ), f"Scores shape mismatch for {domain}"
 
     # Ensure the sum of attention scores across domains equals 1
     scores_sum = sum(
@@ -68,6 +68,6 @@ def test_three_domains():
 
     expected_sum = torch.ones(batch_size)
 
-    assert torch.allclose(scores_sum, expected_sum), (
-        "Sum of selection scores across three domains should be 1"
-    )
+    assert torch.allclose(
+        scores_sum, expected_sum
+    ), "Sum of selection scores across three domains should be 1"

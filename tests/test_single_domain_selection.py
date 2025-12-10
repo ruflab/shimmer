@@ -27,9 +27,9 @@ def test_selection_2_domains():
     selection: dict[str, torch.Tensor] = selection_mod(domains, prefusion_encodings)
 
     assert len(selection) == len(domains)
-    assert ((selection["v"] + selection["t"]) == 1).sum() == bs, (
-        "Everything should be selected once and only once."
-    )
+    assert (
+        (selection["v"] + selection["t"]) == 1
+    ).sum() == bs, "Everything should be selected once and only once."
 
 
 def test_selection_3_domains():
@@ -50,6 +50,6 @@ def test_selection_3_domains():
     selection: dict[str, torch.Tensor] = selection_mod(domains, prefusion_encodings)
 
     assert len(selection) == len(domains)
-    assert ((selection["v"] + selection["t"] + selection["attr"]) == 1).sum() == bs, (
-        "Everything should be selected once and only once."
-    )
+    assert (
+        (selection["v"] + selection["t"] + selection["attr"]) == 1
+    ).sum() == bs, "Everything should be selected once and only once."

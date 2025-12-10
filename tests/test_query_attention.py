@@ -59,9 +59,9 @@ def test_single_domain():
     attention_scores = attention(single_domain_input, prefusion_encodings)
 
     expected_scores = torch.ones(batch_size, 1)
-    assert torch.allclose(attention_scores["v_latents"], expected_scores), (
-        "Attention scores for single domain should be all 1s"
-    )
+    assert torch.allclose(
+        attention_scores["v_latents"], expected_scores
+    ), "Attention scores for single domain should be all 1s"
 
 
 def test_multiple_domains_sumis1():
@@ -89,9 +89,9 @@ def test_multiple_domains_sumis1():
 
     expected_sum = torch.ones(batch_size)
 
-    assert torch.allclose(scores_sum, expected_sum), (
-        "Sum of attention scores across domains should be 1"
-    )
+    assert torch.allclose(
+        scores_sum, expected_sum
+    ), "Sum of attention scores across domains should be 1"
 
 
 def test_attention_backward():

@@ -166,3 +166,4 @@ cython_debug/
 .rgignore
 
 .ruff_cache/
+.poetry_cache/
