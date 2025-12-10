@@ -358,13 +358,13 @@ def combine_loss(
 
 
 class CycleCase(TypedDict):
-    """Container for precomputed cycle data to avoid recomputation."""
+    """Container for precomputed cycle inputs to avoid recomputation."""
 
-    loss_label: str
-    domain_name: str
-    prediction: torch.Tensor
-    target: torch.Tensor
-    raw_target: object
+    group_name: str
+    selected_group_label: str
+    selected_latents: Mapping[str, torch.Tensor]
+    decoded_latents: Mapping[str, torch.Tensor]
+    raw_group: Mapping[str, object]
 
 
 class BroadcastLossResult(TypedDict):
@@ -372,7 +372,7 @@ class BroadcastLossResult(TypedDict):
     Broadcast loss output without cycle computation.
 
     `metrics` contains demi-cycle/translation metrics and per-example losses.
-    `cycle_cases` holds precomputed tensors/labels for later cycle loss computation.
+    `cycle_cases` holds precomputed inputs for later cycle loss computation.
     """
 
     metrics: dict[str, torch.Tensor]
@@ -638,40 +638,15 @@ def broadcast_loss(
                     demi_cycle_losses.append(loss_label + "_loss")
 
             if num_active_domains < num_total_domains:
-                inverse_selected_latents = {
-                    domain: decoded_latents[domain]
-                    for domain in decoded_latents
-                    if domain not in selected_latents
-                }
-
-                inverse_selected_group_label = (
-                    "{" + ",".join(sorted(inverse_selected_latents)) + "}"
-                )
-
-                re_encoded_latents = gw_mod.encode(inverse_selected_latents)
-                re_selection_scores = selection_mod(
-                    inverse_selected_latents, re_encoded_latents
-                )
-                re_fused_latents = gw_mod.fuse(re_encoded_latents, re_selection_scores)
-                re_decoded_latents = gw_mod.decode(
-                    re_fused_latents, domains=selected_latents.keys()
-                )
-
-                for domain in selected_latents:
-                    loss_label = (
-                        f"from_{selected_group_label}_"
-                        f"through_{inverse_selected_group_label}_to_{domain}_"
-                        f"case_{group_name}"
+                cycle_cases.append(
+                    CycleCase(
+                        group_name=group_name,
+                        selected_group_label=selected_group_label,
+                        selected_latents=selected_latents,
+                        decoded_latents=decoded_latents,
+                        raw_group=raw_data[group_domains],
                     )
-                    cycle_cases.append(
-                        CycleCase(
-                            loss_label=loss_label,
-                            domain_name=domain,
-                            prediction=re_decoded_latents[domain],
-                            target=latents[domain],
-                            raw_target=raw_data[group_domains][domain],
-                        )
-                    )
+                )
 
     if demi_cycle_losses:
         metrics["demi_cycles"] = torch.mean(
@@ -687,6 +662,8 @@ def broadcast_loss(
 
 
 def cycle_loss_from_broadcast(
+    gw_mod: GWModuleBase,
+    selection_mod: SelectionBase,
     domain_mods: Mapping[str, DomainModule],
     cycle_cases: list[CycleCase],
 ) -> dict[str, torch.Tensor]:
@@ -694,6 +671,8 @@ def cycle_loss_from_broadcast(
     Computes cycle losses from precomputed broadcast artifacts.
 
     Args:
+        gw_mod: GW module used for encoding/decoding.
+        selection_mod: selection module used during fusion.
         domain_mods: domain modules used to compute the losses.
         cycle_cases: precomputed cycle data produced by `broadcast_loss`.
 
@@ -704,15 +683,41 @@ def cycle_loss_from_broadcast(
     cycle_losses: list[str] = []
 
     for case in cycle_cases:
-        loss_output = domain_mods[case["domain_name"]].compute_cy_loss(
-            case["prediction"], case["target"], case["raw_target"]
+        inverse_selected_latents = {
+            domain: case["decoded_latents"][domain]
+            for domain in case["decoded_latents"]
+            if domain not in case["selected_latents"]
+        }
+        inverse_selected_group_label = (
+            "{" + ",".join(sorted(inverse_selected_latents)) + "}"
         )
-        if loss_output is None:
-            continue
-        loss_name = case["loss_label"]
-        metrics[loss_name + "_loss"] = loss_output.loss
-        metrics.update({f"{loss_name}_{k}": v for k, v in loss_output.metrics.items()})
-        cycle_losses.append(loss_name + "_loss")
+
+        re_encoded_latents = gw_mod.encode(inverse_selected_latents)
+        re_selection_scores = selection_mod(
+            inverse_selected_latents, re_encoded_latents
+        )
+        re_fused_latents = gw_mod.fuse(re_encoded_latents, re_selection_scores)
+        re_decoded_latents = gw_mod.decode(
+            re_fused_latents, domains=case["selected_latents"].keys()
+        )
+
+        for domain, target in case["selected_latents"].items():
+            loss_name = (
+                f"from_{case['selected_group_label']}_"
+                f"through_{inverse_selected_group_label}_to_{domain}_"
+                f"case_{case['group_name']}"
+            )
+            loss_output = domain_mods[domain].compute_cy_loss(
+                re_decoded_latents[domain], target, case["raw_group"][domain]
+            )
+            if loss_output is None:
+                continue
+
+            metrics[loss_name + "_loss"] = loss_output.loss
+            metrics.update(
+                {f"{loss_name}_{k}": v for k, v in loss_output.metrics.items()}
+            )
+            cycle_losses.append(loss_name + "_loss")
 
     if cycle_losses:
         metrics["cycles"] = torch.mean(
@@ -798,7 +803,12 @@ class GWLosses(GWLossesBase):
         broadcast_result = self.broadcast_loss(domain_latents, raw_data)
         metrics.update(broadcast_result["metrics"])
         metrics.update(
-            cycle_loss_from_broadcast(self.domain_mods, broadcast_result["cycle_cases"])
+            cycle_loss_from_broadcast(
+                self.gw_mod,
+                self.selection_mod,
+                self.domain_mods,
+                broadcast_result["cycle_cases"],
+            )
         )
 
         loss = combine_loss(metrics, self.loss_coefs)
