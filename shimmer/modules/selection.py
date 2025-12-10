@@ -185,6 +185,8 @@ class LearnedAttention(SelectionBase):
 
         # Projections
         self.query_layer = nn.Linear(self.gw_dim, self.head_size)
+        self.per_key_layers: nn.ModuleDict[str, nn.Linear] | None
+        self.shared_key_layer: nn.Linear | None
         if self.per_domain_keys:
             self.per_key_layers = nn.ModuleDict(
                 {d: nn.Linear(self.gw_dim, self.head_size) for d in self.domain_names}
@@ -252,8 +254,16 @@ class LearnedAttention(SelectionBase):
             gw_latents = {d: gw_latents[d] for d in present}
 
         if self.per_domain_keys:
+            if self.per_key_layers is None:
+                raise RuntimeError(
+                    "per_domain_keys=True but per-domain key layers are missing."
+                )
             keys = {d: self.per_key_layers[d](gw_latents[d]) for d in present}
         else:
+            if self.shared_key_layer is None:
+                raise RuntimeError(
+                    "per_domain_keys=False but shared key layer is missing."
+                )
             proj = self.shared_key_layer
             keys = {d: proj(gw_latents[d]) for d in present}
 
