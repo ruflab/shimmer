@@ -185,10 +185,14 @@ class LearnedAttention(SelectionBase):
 
         # Projections
         self.query_layer = nn.Linear(self.gw_dim, self.head_size)
-        self.shared_key_layer = nn.Linear(self.gw_dim, self.head_size)
-        self.per_key_layers = nn.ModuleDict(
-            {d: nn.Linear(self.gw_dim, self.head_size) for d in self.domain_names}
-        )
+        if self.per_domain_keys:
+            self.per_key_layers = nn.ModuleDict(
+                {d: nn.Linear(self.gw_dim, self.head_size) for d in self.domain_names}
+            )
+            self.shared_key_layer = None
+        else:
+            self.shared_key_layer = nn.Linear(self.gw_dim, self.head_size)
+            self.per_key_layers = None
 
     @staticmethod
     def _calc_attention(
