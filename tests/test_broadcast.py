@@ -65,14 +65,23 @@ def test_broadcast_loss():
     }
 
     # Test broadcast_loss with the corrected structure
-    output = gw_fusion.loss_mod.broadcast_loss(latent_domains, latent_domains)
+    result = gw_fusion.loss_mod.broadcast_loss(latent_domains, latent_domains)
+    assert "metrics" in result and "cycle_cases" in result
+    # Cycle metrics are computed in step(), not within broadcast_loss
+    metrics = result["metrics"]
+    assert all(metric in metrics for metric in ["demi_cycles", "translations"])
 
+    # Cycle metrics should appear after the step call
+    step_output = gw_fusion.loss_mod.step(latent_domains, latent_domains, mode="train")
     er_msg = "Demi-cycle, cycle and translation metrics should be in the output."
-    assert all(metric in output for metric in ["demi_cycles", "cycles", "translations"])
+    assert all(
+        metric in step_output.metrics
+        for metric in ["demi_cycles", "cycles", "translations"]
+    )
 
     er_msg = "Losses should be scalar tensors or 1D tensor with size equal to one."
     assert all(
         (loss.dim() == 0 or (loss.dim() == 1 and loss.size(0) == 1))
-        for key, loss in output.items()
+        for key, loss in metrics.items()
         if key.endswith("_loss")
     ), er_msg

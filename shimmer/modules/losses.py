@@ -357,6 +357,28 @@ def combine_loss(
     return loss
 
 
+class CycleCase(TypedDict):
+    """Container for precomputed cycle data to avoid recomputation."""
+
+    loss_label: str
+    domain_name: str
+    prediction: torch.Tensor
+    target: torch.Tensor
+    raw_target: object
+
+
+class BroadcastLossResult(TypedDict):
+    """
+    Broadcast loss output without cycle computation.
+
+    `metrics` contains demi-cycle/translation metrics and per-example losses.
+    `cycle_cases` holds precomputed tensors/labels for later cycle loss computation.
+    """
+
+    metrics: dict[str, torch.Tensor]
+    cycle_cases: list[CycleCase]
+
+
 class GWLosses2Domains(GWLossesBase):
     """
     Implementation of `GWLossesBase` used for `GWModule`.
@@ -519,10 +541,10 @@ def broadcast_loss(
     domain_mods: Mapping[str, DomainModule],
     latent_domains: LatentsDomainGroupsT,
     raw_data: RawDomainGroupsT,
-) -> dict[str, torch.Tensor]:
+) -> BroadcastLossResult:
     """
-    Computes broadcast loss including demi-cycle (with fused), cycle, and translation
-    losses.
+    Computes broadcast demi-cycle (with fused) and translation losses, and prepares
+    precomputed artifacts for cycle losses.
 
     This return multiple metrics:
         * `demi_cycles`
@@ -552,14 +574,14 @@ def broadcast_loss(
         raw_data (`RawDomainGroupsT`): raw input data
 
     Returns:
-        A dictionary with the total loss and additional metrics.
+        `BroadcastLossResult`: demi/translation metrics plus precomputed cycle data.
     """  # noqa: E501
     losses: dict[str, torch.Tensor] = {}
     metrics: dict[str, torch.Tensor] = {}
 
     demi_cycle_losses: list[str] = []
-    cycle_losses: list[str] = []
     translation_losses: list[str] = []
+    cycle_cases: list[CycleCase] = []
 
     for group_domains, latents in latent_domains.items():
         encoded_latents = gw_mod.encode(latents)
@@ -636,35 +658,24 @@ def broadcast_loss(
                 )
 
                 for domain in selected_latents:
-                    re_ground_truth = latents[domain]
-                    re_loss_output = domain_mods[domain].compute_cy_loss(
-                        re_decoded_latents[domain],
-                        re_ground_truth,
-                        raw_data[group_domains][domain],
-                    )
-                    if re_loss_output is None:
-                        continue
                     loss_label = (
                         f"from_{selected_group_label}_"
                         f"through_{inverse_selected_group_label}_to_{domain}_"
                         f"case_{group_name}"
                     )
-                    losses[loss_label + "_loss"] = re_loss_output.loss
-                    metrics.update(
-                        {
-                            f"{loss_label}_{k}": v
-                            for k, v in re_loss_output.metrics.items()
-                        }
+                    cycle_cases.append(
+                        CycleCase(
+                            loss_label=loss_label,
+                            domain_name=domain,
+                            prediction=re_decoded_latents[domain],
+                            target=latents[domain],
+                            raw_target=raw_data[group_domains][domain],
+                        )
                     )
-                    cycle_losses.append(loss_label + "_loss")
 
     if demi_cycle_losses:
         metrics["demi_cycles"] = torch.mean(
             torch.stack([losses[loss_name] for loss_name in demi_cycle_losses])
-        )
-    if cycle_losses:
-        metrics["cycles"] = torch.mean(
-            torch.stack([losses[loss_name] for loss_name in cycle_losses])
         )
     if translation_losses:
         metrics["translations"] = torch.mean(
@@ -672,6 +683,42 @@ def broadcast_loss(
         )
 
     metrics.update(losses)
+    return BroadcastLossResult(metrics=metrics, cycle_cases=cycle_cases)
+
+
+def cycle_loss_from_broadcast(
+    domain_mods: Mapping[str, DomainModule],
+    cycle_cases: list[CycleCase],
+) -> dict[str, torch.Tensor]:
+    """
+    Computes cycle losses from precomputed broadcast artifacts.
+
+    Args:
+        domain_mods: domain modules used to compute the losses.
+        cycle_cases: precomputed cycle data produced by `broadcast_loss`.
+
+    Returns:
+        Metrics dict containing per-case losses/metrics and aggregate `cycles`.
+    """
+    metrics: dict[str, torch.Tensor] = {}
+    cycle_losses: list[str] = []
+
+    for case in cycle_cases:
+        loss_output = domain_mods[case["domain_name"]].compute_cy_loss(
+            case["prediction"], case["target"], case["raw_target"]
+        )
+        if loss_output is None:
+            continue
+        loss_name = case["loss_label"]
+        metrics[loss_name + "_loss"] = loss_output.loss
+        metrics.update({f"{loss_name}_{k}": v for k, v in loss_output.metrics.items()})
+        cycle_losses.append(loss_name + "_loss")
+
+    if cycle_losses:
+        metrics["cycles"] = torch.mean(
+            torch.stack([metrics[loss_name] for loss_name in cycle_losses])
+        )
+
     return metrics
 
 
@@ -722,7 +769,7 @@ class GWLosses(GWLossesBase):
 
     def broadcast_loss(
         self, latent_domains: LatentsDomainGroupsT, raw_data: RawDomainGroupsT
-    ) -> dict[str, torch.Tensor]:
+    ) -> BroadcastLossResult:
         return broadcast_loss(
             self.gw_mod, self.selection_mod, self.domain_mods, latent_domains, raw_data
         )
@@ -748,7 +795,11 @@ class GWLosses(GWLossesBase):
         metrics: dict[str, torch.Tensor] = {}
 
         metrics.update(self.contrastive_loss(domain_latents))
-        metrics.update(self.broadcast_loss(domain_latents, raw_data))
+        broadcast_result = self.broadcast_loss(domain_latents, raw_data)
+        metrics.update(broadcast_result["metrics"])
+        metrics.update(
+            cycle_loss_from_broadcast(self.domain_mods, broadcast_result["cycle_cases"])
+        )
 
         loss = combine_loss(metrics, self.loss_coefs)
 
