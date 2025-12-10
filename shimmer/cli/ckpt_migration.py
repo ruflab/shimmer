@@ -10,9 +10,9 @@ from shimmer.utils import migrate_model
 @click.argument(
     "paths",
     nargs=-1,
-    type=click.Path(exists=True, file_okay=True, dir_okay=False),
+    type=click.Path(exists=True, path_type=Path, file_okay=True, dir_okay=False),
 )
-def migrate_ckpt(paths: Sequence[str]):
+def migrate_ckpt(paths: Sequence[Path]):
     """
     Script to migrate a list of checkpoints.
     This can be called with:
@@ -24,4 +24,4 @@ def migrate_ckpt(paths: Sequence[str]):
     Internally, this calls `shimmer.utils.migrate_model` for each of the given paths.
     """
     for path in paths:
-        migrate_model(Path(path))
+        migrate_model(path)
