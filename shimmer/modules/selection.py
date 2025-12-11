@@ -216,9 +216,7 @@ class LearnedAttention(SelectionBase):
                 raise ValueError(
                     "key_on_prefusion=False requires domain_dims for key projections."
                 )
-            missing_dims = [
-                d for d in self.domain_names if d not in self.domain_dims
-            ]
+            missing_dims = [d for d in self.domain_names if d not in self.domain_dims]
             if missing_dims:
                 raise ValueError(
                     f"Missing domain_dims for: {', '.join(sorted(missing_dims))}"
