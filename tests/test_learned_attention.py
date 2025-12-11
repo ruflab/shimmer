@@ -158,13 +158,3 @@ def test_global_workspace_init_learned_attention_shared_error() -> None:
             stopgrad=True,
             key_on_prefusion=False,
         )
-
-    with pytest.raises(ValueError):
-        LearnedAttention(
-            gw_dim=4,
-            domain_names=["a", "b"],
-            head_size=3,
-            per_domain_keys=True,
-            stopgrad=True,
-            key_on_prefusion=False,
-        )
