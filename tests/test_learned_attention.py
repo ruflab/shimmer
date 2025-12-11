@@ -1,3 +1,4 @@
+import pytest
 import torch
 
 from shimmer.modules.selection import LearnedAttention
@@ -51,3 +52,54 @@ def test_learned_attention_stopgrad_toggle() -> None:
     torch.stack(list(trainable_weights.values())).sum().backward()
     assert train_latents["a"].grad is not None
     assert train_latents["b"].grad is not None
+
+
+def test_learned_attention_domain_key_path() -> None:
+    domain_dims = {"a": 3, "b": 5}
+    selector = LearnedAttention(
+        gw_dim=4,
+        domain_names=domain_dims.keys(),
+        head_size=3,
+        per_domain_keys=True,
+        stopgrad=False,
+        key_on_prefusion=False,
+        domain_dims=domain_dims,
+    )
+
+    domain_latents = {
+        "a": torch.randn(6, 3, requires_grad=True),
+        "b": torch.randn(6, 5, requires_grad=True),
+    }
+    prefusion_latents = {
+        "a": torch.randn(6, 4, requires_grad=True),
+        "b": torch.randn(6, 4, requires_grad=True),
+    }
+
+    weights = selector(domain_latents, encodings_pre_fusion=prefusion_latents)
+
+    stacked = torch.stack([weights["a"], weights["b"]], dim=1)
+    assert torch.allclose(stacked.sum(dim=1), torch.ones(6))
+
+
+def test_learned_attention_domain_key_shared_layer_error() -> None:
+    domain_dims = {"a": 3, "b": 5}
+    with pytest.raises(ValueError):
+        LearnedAttention(
+            gw_dim=4,
+            domain_names=domain_dims.keys(),
+            head_size=3,
+            per_domain_keys=False,
+            stopgrad=True,
+            key_on_prefusion=False,
+            domain_dims=domain_dims,
+        )
+
+    with pytest.raises(ValueError):
+        LearnedAttention(
+            gw_dim=4,
+            domain_names=domain_dims.keys(),
+            head_size=3,
+            per_domain_keys=True,
+            stopgrad=True,
+            key_on_prefusion=False,
+        )
