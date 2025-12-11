@@ -1,3 +1,4 @@
+import warnings
 from collections.abc import Callable, Iterable, Mapping
 from enum import Enum, auto
 from pathlib import Path
@@ -807,6 +808,15 @@ class GlobalWorkspaceFusion(GlobalWorkspaceBase[GWModule, SelectionBase, GWLosse
         the current workspace (uses `workspace_dim` and domain names from
         `domain_mods`), ensuring its parameters are tracked by Lightning/torch.
         """
+        warnings.warn(
+            (
+                "LearnedAttention is best used after pretraining the global workspace "
+                "with a simpler selection (e.g., random or single-domain). "
+                "This path is minimally validated; use at your own risk."
+            ),
+            UserWarning,
+            stacklevel=2,
+        )
         if not key_on_prefusion and not per_domain_keys:
             raise ValueError(
                 "key_on_prefusion=False requires per_domain_keys=True because "
