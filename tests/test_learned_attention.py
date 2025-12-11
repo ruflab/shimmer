@@ -1,6 +1,12 @@
 import pytest
 import torch
+import torch.nn as nn
 
+from shimmer.modules.domain import DomainModule
+from shimmer.modules.global_workspace import (
+    GlobalWorkspaceFusion,
+    freeze_domain_modules,
+)
 from shimmer.modules.selection import LearnedAttention
 
 
@@ -94,10 +100,69 @@ def test_learned_attention_domain_key_shared_layer_error() -> None:
             domain_dims=domain_dims,
         )
 
+
+class _DummyDomain(DomainModule):
+    def __init__(self, latent_dim: int):
+        super().__init__(latent_dim)
+
+    def encode(self, x: torch.Tensor) -> torch.Tensor:  # pragma: no cover - simple stub
+        return x
+
+    def decode(self, z: torch.Tensor) -> torch.Tensor:  # pragma: no cover - simple stub
+        return z
+
+
+def test_global_workspace_init_learned_attention_domain_dims() -> None:
+    domain_mods = freeze_domain_modules({"a": _DummyDomain(3), "b": _DummyDomain(5)})
+    gw_encoders = {"a": nn.Identity(), "b": nn.Identity()}
+    gw_decoders = {"a": nn.Identity(), "b": nn.Identity()}
+
+    gw = GlobalWorkspaceFusion(
+        domain_mods=domain_mods,
+        gw_encoders=gw_encoders,
+        gw_decoders=gw_decoders,
+        workspace_dim=4,
+        loss_coefs={"contrastives": 0.0},
+    )
+
+    selector = gw.init_learned_attention(
+        head_size=2,
+        per_domain_keys=True,
+        stopgrad=False,
+        key_on_prefusion=False,
+    )
+
+    assert selector.key_on_prefusion is False
+    assert selector.per_key_layers is not None
+    assert selector.per_key_layers["a"].weight.shape[1] == 3
+    assert selector.per_key_layers["b"].weight.shape[1] == 5
+
+
+def test_global_workspace_init_learned_attention_shared_error() -> None:
+    domain_mods = freeze_domain_modules({"a": _DummyDomain(3), "b": _DummyDomain(5)})
+    gw_encoders = {"a": nn.Identity(), "b": nn.Identity()}
+    gw_decoders = {"a": nn.Identity(), "b": nn.Identity()}
+
+    gw = GlobalWorkspaceFusion(
+        domain_mods=domain_mods,
+        gw_encoders=gw_encoders,
+        gw_decoders=gw_decoders,
+        workspace_dim=4,
+        loss_coefs={"contrastives": 0.0},
+    )
+
+    with pytest.raises(ValueError):
+        gw.init_learned_attention(
+            head_size=2,
+            per_domain_keys=False,
+            stopgrad=True,
+            key_on_prefusion=False,
+        )
+
     with pytest.raises(ValueError):
         LearnedAttention(
             gw_dim=4,
-            domain_names=domain_dims.keys(),
+            domain_names=["a", "b"],
             head_size=3,
             per_domain_keys=True,
             stopgrad=True,

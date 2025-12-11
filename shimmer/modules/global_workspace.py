@@ -797,6 +797,8 @@ class GlobalWorkspaceFusion(GlobalWorkspaceBase[GWModule, SelectionBase, GWLosse
         head_size: int = 64,
         per_domain_keys: bool = False,
         stopgrad: bool = True,
+        key_on_prefusion: bool = True,
+        domain_dims: Mapping[str, int] | None = None,
     ) -> LearnedAttention:
         """
         Initialize and attach a learned content-based attention module.
@@ -805,12 +807,32 @@ class GlobalWorkspaceFusion(GlobalWorkspaceBase[GWModule, SelectionBase, GWLosse
         the current workspace (uses `workspace_dim` and domain names from
         `domain_mods`), ensuring its parameters are tracked by Lightning/torch.
         """
+        if not key_on_prefusion and not per_domain_keys:
+            raise ValueError(
+                "key_on_prefusion=False requires per_domain_keys=True because "
+                "domain latent dimensions can differ."
+            )
+
+        final_domain_dims = domain_dims
+        if not key_on_prefusion:
+            if final_domain_dims is None:
+                final_domain_dims = {
+                    name: mod.latent_dim for name, mod in self.domain_mods.items()
+                }
+            missing = [d for d in self.domain_mods if d not in final_domain_dims]
+            if missing:
+                raise ValueError(
+                    f"Missing domain_dims for: {', '.join(sorted(missing))}"
+                )
+
         selection = LearnedAttention(
             gw_dim=self.workspace_dim,
             domain_names=self.domain_mods.keys(),
             head_size=head_size,
             per_domain_keys=per_domain_keys,
             stopgrad=stopgrad,
+            key_on_prefusion=key_on_prefusion,
+            domain_dims=final_domain_dims,
         )
         self.selection_mod = selection
         return selection
