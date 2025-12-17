@@ -367,7 +367,7 @@ class CycleCase(TypedDict):
     raw_group: Mapping[str, object]
 
 
-class BroadcastLossResult(TypedDict):
+class BroadcastResult(TypedDict):
     """
     Broadcast loss output without cycle computation.
 
@@ -535,13 +535,13 @@ def generate_partitions(n: int) -> Generator[tuple[int, ...], None, None]:
             yield perm
 
 
-def broadcast_loss(
+def broadcast(
     gw_mod: GWModuleBase,
     selection_mod: SelectionBase,
     domain_mods: Mapping[str, DomainModule],
     latent_domains: LatentsDomainGroupsT,
     raw_data: RawDomainGroupsT,
-) -> BroadcastLossResult:
+) -> BroadcastResult:
     """
     Computes broadcast demi-cycle (with fused) and translation losses, and prepares
     precomputed artifacts for cycle losses.
@@ -574,7 +574,7 @@ def broadcast_loss(
         raw_data (`RawDomainGroupsT`): raw input data
 
     Returns:
-        `BroadcastLossResult`: demi/translation metrics plus precomputed cycle data.
+        `BroadcastResult`: demi/translation metrics plus precomputed cycle data.
     """  # noqa: E501
     losses: dict[str, torch.Tensor] = {}
     metrics: dict[str, torch.Tensor] = {}
@@ -658,7 +658,7 @@ def broadcast_loss(
         )
 
     metrics.update(losses)
-    return BroadcastLossResult(metrics=metrics, cycle_cases=cycle_cases)
+    return BroadcastResult(metrics=metrics, cycle_cases=cycle_cases)
 
 
 def cycle_loss_from_broadcast(
@@ -674,7 +674,7 @@ def cycle_loss_from_broadcast(
         gw_mod: GW module used for encoding/decoding.
         selection_mod: selection module used during fusion.
         domain_mods: domain modules used to compute the losses.
-        cycle_cases: precomputed cycle data produced by `broadcast_loss`.
+        cycle_cases: precomputed cycle data produced by `broadcast`.
 
     Returns:
         Metrics dict containing per-case losses/metrics and aggregate `cycles`.
@@ -772,10 +772,10 @@ class GWLosses(GWLossesBase):
 
         return contrastive_loss(self.gw_mod, latent_domains, self.contrastive_fn)
 
-    def broadcast_loss(
+    def broadcast(
         self, latent_domains: LatentsDomainGroupsT, raw_data: RawDomainGroupsT
-    ) -> BroadcastLossResult:
-        return broadcast_loss(
+    ) -> BroadcastResult:
+        return broadcast(
             self.gw_mod, self.selection_mod, self.domain_mods, latent_domains, raw_data
         )
 
@@ -797,29 +797,22 @@ class GWLosses(GWLossesBase):
             A LossOutput object containing the loss and metrics for this step.
         """
 
-        metrics: dict[str, torch.Tensor] = {}
-
-        metrics.update(self.contrastive_loss(domain_latents))
-        broadcast_result = self.broadcast_loss(domain_latents, raw_data)
-        metrics.update(broadcast_result["metrics"])
-        metrics.update(
-            cycle_loss_from_broadcast(
-                self.gw_mod,
-                self.selection_mod,
-                self.domain_mods,
-                broadcast_result["cycle_cases"],
-            )
+        contrastive_metrics = self.contrastive_loss(domain_latents)
+        broadcast_result = self.broadcast(domain_latents, raw_data)
+        cycle_metrics = cycle_loss_from_broadcast(
+            self.gw_mod,
+            self.selection_mod,
+            self.domain_mods,
+            broadcast_result["cycle_cases"],
         )
 
-        loss = combine_loss(metrics, self.loss_coefs)
+        loss_inputs: dict[str, torch.Tensor] = {
+            **contrastive_metrics,
+            **broadcast_result["metrics"],
+            **cycle_metrics,
+        }
 
-        metrics["broadcast_loss"] = torch.stack(
-            [
-                metrics[name]
-                for name, coef in self.loss_coefs.items()
-                if isinstance(coef, float) and name != "contrastives"
-            ],
-            dim=0,
-        ).mean()
+        loss = combine_loss(loss_inputs, self.loss_coefs)
 
-        return LossOutput(loss, metrics)
+        # Do not log broadcast components; keep non-broadcast metrics only.
+        return LossOutput(loss, metrics=dict(contrastive_metrics))

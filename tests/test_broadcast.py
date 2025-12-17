@@ -27,7 +27,7 @@ class DummyDomainModule(DomainModule):
         return LossOutput(loss=loss)  # Constructing LossOutput with the loss
 
 
-def test_broadcast_loss():
+def test_broadcast():
     domain_mods: dict[str, DomainModule] = {
         "domain1": DummyDomainModule(latent_dim=10),
         "domain2": DummyDomainModule(latent_dim=10),
@@ -55,7 +55,7 @@ def test_broadcast_loss():
         learn_logit_scale=False,
     )
 
-    # Adjusting the dummy data to fit the expected input structure for broadcast_loss
+    # Adjusting the dummy data to fit the expected input structure for broadcast
     # Now using a frozenset for the keys to match LatentsDomainGroupsT
     latent_domains = {
         frozenset(["domain1", "domain2"]): {
@@ -64,20 +64,18 @@ def test_broadcast_loss():
         }
     }
 
-    # Test broadcast_loss with the corrected structure
-    result = gw_fusion.loss_mod.broadcast_loss(latent_domains, latent_domains)
+    # Test broadcast with the corrected structure
+    result = gw_fusion.loss_mod.broadcast(latent_domains, latent_domains)
     assert "metrics" in result and "cycle_cases" in result
-    # Cycle metrics are computed in step(), not within broadcast_loss
+    # Cycle metrics are computed in step(), not within broadcast
     metrics = result["metrics"]
     assert all(metric in metrics for metric in ["demi_cycles", "translations"])
 
-    # Cycle metrics should appear after the step call
+    # Broadcast metrics should not be logged from step()
     step_output = gw_fusion.loss_mod.step(latent_domains, latent_domains, mode="train")
-    er_msg = "Demi-cycle, cycle and translation metrics should be in the output."
-    assert all(
-        metric in step_output.metrics
-        for metric in ["demi_cycles", "cycles", "translations"]
-    )
+    assert "demi_cycles" not in step_output.metrics
+    assert "translations" not in step_output.metrics
+    assert "cycles" not in step_output.metrics
 
     er_msg = "Losses should be scalar tensors or 1D tensor with size equal to one."
     assert all(
