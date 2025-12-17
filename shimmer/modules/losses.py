@@ -1,5 +1,5 @@
-from abc import ABC, abstractmethod
 import warnings
+from abc import ABC, abstractmethod
 from collections.abc import Generator, Mapping
 from itertools import product
 from typing import TypedDict
@@ -348,9 +348,7 @@ def combine_loss(
         `torch.Tensor`: the combined loss.
     """
     missing = {
-        name
-        for name in _EXPECTED_COEF_KEYS
-        if name in metrics and name not in coefs
+        name for name in _EXPECTED_COEF_KEYS if name in metrics and name not in coefs
     }
     for name in sorted(missing):
         if name not in _MISSING_COEFS_WARNED:
