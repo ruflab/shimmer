@@ -565,16 +565,15 @@ def broadcast(
     Computes broadcast demi-cycle (with fused) and translation losses, and prepares
     precomputed artifacts for cycle losses.
 
-    This return multiple metrics:
+    This returns multiple metrics:
         * `demi_cycles`
-        * `cycles`
         * `translations`
         * `from_{start_group}_to_{domain}_loss` where `{start_group}` is of the form
             "{domain1,domain2,domainN}" sorted in alphabetical order
             (e.g. "from_{t,v}_to_t_loss"). Note: fused cases are aggregated into
             `demi_cycles`.
         * `from_{start_group}_to_{domain}_{metric}` with additional metrics provided by
-            the domain_mod's `compute_broadcast_loss` output
+            the domain module's loss outputs
         * `from_{start_group}_through_{target_group}_to_{domain}_case_{case_group}_loss`
             where `{start_group}`, `{target_group}` and `{case_group}` is of the form
             "{domain1,domain2,domainN}" sorted in alphabetical order
@@ -582,8 +581,7 @@ def broadcast(
             domains, `{target_group}` the target domains used for the cycle and
             `{case_group}` all available domains participating to the loss.
         * `from_{start_group}_through_{target_group}_to_{domain}_case_{case_group}_{metric}`
-            additional metrics provided by the domain_mod's `compute_broadcast_loss`
-            output
+            additional metrics provided by the domain module's loss outputs
 
     Args:
         gw_mod (`shimmer.modules.gw_module.GWModuleBase`): The GWModule to use
