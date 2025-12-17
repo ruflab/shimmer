@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+import warnings
 from collections.abc import Generator, Mapping
 from itertools import product
 from typing import TypedDict
@@ -287,9 +288,9 @@ class LossCoefs(TypedDict, total=False):
     """
     Dict of loss coefficients used in the GWLosses.
 
-    If one is not provided, the coefficient is assumed to be 0 and will not be logged.
-    If the loss is excplicitely set to 0, it will be logged, but not take part in
-    the total loss.
+    If one is not provided, the coefficient is assumed to be 0 and will not be logged
+    (a warning is emitted). If the loss is explicitly set to 0, it will be logged, but
+    not take part in the total loss.
     """
 
     demi_cycles: float
@@ -309,9 +310,9 @@ class BroadcastLossCoefs(TypedDict, total=False):
     """
     Dict of loss coefficients used in the GWLossesFusion.
 
-    If one is not provided, the coefficient is assumed to be 0 and will not be logged.
-    If the loss is excplicitely set to 0, it will be logged, but not take part in
-    the total loss.
+    If one is not provided, the coefficient is assumed to be 0 and will not be logged
+    (a warning is emitted). If the loss is explicitly set to 0, it will be logged, but
+    not take part in the total loss.
     """
 
     contrastives: float
@@ -346,6 +347,20 @@ def combine_loss(
     Returns:
         `torch.Tensor`: the combined loss.
     """
+    missing = {
+        name
+        for name in _EXPECTED_COEF_KEYS
+        if name in metrics and name not in coefs
+    }
+    for name in sorted(missing):
+        if name not in _MISSING_COEFS_WARNED:
+            warnings.warn(
+                f"Loss coefficient '{name}' not provided; defaulting to 0.",
+                UserWarning,
+                stacklevel=2,
+            )
+            _MISSING_COEFS_WARNED.add(name)
+
     loss = torch.stack(
         [
             metrics[name] * coef
@@ -355,6 +370,10 @@ def combine_loss(
         dim=0,
     ).mean()
     return loss
+
+
+_EXPECTED_COEF_KEYS = {"contrastives", "demi_cycles", "cycles", "translations"}
+_MISSING_COEFS_WARNED: set[str] = set()
 
 
 class CycleCase(TypedDict):
