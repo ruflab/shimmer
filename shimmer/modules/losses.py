@@ -812,22 +812,23 @@ class GWLosses(GWLossesBase):
             A LossOutput object containing the loss and metrics for this step.
         """
 
-        contrastive_metrics = self.contrastive_loss(domain_latents)
+        metrics: dict[str, torch.Tensor] = {}
+
+        metrics.update(self.contrastive_loss(domain_latents))
         broadcast_result = self.broadcast(domain_latents, raw_data)
-        cycle_metrics = cycle_loss_from_broadcast(
-            self.gw_mod,
-            self.selection_mod,
-            self.domain_mods,
-            broadcast_result["cycle_cases"],
+        metrics.update(broadcast_result["metrics"])
+        metrics.update(
+            cycle_loss_from_broadcast(
+                self.gw_mod,
+                self.selection_mod,
+                self.domain_mods,
+                broadcast_result["cycle_cases"],
+            )
         )
 
-        loss_inputs: dict[str, torch.Tensor] = {
-            **contrastive_metrics,
-            **broadcast_result["metrics"],
-            **cycle_metrics,
-        }
+        loss = combine_loss(metrics, self.loss_coefs)
 
-        loss = combine_loss(loss_inputs, self.loss_coefs)
+        # Do not expose the deprecated broadcast_loss aggregate.
+        metrics.pop("broadcast_loss", None)
 
-        # Do not log broadcast components; keep non-broadcast metrics only.
-        return LossOutput(loss, metrics=dict(contrastive_metrics))
+        return LossOutput(loss, metrics)

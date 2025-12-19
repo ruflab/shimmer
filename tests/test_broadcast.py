@@ -71,11 +71,11 @@ def test_broadcast():
     metrics = result["metrics"]
     assert all(metric in metrics for metric in ["demi_cycles", "translations"])
 
-    # Broadcast metrics should not be logged from step()
+    # Broadcast metrics should be logged from step (but not the deprecated aggregate)
     step_output = gw_fusion.loss_mod.step(latent_domains, latent_domains, mode="train")
-    assert "demi_cycles" not in step_output.metrics
-    assert "translations" not in step_output.metrics
-    assert "cycles" not in step_output.metrics
+    assert "broadcast_loss" not in step_output.metrics
+    for metric in ["demi_cycles", "translations", "cycles"]:
+        assert metric in step_output.metrics
 
     er_msg = "Losses should be scalar tensors or 1D tensor with size equal to one."
     assert all(
