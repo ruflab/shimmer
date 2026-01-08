@@ -185,25 +185,6 @@ class DomainModule(pl.LightningModule):
         """
         return self.compute_loss(pred, target, raw_target)
 
-    def compute_fused_loss(
-        self, pred: torch.Tensor, target: torch.Tensor, raw_target: Any
-    ) -> LossOutput | None:
-        """
-        Computes the loss for fused (fusion). Override if the fused loss is
-        different that the generic loss.
-
-        Args:
-            pred (`torch.Tensor`): prediction of the model
-            target (`torch.Tensor`): target tensor
-            raw_target (`Any`): raw data from the input
-        Results:
-            `LossOutput | None`: LossOuput with training loss and additional metrics.
-                If `None` is returned, this loss will be ignored and will not
-                participate in the total loss; it can be used to deactivate
-                fused loss for this domain.
-        """
-        return self.compute_loss(pred, target, raw_target)
-
     def compute_domain_loss(self, domain: Any) -> LossOutput | None:
         """
         Compute the unimodal domain loss.

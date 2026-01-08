@@ -27,7 +27,7 @@ class DummyDomainModule(DomainModule):
         return LossOutput(loss=loss)  # Constructing LossOutput with the loss
 
 
-def test_broadcast_loss():
+def test_broadcast():
     domain_mods: dict[str, DomainModule] = {
         "domain1": DummyDomainModule(latent_dim=10),
         "domain2": DummyDomainModule(latent_dim=10),
@@ -36,7 +36,6 @@ def test_broadcast_loss():
     gw_decoders = {"domain1": nn.Linear(10, 10), "domain2": nn.Linear(10, 10)}
     workspace_dim = 10
     loss_coefs: BroadcastLossCoefs = {
-        "fused": 1.0,
         "cycles": 1.0,
         "demi_cycles": 1.0,
         "translations": 1.0,
@@ -56,7 +55,7 @@ def test_broadcast_loss():
         learn_logit_scale=False,
     )
 
-    # Adjusting the dummy data to fit the expected input structure for broadcast_loss
+    # Adjusting the dummy data to fit the expected input structure for broadcast
     # Now using a frozenset for the keys to match LatentsDomainGroupsT
     latent_domains = {
         frozenset(["domain1", "domain2"]): {
@@ -65,18 +64,22 @@ def test_broadcast_loss():
         }
     }
 
-    # Test broadcast_loss with the corrected structure
-    output = gw_fusion.loss_mod.broadcast_loss(latent_domains, latent_domains)
+    # Test broadcast with the corrected structure
+    result = gw_fusion.loss_mod.broadcast(latent_domains, latent_domains)
+    assert "metrics" in result and "cycle_cases" in result
+    # Cycle metrics are computed in step(), not within broadcast
+    metrics = result["metrics"]
+    assert all(metric in metrics for metric in ["demi_cycles", "translations"])
 
-    er_msg = "Demi-cycle, cycle, fused and translation metrics should be in the output."
-    assert all(
-        metric in output
-        for metric in ["demi_cycles", "cycles", "translations", "fused"]
-    ), er_msg
+    # Broadcast metrics should be logged from step (but not the deprecated aggregate)
+    step_output = gw_fusion.loss_mod.step(latent_domains, latent_domains, mode="train")
+    assert "broadcast_loss" not in step_output.metrics
+    for metric in ["demi_cycles", "translations", "cycles"]:
+        assert metric in step_output.metrics
 
     er_msg = "Losses should be scalar tensors or 1D tensor with size equal to one."
     assert all(
         (loss.dim() == 0 or (loss.dim() == 1 and loss.size(0) == 1))
-        for key, loss in output.items()
+        for key, loss in metrics.items()
         if key.endswith("_loss")
     ), er_msg

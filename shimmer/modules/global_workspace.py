@@ -1,3 +1,4 @@
+import warnings
 from collections.abc import Callable, Iterable, Mapping
 from enum import Enum, auto
 from pathlib import Path
@@ -29,6 +30,7 @@ from shimmer.modules.losses import (
     LossCoefs,
 )
 from shimmer.modules.selection import (
+    LearnedAttention,
     RandomSelection,
     SelectionBase,
     SingleDomainSelection,
@@ -65,7 +67,7 @@ class GWPredictionsBase(TypedDict):
     broadcasts: dict[frozenset[str], dict[str, torch.Tensor]]
     """
     broadcasts predictions of the model for each domain. It contains demi-cycles,
-    translations, and fused.
+    translations.
     """
 
     cycles: dict[frozenset[str], dict[str, torch.Tensor]]
@@ -706,7 +708,7 @@ class GlobalWorkspace2Domains(
         )
 
 
-class GlobalWorkspaceFusion(GlobalWorkspaceBase[GWModule, RandomSelection, GWLosses]):
+class GlobalWorkspaceFusion(GlobalWorkspaceBase[GWModule, SelectionBase, GWLosses]):
     """The fusion (with broadcast loss) flavor of GlobalWorkspaceBase.
 
     This is used to simplify a Global Workspace instanciation and only overrides the
@@ -721,6 +723,7 @@ class GlobalWorkspaceFusion(GlobalWorkspaceBase[GWModule, RandomSelection, GWLos
         workspace_dim: int,
         loss_coefs: BroadcastLossCoefs | Mapping[str, float],
         selection_temperature: float = 0.2,
+        selection_mod: SelectionBase | None = None,
         optim_lr: float = 1e-3,
         optim_weight_decay: float = 0.0,
         scheduler_args: SchedulerArgs | None = None,
@@ -748,7 +751,9 @@ class GlobalWorkspaceFusion(GlobalWorkspaceBase[GWModule, RandomSelection, GWLos
             loss_coefs (`BroadcastLossCoefs | Mapping[str, float]`): loss coefs for the
                 losses.
             selection_temperature (`float`): temperature value for the RandomSelection
-                module.
+                module (default selection).
+            selection_mod (`SelectionBase | None`): optional custom selection module.
+                If None (default), uses `RandomSelection`.
             optim_lr (`float`): learning rate
             optim_weight_decay (`float`): weight decay
             scheduler_args (`SchedulerArgs | None`): optimization scheduler's arguments
@@ -772,7 +777,8 @@ class GlobalWorkspaceFusion(GlobalWorkspaceBase[GWModule, RandomSelection, GWLos
                 torch.tensor([1 / 0.07]).log(), "mean", learn_logit_scale
             )
 
-        selection_mod = RandomSelection(selection_temperature)
+        if selection_mod is None:
+            selection_mod = RandomSelection(selection_temperature)
         loss_mod = GWLosses(
             gw_mod, selection_mod, domain_mods, loss_coefs, contrastive_loss
         )
@@ -786,6 +792,60 @@ class GlobalWorkspaceFusion(GlobalWorkspaceBase[GWModule, RandomSelection, GWLos
             scheduler_args,
             scheduler,
         )
+
+    def init_learned_attention(
+        self,
+        head_size: int = 64,
+        per_domain_keys: bool = False,
+        stopgrad: bool = True,
+        key_on_prefusion: bool = True,
+        domain_dims: Mapping[str, int] | None = None,
+    ) -> LearnedAttention:
+        """
+        Initialize and attach a learned content-based attention module.
+
+        This replaces `self.selection_mod` with a `LearnedAttention` configured for
+        the current workspace (uses `workspace_dim` and domain names from
+        `domain_mods`), ensuring its parameters are tracked by Lightning/torch.
+        """
+        warnings.warn(
+            (
+                "LearnedAttention is best used after pretraining the global workspace "
+                "with a simpler selection (e.g., random or single-domain). "
+                "This path is minimally validated; use at your own risk."
+            ),
+            UserWarning,
+            stacklevel=2,
+        )
+        if not key_on_prefusion and not per_domain_keys:
+            raise ValueError(
+                "key_on_prefusion=False requires per_domain_keys=True because "
+                "domain latent dimensions can differ."
+            )
+
+        final_domain_dims = domain_dims
+        if not key_on_prefusion:
+            if final_domain_dims is None:
+                final_domain_dims = {
+                    name: mod.latent_dim for name, mod in self.domain_mods.items()
+                }
+            missing = [d for d in self.domain_mods if d not in final_domain_dims]
+            if missing:
+                raise ValueError(
+                    f"Missing domain_dims for: {', '.join(sorted(missing))}"
+                )
+
+        selection = LearnedAttention(
+            gw_dim=self.workspace_dim,
+            domain_names=self.domain_mods.keys(),
+            head_size=head_size,
+            per_domain_keys=per_domain_keys,
+            stopgrad=stopgrad,
+            key_on_prefusion=key_on_prefusion,
+            domain_dims=final_domain_dims,
+        )
+        self.selection_mod = selection
+        return selection
 
 
 def pretrained_global_workspace(

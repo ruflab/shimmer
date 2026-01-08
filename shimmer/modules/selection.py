@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
+from typing import cast
 
 import torch
 import torch.nn as nn
@@ -150,6 +151,192 @@ def _calculate_attention_dict(
         domain: attention_scores[:, i] for i, domain in enumerate(domains)
     }
     return attention_dict
+
+
+class LearnedAttention(SelectionBase):
+    """
+    Content-based single-step attention over GW latents with configurable toggles.
+
+    Design:
+    - Query is the mean of available GW latents (content-q0 seed)
+    - Single-step dot-product attention over domains (no refinement loop)
+    - Optional per-domain keys
+
+    Toggles:
+    - per_domain_keys: use per-domain key projections instead of a shared one
+    - stopgrad: detach GW latents before computing keys/query
+    - key_on_prefusion: compute keys on pre-fusion GW latents (True) or raw domains
+    - domain_dims: required when key_on_prefusion=False to size per-domain key layers
+    """
+
+    def __init__(
+        self,
+        gw_dim: int,
+        domain_names: Iterable[str],
+        head_size: int = 64,
+        per_domain_keys: bool = False,
+        stopgrad: bool = True,
+        key_on_prefusion: bool = True,
+        domain_dims: Mapping[str, int] | None = None,
+    ):
+        super().__init__()
+        self.gw_dim = int(gw_dim)
+        self.head_size = int(head_size)
+        self.domain_names = list(domain_names)
+
+        # Toggles
+        self.per_domain_keys = bool(per_domain_keys)
+        self.stopgrad = bool(stopgrad)
+        self.key_on_prefusion = bool(key_on_prefusion)
+        self.domain_dims = dict(domain_dims) if domain_dims is not None else None
+
+        # Projections
+        self.query_layer = nn.Linear(self.gw_dim, self.head_size)
+        self.per_key_layers: nn.ModuleDict | None
+        self.shared_key_layer: nn.Linear | None
+        if self.key_on_prefusion:
+            if self.per_domain_keys:
+                self.per_key_layers = nn.ModuleDict(
+                    {
+                        d: nn.Linear(self.gw_dim, self.head_size)
+                        for d in self.domain_names
+                    }
+                )
+                self.shared_key_layer = None
+            else:
+                self.shared_key_layer = nn.Linear(self.gw_dim, self.head_size)
+                self.per_key_layers = None
+        else:
+            if not self.per_domain_keys:
+                raise ValueError(
+                    "key_on_prefusion=False requires per_domain_keys=True because "
+                    "domain latent dimensions can differ."
+                )
+            if self.domain_dims is None:
+                raise ValueError(
+                    "key_on_prefusion=False requires domain_dims for key projections."
+                )
+            missing_dims = [d for d in self.domain_names if d not in self.domain_dims]
+            if missing_dims:
+                raise ValueError(
+                    f"Missing domain_dims for: {', '.join(sorted(missing_dims))}"
+                )
+            self.per_key_layers = nn.ModuleDict(
+                {
+                    d: nn.Linear(self.domain_dims[d], self.head_size)
+                    for d in self.domain_names
+                }
+            )
+            self.shared_key_layer = None
+
+    @staticmethod
+    def _calc_attention(
+        keys: dict[str, torch.Tensor],
+        query: torch.Tensor,
+        order: Iterable[str],
+    ) -> dict[str, torch.Tensor]:
+        """
+        Compute attention over domains.
+
+        Args:
+            keys: mapping of domain -> key tensor (B, H)
+            query: query tensor (B, H)
+            order: iterable of domain names to fix output ordering
+
+        Returns:
+            dict[str, torch.Tensor]: per-domain attention scores that sum to 1.
+        """
+        names = [d for d in order if d in keys]
+        if not names:
+            raise ValueError("LearnedAttention: no keys provided.")
+
+        logits = torch.stack(
+            [(keys[d] * query).sum(dim=1) for d in names], dim=1
+        )  # (B, D)
+
+        probs = torch.softmax(logits, dim=1)
+
+        return {d: probs[:, i] for i, d in enumerate(names)}
+
+    def forward(
+        self,
+        domains: LatentsDomainGroupT,
+        encodings_pre_fusion: LatentsDomainGroupT | None = None,
+    ) -> dict[str, torch.Tensor]:
+        """
+        Args:
+            domains: mapping from domain name to GW latent (B, gw_dim)
+            encodings_pre_fusion: pre-fusion encodings (used when key_on_prefusion)
+
+        Returns:
+            dict[str, torch.Tensor]: per-domain attention weights.
+        """
+        domain_latents: Mapping[str, torch.Tensor] = domains
+
+        present = [d for d in self.domain_names if d in domain_latents]
+        if not present:
+            raise ValueError(
+                "LearnedAttention: no known domains present in gw_latents."
+            )
+
+        if self.key_on_prefusion:
+            if encodings_pre_fusion is None:
+                raise ValueError(
+                    "key_on_prefusion=True requires encodings_pre_fusion inputs."
+                )
+            key_source = encodings_pre_fusion
+        else:
+            key_source = domain_latents
+
+        missing_keys = [d for d in present if d not in key_source]
+        if missing_keys:
+            raise ValueError(
+                f"Missing key latents for: {', '.join(sorted(missing_keys))}"
+            )
+
+        if encodings_pre_fusion is None:
+            query_source = domain_latents
+        else:
+            query_source = encodings_pre_fusion
+
+        missing_query = [d for d in present if d not in query_source]
+        if missing_query:
+            raise ValueError(
+                f"Missing query latents for: {', '.join(sorted(missing_query))}"
+            )
+
+        if self.stopgrad:
+            key_latents = {d: key_source[d].detach() for d in present}
+            query_latents = {d: query_source[d].detach() for d in present}
+        else:
+            key_latents = {d: key_source[d] for d in present}
+            query_latents = {d: query_source[d] for d in present}
+
+        if self.per_domain_keys:
+            if self.per_key_layers is None:
+                raise RuntimeError(
+                    "per_domain_keys=True but per-domain key layers are missing."
+                )
+            keys = {
+                d: cast(nn.Linear, self.per_key_layers[d])(key_latents[d])
+                for d in present
+            }
+        else:
+            if self.shared_key_layer is None:
+                raise RuntimeError(
+                    "per_domain_keys=False but shared key layer is missing."
+                )
+            proj = self.shared_key_layer
+            keys = {d: proj(key_latents[d]) for d in present}
+
+        stacked = torch.stack([query_latents[d] for d in present], dim=0)  # (D, B, F)
+        query = self.query_layer(stacked.mean(0))  # (B, H)
+
+        return self._calc_attention(
+            keys=keys,
+            query=query,
+            order=self.domain_names,
+        )
 
 
 class RandomSelection(SelectionBase):
