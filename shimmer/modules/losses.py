@@ -305,32 +305,9 @@ class LossCoefs(TypedDict, total=False):
     contrastives: float
     """Contrastive loss coefficient."""
 
-
-class BroadcastLossCoefs(TypedDict, total=False):
-    """
-    Dict of loss coefficients used in the GWLossesFusion.
-
-    If one is not provided, the coefficient is assumed to be 0 and will not be logged
-    (a warning is emitted). If the loss is explicitly set to 0, it will be logged, but
-    not take part in the total loss.
-    """
-
-    contrastives: float
-    """Contrastive loss coefficient."""
-
-    demi_cycles: float
-    """demi_cycles loss coefficient. Demi-cycles aggregate fused cases too."""
-
-    cycles: float
-    """cycles loss coefficient. Cycles can be many-to-one"""
-
-    translations: float
-    """translation loss coefficient. Translation, like cycles, can be many-to-one."""
-
-
 def combine_loss(
     metrics: dict[str, torch.Tensor],
-    coefs: Mapping[str, float] | LossCoefs | BroadcastLossCoefs,
+    coefs: Mapping[str, float] | LossCoefs,
 ) -> torch.Tensor:
     """
     Combines the metrics according to the ones selected in coefs
@@ -626,12 +603,10 @@ def broadcast(
                     continue
                 ground_truth = latents[domain]
 
-                if num_active_domains == 1 and domain in selected_latents:
+                if domain in selected_latents:
                     loss_fn = domain_mods[domain].compute_dcy_loss
-                elif domain not in selected_latents:
-                    loss_fn = domain_mods[domain].compute_tr_loss
                 else:
-                    loss_fn = domain_mods[domain].compute_dcy_loss
+                    loss_fn = domain_mods[domain].compute_tr_loss
 
                 loss_output = loss_fn(
                     pred, ground_truth, raw_data[group_domains][domain]
@@ -645,13 +620,11 @@ def broadcast(
                     {f"{loss_label}_{k}": v for k, v in loss_output.metrics.items()}
                 )
 
-                if num_active_domains == 1 and domain in selected_latents:
+                if domain in selected_latents:
                     demi_cycle_losses.append(loss_label + "_loss")
-                elif domain not in selected_latents:
+                else:
                     translation_losses.append(loss_label + "_loss")
-                else:  # fused loss counts toward demi_cycles aggregate
-                    demi_cycle_losses.append(loss_label + "_loss")
-
+                
             if num_active_domains < num_total_domains:
                 cycle_cases.append(
                     CycleCase(
@@ -752,7 +725,7 @@ class GWLosses(GWLossesBase):
         gw_mod: GWModule,
         selection_mod: SelectionBase,
         domain_mods: dict[str, DomainModule],
-        loss_coefs: BroadcastLossCoefs | Mapping[str, float],
+        loss_coefs: LossCoefs | Mapping[str, float],
         contrastive_fn: ContrastiveLossType,
     ):
         """
@@ -762,7 +735,7 @@ class GWLosses(GWLossesBase):
             gw_mod: The GWModule for the global workspace.
             selection_mod: The selection mechanism for the model.
             domain_mods: A mapping of domain names to their respective DomainModule.
-            loss_coefs (`BroadcastLossCoefs`): coefs for the losses
+            loss_coefs (`LossCoefs`): coefs for the losses
             contrastive_fn: The function used for computing contrastive loss.
         """
         super().__init__()
