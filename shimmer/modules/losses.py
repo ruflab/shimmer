@@ -624,7 +624,7 @@ def broadcast(
                     demi_cycle_losses.append(loss_label + "_loss")
                 else:
                     translation_losses.append(loss_label + "_loss")
-                
+
             if num_active_domains < num_total_domains:
                 cycle_cases.append(
                     CycleCase(
