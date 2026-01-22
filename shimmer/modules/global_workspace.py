@@ -23,7 +23,6 @@ from shimmer.modules.gw_module import (
     translation,
 )
 from shimmer.modules.losses import (
-    BroadcastLossCoefs,
     GWLosses,
     GWLosses2Domains,
     GWLossesBase,
