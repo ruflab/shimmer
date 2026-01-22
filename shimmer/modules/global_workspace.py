@@ -720,7 +720,7 @@ class GlobalWorkspaceFusion(GlobalWorkspaceBase[GWModule, SelectionBase, GWLosse
         gw_encoders: Mapping[str, Module],
         gw_decoders: Mapping[str, Module],
         workspace_dim: int,
-        loss_coefs: BroadcastLossCoefs | Mapping[str, float],
+        loss_coefs: LossCoefs | Mapping[str, float],
         selection_temperature: float = 0.2,
         selection_mod: SelectionBase | None = None,
         optim_lr: float = 1e-3,
