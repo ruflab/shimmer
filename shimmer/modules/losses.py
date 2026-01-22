@@ -305,6 +305,7 @@ class LossCoefs(TypedDict, total=False):
     contrastives: float
     """Contrastive loss coefficient."""
 
+
 def combine_loss(
     metrics: dict[str, torch.Tensor],
     coefs: Mapping[str, float] | LossCoefs,
