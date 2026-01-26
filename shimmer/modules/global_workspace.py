@@ -23,7 +23,6 @@ from shimmer.modules.gw_module import (
     translation,
 )
 from shimmer.modules.losses import (
-    BroadcastLossCoefs,
     GWLosses,
     GWLosses2Domains,
     GWLossesBase,
@@ -721,7 +720,7 @@ class GlobalWorkspaceFusion(GlobalWorkspaceBase[GWModule, SelectionBase, GWLosse
         gw_encoders: Mapping[str, Module],
         gw_decoders: Mapping[str, Module],
         workspace_dim: int,
-        loss_coefs: BroadcastLossCoefs | Mapping[str, float],
+        loss_coefs: LossCoefs | Mapping[str, float],
         selection_temperature: float = 0.2,
         optim_lr: float = 1e-3,
         optim_weight_decay: float = 0.0,
