@@ -5,7 +5,7 @@ from torch import nn
 
 from shimmer.modules.domain import DomainModule, LossOutput
 from shimmer.modules.global_workspace import GlobalWorkspaceFusion
-from shimmer.modules.losses import BroadcastLossCoefs
+from shimmer.modules.losses import LossCoefs
 
 
 class DummyDomainModule(DomainModule):
@@ -35,7 +35,7 @@ def test_broadcast():
     gw_encoders = {"domain1": nn.Linear(10, 10), "domain2": nn.Linear(10, 10)}
     gw_decoders = {"domain1": nn.Linear(10, 10), "domain2": nn.Linear(10, 10)}
     workspace_dim = 10
-    loss_coefs: BroadcastLossCoefs = {
+    loss_coefs: LossCoefs = {
         "cycles": 1.0,
         "demi_cycles": 1.0,
         "translations": 1.0,

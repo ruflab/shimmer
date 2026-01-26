@@ -27,7 +27,6 @@ from shimmer.modules.gw_module import (
     translation,
 )
 from shimmer.modules.losses import (
-    BroadcastLossCoefs,
     GWLosses2Domains,
     GWLossesBase,
     LossCoefs,
@@ -63,7 +62,6 @@ __all__ = [
     "contrastive_loss",
     "ContrastiveLoss",
     "LossCoefs",
-    "BroadcastLossCoefs",
     "combine_loss",
     "GWLossesBase",
     "GWLosses2Domains",
