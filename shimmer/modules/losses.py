@@ -1,5 +1,6 @@
 import warnings
 from abc import ABC, abstractmethod
+from collections import defaultdict
 from collections.abc import Generator, Mapping
 from itertools import product
 from typing import TypedDict
@@ -38,6 +39,38 @@ class GWLossesBase(torch.nn.Module, ABC):
             `LossOutput`: the losses
         """
         ...
+
+
+def ID_loss(
+    gw_mod: GWModuleBase,
+    selection_mod: SelectionBase,
+    id_loss_type: int
+) -> dict[str, torch.Tensor]:
+    """
+    Computes the ID loss, a cycle-consistency from the inside-out...
+
+    This returns one metrics:
+    * `ID` with the loss between random latent samples and their broadcast+re-encoding.
+
+    Args:
+    gw_mod (`shimmer.modules.gw_module.GWModuleBase`): The GWModule to use
+    selection_mod (`shimmer.modules.selection.SelectionBase`): Selection mod to use
+
+    Returns:
+    `dict[str, torch.Tensor]`: a dict of metrics.
+    """
+    losses: dict[str, torch.Tensor] = {}
+    metrics: dict[str, torch.Tensor] = {}
+
+    noise = gw_mod.noise_amount
+    rand_vecs = gw_mod.activation_fn(torch.randn(1000,gw_mod.workspace_dim).to('cuda'))
+    noisy_rand_vecs = rand_vecs + noise * torch.randn(1000,gw_mod.workspace_dim).to('cuda')
+    preds = gw_mod.encode_and_fuse(gw_mod.decode(
+        noisy_rand_vecs, domains=gw_mod.gw_decoders.keys()
+    ), selection_mod)
+    losses["ID"] = torch.nn.functional.mse_loss(preds,rand_vecs)
+    return losses
+
 
 
 def demi_cycle_loss(
@@ -327,8 +360,11 @@ class BroadcastLossCoefs(TypedDict, total=False):
     translations: float
     """translation loss coefficient. Translation, like cycles, can be many-to-one."""
 
+    id: float
+    """Identity loss coefficient. A cycle-consistency from the inside-out"""
 
-def combine_loss(
+
+def  combine_loss(
     metrics: dict[str, torch.Tensor],
     coefs: Mapping[str, float] | LossCoefs | BroadcastLossCoefs,
 ) -> torch.Tensor:
@@ -591,12 +627,14 @@ def broadcast(
     Returns:
         `BroadcastResult`: demi/translation metrics plus precomputed cycle data.
     """  # noqa: E501
-    losses: dict[str, torch.Tensor] = {}
+    # losses: dict[str, torch.Tensor] = {}
+    losses = defaultdict(list)
     metrics: dict[str, torch.Tensor] = {}
 
     demi_cycle_losses: list[str] = []
     translation_losses: list[str] = []
     cycle_cases: list[CycleCase] = []
+    # fusion_losses: list[str] = []
 
     for group_domains, latents in latent_domains.items():
         encoded_latents = gw_mod.encode(latents)
@@ -640,7 +678,7 @@ def broadcast(
                     continue
 
                 loss_label = f"from_{selected_group_label}_to_{domain}"
-                losses[loss_label + "_loss"] = loss_output.loss
+                losses[loss_label + "_loss"].append(loss_output.loss)
                 metrics.update(
                     {f"{loss_label}_{k}": v for k, v in loss_output.metrics.items()}
                 )
@@ -662,6 +700,8 @@ def broadcast(
                         raw_group=raw_data[group_domains],
                     )
                 )
+
+    losses = {k: torch.stack(v).mean() for k, v in losses.items()}
 
     if demi_cycle_losses:
         metrics["demi_cycles"] = torch.mean(
@@ -754,6 +794,7 @@ class GWLosses(GWLossesBase):
         domain_mods: dict[str, DomainModule],
         loss_coefs: BroadcastLossCoefs | Mapping[str, float],
         contrastive_fn: ContrastiveLossType,
+        id_loss_type: int
     ):
         """
         Initializes the loss computation module for a Global Workspace Fusion model.
@@ -771,6 +812,7 @@ class GWLosses(GWLossesBase):
         self.domain_mods = domain_mods
         self.loss_coefs = loss_coefs
         self.contrastive_fn = contrastive_fn
+        self.id_loss_type = id_loss_type
 
     def contrastive_loss(
         self, latent_domains: LatentsDomainGroupsT
@@ -826,6 +868,7 @@ class GWLosses(GWLossesBase):
             )
         )
 
+        metrics.update(ID_loss(self.gw_mod, self.selection_mod, self.id_loss_type))
         loss = combine_loss(metrics, self.loss_coefs)
 
         # Do not expose the deprecated broadcast_loss aggregate.

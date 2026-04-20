@@ -3,6 +3,7 @@ from collections.abc import Callable, Iterable, Mapping
 from typing import TypedDict
 
 import torch
+import torch.nn.functional as F
 from torch import nn
 
 from shimmer.modules.domain import DomainModule
@@ -357,7 +358,8 @@ class GWModule(GWModuleBase):
         workspace_dim: int,
         gw_encoders: Mapping[str, nn.Module],
         gw_decoders: Mapping[str, nn.Module],
-        fusion_activation_fn: Callable[[torch.Tensor], torch.Tensor] = torch.tanh,
+        activation_fn: Callable[[torch.Tensor], torch.Tensor] = torch.tanh,
+        noise_amount: float = 0.1,
     ) -> None:
         """
         Initializes the GWModule.
@@ -371,8 +373,9 @@ class GWModule(GWModuleBase):
             gw_decoders (`Mapping[str, torch.nn.Module]`): mapping for each domain
                 name to a an torch.nn.Module class that decodes a
                  GW representation to a unimodal latent representation.
-            fusion_activation_fn (`Callable[[torch.Tensor], torch.Tensor]`): activation
+            activation_fn (`Callable[[torch.Tensor], torch.Tensor]`): activation
                 function used to fuse the domains.
+            noise_amount (`float`): the amount of noise in the identity loss.
         """
         super().__init__(domain_modules, workspace_dim)
 
@@ -382,8 +385,10 @@ class GWModule(GWModuleBase):
         self.gw_decoders = nn.ModuleDict(gw_decoders)
         """The module's decoders"""
 
-        self.fusion_activation_fn = fusion_activation_fn
+        self.activation_fn = activation_fn
         """Activation function used to fuse the domains."""
+
+        self.noise_amount = noise_amount
 
     def fuse(
         self,
@@ -400,17 +405,16 @@ class GWModule(GWModuleBase):
         Returns:
             `torch.Tensor`: The merged representation.
         """
-        return self.fusion_activation_fn(
-            torch.sum(
-                torch.stack(
-                    [
-                        selection_scores[domain].unsqueeze(1) * x[domain]
-                        for domain in selection_scores
-                    ]
-                ),
-                dim=0,
-            )
+        z = torch.sum(
+            torch.stack(
+                [
+                    selection_scores[domain].unsqueeze(1)* x[domain]
+                    for domain in selection_scores
+                ]
+            ),
+            dim=0,
         )
+        return z
 
     def encode(self, x: LatentsDomainGroupT) -> LatentsDomainGroupDT:
         """
@@ -423,7 +427,8 @@ class GWModule(GWModuleBase):
             `LatentsDomainGroupT`: pre-fusion representation
         """
         return {
-            domain_name: self.gw_encoders[domain_name](domain)
+            domain_name:
+            self.activation_fn(self.gw_encoders[domain_name](domain))
             for domain_name, domain in x.items()
         }
 

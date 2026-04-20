@@ -723,7 +723,6 @@ class GlobalWorkspaceFusion(GlobalWorkspaceBase[GWModule, SelectionBase, GWLosse
         workspace_dim: int,
         loss_coefs: BroadcastLossCoefs | Mapping[str, float],
         selection_temperature: float = 0.2,
-        selection_mod: SelectionBase | None = None,
         optim_lr: float = 1e-3,
         optim_weight_decay: float = 0.0,
         scheduler_args: SchedulerArgs | None = None,
@@ -733,6 +732,8 @@ class GlobalWorkspaceFusion(GlobalWorkspaceBase[GWModule, SelectionBase, GWLosse
         | None
         | OneCycleSchedulerSentinel = OneCycleSchedulerSentinel.DEFAULT,
         fusion_activation_fn: Callable[[torch.Tensor], torch.Tensor] = torch.tanh,
+        selection_mod: SelectionBase | None = None,
+        id_loss_type: int = 1
     ) -> None:
         """
         Initializes a Global Workspace
@@ -752,8 +753,6 @@ class GlobalWorkspaceFusion(GlobalWorkspaceBase[GWModule, SelectionBase, GWLosse
                 losses.
             selection_temperature (`float`): temperature value for the RandomSelection
                 module (default selection).
-            selection_mod (`SelectionBase | None`): optional custom selection module.
-                If None (default), uses `RandomSelection`.
             optim_lr (`float`): learning rate
             optim_weight_decay (`float`): weight decay
             scheduler_args (`SchedulerArgs | None`): optimization scheduler's arguments
@@ -766,6 +765,8 @@ class GlobalWorkspaceFusion(GlobalWorkspaceBase[GWModule, SelectionBase, GWLosse
                 no scheduler will be used. Defaults to use OneCycleScheduler
             fusion_activation_fn (`Callable[[torch.Tensor], torch.Tensor]`): activation
                 function to fuse the domains.
+            selection_mod (`SelectionBase | None`): optional custom selection module.
+                If None (default), uses `RandomSelection`.
         """
         domain_mods = freeze_domain_modules(domain_mods)
         gw_mod = GWModule(
@@ -780,7 +781,7 @@ class GlobalWorkspaceFusion(GlobalWorkspaceBase[GWModule, SelectionBase, GWLosse
         if selection_mod is None:
             selection_mod = RandomSelection(selection_temperature)
         loss_mod = GWLosses(
-            gw_mod, selection_mod, domain_mods, loss_coefs, contrastive_loss
+            gw_mod, selection_mod, domain_mods, loss_coefs, contrastive_loss, id_loss_type
         )
 
         super().__init__(
